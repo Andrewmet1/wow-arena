@@ -229,7 +229,8 @@ export class ArenaRenderer {
     // Floor edge rim - torus along the floor perimeter
     const rimGeometry = new THREE.TorusGeometry(40, 0.3, 16, 64);
     const rimMaterial = new THREE.MeshStandardMaterial({
-      color: 0x2a2a3a,
+      color: 0x556070,
+      map: ARENA_TEXTURES.wall,
       emissive: 0x0a0a15,
       emissiveIntensity: 0.3,
       roughness: 0.7,
@@ -405,7 +406,8 @@ export class ArenaRenderer {
       // --- Wall base trim: darker strip along the bottom ---
       const baseTrimGeom = new THREE.BoxGeometry(WALL_WIDTH + 0.1, 0.4, WALL_DEPTH + 0.2);
       const baseTrimMat = new THREE.MeshStandardMaterial({
-        color: 0x2a2a3a,
+        color: 0x555568,
+        map: ARENA_TEXTURES.wall,
         roughness: 0.95,
         metalness: 0.05,
       });
@@ -424,7 +426,8 @@ export class ArenaRenderer {
       if (i % 2 === 0) {
         const crenGeom = new THREE.BoxGeometry(WALL_WIDTH * 0.4, 1.0, WALL_DEPTH * 0.8);
         const crenMat = new THREE.MeshStandardMaterial({
-          color: 0x4a5060,
+          color: 0x6a7080,
+          map: ARENA_TEXTURES.wall,
           roughness: 0.9,
           metalness: 0.1,
         });
@@ -453,7 +456,8 @@ export class ArenaRenderer {
    */
   _buildArchway(angle, wallRadius, wallHeight, wallDepth) {
     const archMaterial = new THREE.MeshStandardMaterial({
-      color: 0x6a7080,
+      color: 0x7a8090,
+      map: ARENA_TEXTURES.pillar,
       roughness: 0.8,
       metalness: 0.2,
     });
@@ -560,7 +564,8 @@ export class ArenaRenderer {
     });
 
     const ironFixtureMat = new THREE.MeshStandardMaterial({
-      color: 0x4a4a4a,
+      color: 0x6a6a6a,
+      map: ARENA_TEXTURES.gateIron,
       roughness: 0.3,
       metalness: 0.85,
     });
@@ -575,7 +580,8 @@ export class ArenaRenderer {
     });
 
     const darkIronMat = new THREE.MeshStandardMaterial({
-      color: 0x3a3a3a,
+      color: 0x555555,
+      map: ARENA_TEXTURES.gateIron,
       roughness: 0.25,
       metalness: 0.95,
     });
@@ -711,7 +717,7 @@ export class ArenaRenderer {
           // Torch head (cylinder)
           const torchHead = new THREE.Mesh(
             new THREE.CylinderGeometry(0.08, 0.06, 0.3, 6),
-            new THREE.MeshStandardMaterial({ color: 0x5a3a1a, roughness: 0.9 })
+            new THREE.MeshStandardMaterial({ color: 0x7a5a3a, map: ARENA_TEXTURES.stagingWall, roughness: 0.9 })
           );
           torchHead.position.set(tx, 3.55, wallZ - zSide * 0.45);
           cellGroup.add(torchHead);
@@ -869,7 +875,7 @@ export class ArenaRenderer {
         // Skull ornament on pillar face (facing into cell)
         const skull = new THREE.Mesh(
           new THREE.SphereGeometry(0.25, 8, 6),
-          new THREE.MeshStandardMaterial({ color: 0xb0a890, roughness: 0.8, metalness: 0.1 })
+          new THREE.MeshStandardMaterial({ color: 0xb0a890, map: ARENA_TEXTURES.pillar, roughness: 0.8, metalness: 0.1 })
         );
         skull.position.set(gateX + outX * 1.0, GATE_HEIGHT * 0.7, zSide * (GATE_WIDTH / 2 + 0.75));
         skull.scale.set(1, 1.1, 0.7);
@@ -889,7 +895,7 @@ export class ArenaRenderer {
       // Decorative keystone (center of lintel, facing out)
       const keystone = new THREE.Mesh(
         new THREE.BoxGeometry(0.6, 0.8, 1.2),
-        new THREE.MeshStandardMaterial({ color: 0x7a7a88, roughness: 0.7, metalness: 0.2 })
+        new THREE.MeshStandardMaterial({ color: 0x8a8a98, map: ARENA_TEXTURES.pillar, roughness: 0.7, metalness: 0.2 })
       );
       keystone.position.set(gateX + outX * 1.15, GATE_HEIGHT + 1.5, 0);
       archGroup.add(keystone);
@@ -958,13 +964,15 @@ export class ArenaRenderer {
     });
 
     const capitalMaterial = new THREE.MeshStandardMaterial({
-      color: 0x7788aa,
+      color: 0x8899aa,
+      map: ARENA_TEXTURES.pillar,
       roughness: 0.7,
       metalness: 0.3,
     });
 
     const grooveMaterial = new THREE.MeshStandardMaterial({
-      color: 0x555566,
+      color: 0x6a6a7a,
+      map: ARENA_TEXTURES.pillar,
       roughness: 0.9,
       metalness: 0.1,
     });
