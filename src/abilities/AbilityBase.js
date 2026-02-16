@@ -21,7 +21,7 @@ export function defineAbility(config) {
     channelTickInterval: config.channelTickInterval || 5, // ticks between channel ticks
 
     // Range
-    range: config.range || 5, // yards
+    range: config.range != null ? config.range : 5, // yards (0 = self-cast)
     minRange: config.minRange || 0,
 
     // Direct effects

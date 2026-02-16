@@ -2088,7 +2088,61 @@ class Game {
     };
 
     console.log(`[Game] Match: ${this.playerClassId} vs ${this.enemyClassId}`);
-    this.gameLoop.start();
+
+    // --- 10-second countdown before match begins ---
+    this._startCountdown(10);
+  }
+
+  _startCountdown(seconds) {
+    // Create countdown overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'countdown-overlay';
+    Object.assign(overlay.style, {
+      position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: '9999', pointerEvents: 'none'
+    });
+    const numEl = document.createElement('div');
+    Object.assign(numEl.style, {
+      fontSize: '120px', fontWeight: '900', fontFamily: '"Cinzel", serif',
+      color: '#ffd700', textShadow: '0 0 40px rgba(255,215,0,0.6), 0 0 80px rgba(255,100,0,0.3)',
+      transition: 'transform 0.3s ease-out, opacity 0.3s ease-out'
+    });
+    overlay.appendChild(numEl);
+    document.body.appendChild(overlay);
+
+    let remaining = seconds;
+    const tick = () => {
+      if (remaining <= 0) {
+        // Show "FIGHT!" then remove
+        numEl.textContent = 'FIGHT!';
+        numEl.style.color = '#ff4400';
+        numEl.style.textShadow = '0 0 40px rgba(255,68,0,0.8), 0 0 80px rgba(255,0,0,0.4)';
+        numEl.style.transform = 'scale(1.5)';
+        setTimeout(() => {
+          numEl.style.opacity = '0';
+          setTimeout(() => overlay.remove(), 400);
+        }, 800);
+        this.gameLoop.start();
+        return;
+      }
+      numEl.textContent = remaining;
+      numEl.style.transform = 'scale(1.3)';
+      setTimeout(() => { numEl.style.transform = 'scale(1)'; }, 150);
+      remaining--;
+      setTimeout(tick, 1000);
+    };
+
+    // Start rendering immediately (so player sees the arena) but don't tick game logic
+    this.gameLoop.onRender(0, this.matchState);
+    const renderOnly = () => {
+      if (remaining > 0) {
+        this.gameLoop.onRender(0, this.matchState);
+        requestAnimationFrame(renderOnly);
+      }
+    };
+    requestAnimationFrame(renderOnly);
+    tick();
   }
 
   wireEvents(eventBus) {
@@ -3001,7 +3055,7 @@ class Game {
     const playerUnit = match.getUnit(0);
     const enemyUnit = match.getUnit(1);
     if (playerUnit) {
-      const playerData = HUD.adaptUnit(playerUnit);
+      const playerData = HUD.adaptUnit(playerUnit, match.tick);
       this.hud.updatePlayerFrame(playerData);
       this.hud.updateCCStatus(playerData);
       const adaptedAbilities = HUD.adaptAbilities(playerUnit, this._abilityOrder, match.tick);
@@ -3015,7 +3069,7 @@ class Game {
       this.hud.updateSwingTimer(match.tick, playerUnit.nextSwingTick, playerUnit.swingTimer, playerUnit.autoAttackDamage > 0);
     }
     if (enemyUnit) {
-      this.hud.updateEnemyFrame(HUD.adaptUnit(enemyUnit));
+      this.hud.updateEnemyFrame(HUD.adaptUnit(enemyUnit, match.tick));
       const enemyCast = HUD.adaptCastBar(enemyUnit, match.tick);
       this.hud.updateCastBar({ casting: enemyCast }, match.tick, 'enemy');
     }

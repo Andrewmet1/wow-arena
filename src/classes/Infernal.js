@@ -37,13 +37,13 @@ const cataclysmFlare = defineAbility({
   castTime: 35, // 3.5s
   range: 35,
   slot: 2,
-  description: 'Launches an immense bolt of fire at the target. Deals 16000 damage if 4 Cinder stacks are consumed, otherwise 12000. Applies Pyre.',
+  description: 'Launches an immense bolt of fire at the target. Deals 22000 damage if 4 Cinder stacks are consumed, otherwise 14000. Applies Pyre.',
   execute(engine, source, target, currentTick) {
-    // Check cinder stacks for empowered Cataclysm Flare
+    // Check cinder stacks for empowered Cataclysm Flare — 3.5s cast rewarded with massive damage
     const cinderCount = source.resources.getCurrent(RESOURCE_TYPE.CINDER_STACKS);
-    let damage = 12000;
+    let damage = 14000;
     if (cinderCount >= 4) {
-      damage = 16000;
+      damage = 22000;
       source.resources.set(RESOURCE_TYPE.CINDER_STACKS, 0);
     }
 
@@ -125,13 +125,13 @@ const permafrostBurst = defineAbility({
   name: 'Permafrost Burst',
   school: SCHOOL.FROST,
   cost: { [RESOURCE_TYPE.MANA]: 200 },
-  cooldown: 250, // 25s
+  cooldown: 180, // 18s
   castTime: 0,
-  range: 10,
+  range: 20,
   slot: 5,
-  description: 'Blasts enemies near the caster with frost, dealing 2000 damage and rooting them for 4s.',
+  description: 'Blasts the target with frost, dealing 3000 damage and rooting them for 4s.',
   execute(engine, source, target, currentTick) {
-    engine.dealDamage(source, target, 2000, SCHOOL.FROST, 'permafrost_burst', currentTick);
+    engine.dealDamage(source, target, 3000, SCHOOL.FROST, 'permafrost_burst', currentTick);
 
     // Apply 4s root
     CrowdControlSystem.applyCC(source, target, CC_TYPE.ROOT, 40, currentTick);
@@ -155,6 +155,9 @@ const phaseShift = defineAbility({
     CrowdControlSystem.breakStuns(source);
     CrowdControlSystem.breakRoots(source);
 
+    // Look up the enemy directly (target=self for range:0 abilities)
+    const enemy = engine.match.getOpponent(source.id);
+
     // Teleport 20yd — use movement direction if moving, otherwise away from enemy
     let dx, dz;
     if (source.moveTarget) {
@@ -164,10 +167,10 @@ const phaseShift = defineAbility({
       const len = Math.sqrt(dirX * dirX + dirZ * dirZ) || 1;
       dx = dirX / len;
       dz = dirZ / len;
-    } else if (target && target.id !== source.id) {
+    } else if (enemy) {
       // Standing still: blink away from enemy
-      const dirX = source.position.x - target.position.x;
-      const dirZ = source.position.z - target.position.z;
+      const dirX = source.position.x - enemy.position.x;
+      const dirZ = source.position.z - enemy.position.z;
       const len = Math.sqrt(dirX * dirX + dirZ * dirZ) || 1;
       dx = dirX / len;
       dz = dirZ / len;

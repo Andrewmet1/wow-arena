@@ -17,7 +17,7 @@ const hexBlight = defineAbility({
   castTime: 0,
   range: 35,
   slot: 1,
-  description: 'Corrupts the target, dealing 9000 Shadow damage over 18s. DoT ticks have a 10% chance to generate a Soul Shard.',
+  description: 'Corrupts the target, dealing 9000 Shadow damage over 18s and slowing them by 30% for 6s. DoT ticks have a 10% chance to generate a Soul Shard.',
   execute(engine, source, target, currentTick) {
     const aura = new Aura({
       id: 'hex_blight_dot',
@@ -34,6 +34,22 @@ const hexBlight = defineAbility({
       data: { generatesSoulShards: true }
     });
     target.auras.apply(aura);
+
+    // Apply 30% slow for 6s — gives Harbinger kiting ability
+    const slow = new Aura({
+      id: 'hex_blight_slow',
+      name: 'Hex Blight',
+      type: AURA_TYPE.DEBUFF,
+      sourceId: source.id,
+      targetId: target.id,
+      school: SCHOOL.SHADOW,
+      duration: 60,
+      appliedTick: currentTick,
+      statMods: { moveSpeedMultiplier: 0.7 },
+      isMagic: true,
+      isDispellable: true
+    });
+    target.auras.apply(slow);
   }
 });
 
@@ -84,7 +100,7 @@ const volatileHex = defineAbility({
   castTime: 15,
   range: 35,
   slot: 7,
-  description: 'Afflicts the target with a volatile hex, dealing 8000 Shadow damage over 8s. Dispelling this effect has severe consequences. DoT ticks have a 10% chance to generate a Soul Shard.',
+  description: 'Afflicts the target with a volatile hex, dealing 12000 Shadow damage over 8s. Dispelling this effect deals 6000 instant Shadow damage. DoT ticks have a 10% chance to generate a Soul Shard.',
   execute(engine, source, target, currentTick) {
     const aura = new Aura({
       id: 'volatile_hex_dot',
@@ -97,8 +113,15 @@ const volatileHex = defineAbility({
       appliedTick: currentTick,
       isPeriodic: true,
       tickInterval: 10,
-      tickDamage: 1000,
-      data: { generatesSoulShards: true }
+      tickDamage: 1500,
+      data: { generatesSoulShards: true },
+      onDispel(engine, unit, aura) {
+        // Dispelling Volatile Hex detonates for 6000 shadow damage
+        const caster = engine.match.getUnit(aura.sourceId);
+        if (caster) {
+          engine.dealDamage(caster, unit, 6000, SCHOOL.SHADOW, 'volatile_hex_detonate', engine.match.tick);
+        }
+      }
     });
     target.auras.apply(aura);
   }

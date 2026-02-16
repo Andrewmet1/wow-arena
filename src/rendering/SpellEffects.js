@@ -1716,13 +1716,17 @@ export class SpellEffects {
 
   spawnGroundSlam(position, config) {
     const { color = 0xff4400, size = 5, school = 'physical', debrisCount = 8, tex = null } = config;
+    const schoolTex = tex || VFX_TEXTURES[school] || VFX_TEXTURES.groundCrack || null;
     const group = new THREE.Group();
     group.position.set(position.x, 0, position.z);
     this.scene.add(group);
 
-    // Expanding shockwave ring
-    const shockGeo = new THREE.RingGeometry(0.2, 0.5, 32);
-    const shockMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, side: THREE.DoubleSide });
+    // Expanding shockwave ring (textured + additive)
+    const shockGeo = new THREE.RingGeometry(0.2, 0.6, 32);
+    const shockMat = new THREE.MeshBasicMaterial({
+      color, transparent: true, opacity: 0.8, side: THREE.DoubleSide,
+      map: schoolTex, blending: THREE.AdditiveBlending, depthWrite: false
+    });
     const shockwave = new THREE.Mesh(shockGeo, shockMat);
     shockwave.rotation.x = -Math.PI / 2;
     shockwave.position.y = 0.3;
@@ -1739,14 +1743,17 @@ export class SpellEffects {
     crack.position.y = 0.26;
     group.add(crack);
 
-    // Debris chunks flying upward
+    // Debris chunks flying upward (textured)
     const debris = [];
     for (let i = 0; i < debrisCount; i++) {
       const chunkSize = 0.1 + Math.random() * 0.25;
-      const geo = new THREE.BoxGeometry(chunkSize, chunkSize * 0.7, chunkSize);
+      const geo = new THREE.SphereGeometry(chunkSize, 6, 6);
       const chunkColor = school === 'frost' ? 0x88ccff : school === 'holy' ? 0xffd700
         : school === 'fire' ? 0xff6633 : school === 'shadow' ? 0x6622aa : 0x665544;
-      const mat = new THREE.MeshBasicMaterial({ color: chunkColor, transparent: true, opacity: 0.9 });
+      const mat = new THREE.MeshBasicMaterial({
+        color: chunkColor, transparent: true, opacity: 0.9,
+        map: schoolTex, blending: THREE.AdditiveBlending, depthWrite: false
+      });
       const chunk = new THREE.Mesh(geo, mat);
       chunk.position.set(0, 0.3, 0);
       chunk.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
@@ -2223,18 +2230,20 @@ export class SpellEffects {
 
   spawnVortex(position, config) {
     const { color = 0xaaaaaa, radius = 3, height = 6, duration = 4.0, school = 'physical' } = config;
+    const schoolTex = VFX_TEXTURES[school] || SPELL_TEXTURES[school] || null;
     const group = new THREE.Group();
     group.position.set(position.x, 0, position.z);
     this.scene.add(group);
 
-    // Stacked spinning rings at different heights
+    // Stacked spinning rings at different heights (textured + additive glow)
     const rings = [];
     for (let i = 0; i < 6; i++) {
       const y = (i / 5) * height;
       const r = radius * (1 - i * 0.12);
-      const ringGeo = new THREE.TorusGeometry(r, 0.08, 4, 24);
+      const ringGeo = new THREE.TorusGeometry(r, 0.12, 6, 32);
       const ringMat = new THREE.MeshBasicMaterial({
-        color, transparent: true, opacity: 0.5, depthWrite: false
+        color, transparent: true, opacity: 0.5, depthWrite: false,
+        map: schoolTex, blending: THREE.AdditiveBlending
       });
       const ring = new THREE.Mesh(ringGeo, ringMat);
       ring.position.y = y;
@@ -2243,13 +2252,16 @@ export class SpellEffects {
       rings.push({ mesh: ring, baseY: y, speed: 3 + i * 1.5, r });
     }
 
-    // Debris particles orbiting
+    // Debris particles orbiting (textured spheres instead of plain boxes)
     const orbitParticles = [];
     for (let i = 0; i < 20; i++) {
-      const pGeo = new THREE.BoxGeometry(0.15, 0.1, 0.15);
+      const pGeo = new THREE.SphereGeometry(0.1 + Math.random() * 0.08, 6, 6);
       const pColor = school === 'frost' ? 0x88ccff : school === 'holy' ? 0xffd700
-        : school === 'shadow' ? 0x6622aa : 0x998877;
-      const pMat = new THREE.MeshBasicMaterial({ color: pColor, transparent: true, opacity: 0.7 });
+        : school === 'shadow' ? 0x6622aa : school === 'fire' ? 0xff6633 : 0x998877;
+      const pMat = new THREE.MeshBasicMaterial({
+        color: pColor, transparent: true, opacity: 0.7,
+        map: schoolTex, blending: THREE.AdditiveBlending, depthWrite: false
+      });
       const p = new THREE.Mesh(pGeo, pMat);
       const a = Math.random() * Math.PI * 2;
       const py = Math.random() * height;
@@ -2297,34 +2309,39 @@ export class SpellEffects {
 
   spawnRuneCircle(position, config) {
     const { color = 0x8800ff, radius = 3.0, duration = 2.0, school = 'shadow' } = config;
+    const schoolTex = VFX_TEXTURES[school] || SPELL_TEXTURES[school] || null;
     const group = new THREE.Group();
     group.position.set(position.x, 0.29, position.z);
     this.scene.add(group);
 
-    // Main rune circle disc
+    // Main rune circle disc (procedural rune texture)
     const discGeo = new THREE.CircleGeometry(radius, 32);
     const discMat = new THREE.MeshBasicMaterial({
       color, transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide,
-      map: PROC_TEXTURES.runeCircle
+      map: PROC_TEXTURES.runeCircle, blending: THREE.AdditiveBlending
     });
     const disc = new THREE.Mesh(discGeo, discMat);
     disc.rotation.x = -Math.PI / 2;
     group.add(disc);
 
-    // Outer rotating ring
-    const outerGeo = new THREE.RingGeometry(radius * 0.95, radius * 1.05, 32);
+    // Outer rotating ring (textured with school texture + additive glow)
+    const outerGeo = new THREE.RingGeometry(radius * 0.90, radius * 1.10, 32);
     const outerMat = new THREE.MeshBasicMaterial({
-      color, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false
+      color, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false,
+      map: schoolTex || PROC_TEXTURES.energySwirl, blending: THREE.AdditiveBlending
     });
     const outer = new THREE.Mesh(outerGeo, outerMat);
     outer.rotation.x = -Math.PI / 2;
     group.add(outer);
 
-    // Rising wisps
+    // Rising wisps (textured)
     const wisps = [];
     for (let i = 0; i < 8; i++) {
-      const wGeo = new THREE.SphereGeometry(0.06 + Math.random() * 0.04, 4, 4);
-      const wMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.7 });
+      const wGeo = new THREE.SphereGeometry(0.06 + Math.random() * 0.04, 6, 6);
+      const wMat = new THREE.MeshBasicMaterial({
+        color, transparent: true, opacity: 0.7,
+        map: schoolTex, blending: THREE.AdditiveBlending, depthWrite: false
+      });
       const w = new THREE.Mesh(wGeo, wMat);
       const a = (i / 8) * Math.PI * 2;
       const d = radius * (0.4 + Math.random() * 0.5);

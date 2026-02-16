@@ -355,6 +355,44 @@ export class HUD {
   border-color: #2e7d32;
 }
 
+/* CC Icons (stun / silence / root / fear / incap indicators) */
+.uf-cc-icons {
+  display: none;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+.cc-pill {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border: 1px solid #fff;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  font-family: 'Cinzel', serif;
+  animation: cc-pill-pulse 0.8s ease-in-out infinite alternate;
+}
+.cc-pill-icon {
+  font-size: 11px;
+}
+.cc-pill-label {
+  font-size: 9px;
+  text-transform: uppercase;
+}
+.cc-pill-timer {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  min-width: 24px;
+  text-align: right;
+}
+@keyframes cc-pill-pulse {
+  from { opacity: 0.85; }
+  to { opacity: 1; }
+}
+
 /* ========== Cast Bars ========== */
 .cast-bar {
   position: absolute;
@@ -811,6 +849,10 @@ export class HUD {
     secondaryResource.style.display = 'none';
     content.appendChild(secondaryResource);
 
+    // CC Icons (stun, silence, root, fear, incap indicators with timers)
+    const ccIcons = this._el('div', 'uf-cc-icons');
+    content.appendChild(ccIcons);
+
     // Auras
     const auras = this._el('div', 'uf-auras');
     content.appendChild(auras);
@@ -831,6 +873,7 @@ export class HUD {
       resourceFill,
       resourceText,
       secondaryResource,
+      ccIcons,
       auras,
       _dots: [], // for primary resource dots
       _secondaryDots: [], // for secondary resource dots
@@ -1179,6 +1222,9 @@ export class HUD {
       frame.secondaryResource.style.display = 'none';
     }
 
+    // CC icons
+    this._renderCCIcons(frame, unit.ccEffects);
+
     // Auras
     this._renderAuras(frame, unit.auras, who);
   }
@@ -1284,6 +1330,44 @@ export class HUD {
   /**
    * Render aura icons in the unit frame.
    */
+  /**
+   * Render CC effect icons with countdown timers on a unit frame.
+   */
+  _renderCCIcons(frame, ccEffects) {
+    frame.ccIcons.innerHTML = '';
+    if (!ccEffects || ccEffects.length === 0) {
+      frame.ccIcons.style.display = 'none';
+      return;
+    }
+
+    frame.ccIcons.style.display = 'flex';
+
+    const CC_DISPLAY = {
+      stun:         { label: 'STUN',  icon: '\u26A1', color: '#ffcc00', bg: 'rgba(255,204,0,0.15)' },
+      silence:      { label: 'SIL',   icon: '\uD83D\uDD07', color: '#aa44ff', bg: 'rgba(170,68,255,0.15)' },
+      root:         { label: 'ROOT',  icon: '\uD83C\uDF3F', color: '#44cc44', bg: 'rgba(68,204,68,0.15)' },
+      fear:         { label: 'FEAR',  icon: '\uD83D\uDC7B', color: '#8800aa', bg: 'rgba(136,0,170,0.15)' },
+      incapacitate: { label: 'INCAP', icon: '\uD83D\uDCA4', color: '#4488ff', bg: 'rgba(68,136,255,0.15)' },
+    };
+
+    for (const cc of ccEffects) {
+      const info = CC_DISPLAY[cc.type] || { label: cc.type?.toUpperCase(), icon: '\u26D4', color: '#fff', bg: 'rgba(255,255,255,0.1)' };
+      const pill = this._el('div', 'cc-pill');
+      pill.style.borderColor = info.color;
+      pill.style.background = info.bg;
+      pill.style.color = info.color;
+
+      const iconSpan = this._el('span', 'cc-pill-icon', info.icon);
+      const labelSpan = this._el('span', 'cc-pill-label', info.label);
+      const timerSpan = this._el('span', 'cc-pill-timer', `${cc.remaining.toFixed(1)}s`);
+
+      pill.appendChild(iconSpan);
+      pill.appendChild(labelSpan);
+      pill.appendChild(timerSpan);
+      frame.ccIcons.appendChild(pill);
+    }
+  }
+
   _renderAuras(frame, auras, who) {
     frame.auras.innerHTML = '';
     if (!auras || auras.length === 0) return;
@@ -1727,7 +1811,7 @@ export class HUD {
   /**
    * Adapt engine Unit to HUD data format for unit frames.
    */
-  static adaptUnit(unit) {
+  static adaptUnit(unit, currentTick = 0) {
     if (!unit) return null;
 
     // Determine primary resource
@@ -1796,6 +1880,10 @@ export class HUD {
       isRooted: unit.isRooted,
       isFeared: unit.isFeared,
       isIncapacitated: unit.ccEffects?.some(cc => cc.type === 'incapacitate') || false,
+      ccEffects: (unit.ccEffects || []).map(cc => ({
+        type: cc.type,
+        remaining: Math.max(0, (cc.endTick - currentTick) / 10) // seconds
+      })),
     };
   }
 

@@ -65,13 +65,20 @@ export class PlayerController {
       }
 
       if (dir) {
-        const speed = (BASE_MOVE_SPEED * unit.getEffectiveMoveSpeed()) / TICKS_PER_SECOND;
-        const targetPos = new Vec3(
-          unit.position.x + dir.x * speed * 5,
-          0,
-          unit.position.z + dir.z * speed * 5
-        );
-        engine.movement.moveTo(unit, targetPos);
+        // Movement cancels channels (like WoW drain life)
+        if (unit.isChanneling) {
+          unit.cancelChannel();
+        }
+        // Don't move while hard-casting (non-instant abilities)
+        if (!unit.isCasting) {
+          const speed = (BASE_MOVE_SPEED * unit.getEffectiveMoveSpeed()) / TICKS_PER_SECOND;
+          const targetPos = new Vec3(
+            unit.position.x + dir.x * speed * 5,
+            0,
+            unit.position.z + dir.z * speed * 5
+          );
+          engine.movement.moveTo(unit, targetPos);
+        }
       } else if (!unit.isCasting && !unit.isChanneling) {
         engine.movement.stop(unit);
       }
