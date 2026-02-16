@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 export class SceneManager {
   constructor(canvas) {
@@ -89,8 +91,25 @@ export class SceneManager {
   }
 
   async _createPostProcessing() {
-    // Selective bloom — only emissive elements above threshold glow
+    // Environment map for PBR metallic reflections on Meshy models
+    const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
+    pmremGenerator.compileEquirectangularShader();
+    const envScene = new RoomEnvironment();
+    const envTexture = pmremGenerator.fromScene(envScene, 0.04).texture;
+    this.scene.environment = envTexture;
+    pmremGenerator.dispose();
+
+    // Post-processing pipeline
     const renderPass = new RenderPass(this.scene, this.camera);
+
+    // SSAO — screen-space ambient occlusion for depth
+    const ssaoPass = new SSAOPass(this.scene, this.camera, window.innerWidth, window.innerHeight);
+    ssaoPass.kernelRadius = 12;
+    ssaoPass.minDistance = 0.001;
+    ssaoPass.maxDistance = 0.15;
+    ssaoPass.output = SSAOPass.OUTPUT.Default;
+
+    // Selective bloom — only emissive elements above threshold glow
     const bloomPass = new UnrealBloomPass(
       new THREE.Vector2(window.innerWidth, window.innerHeight),
       0.4,    // strength (subtle)
@@ -101,6 +120,7 @@ export class SceneManager {
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(renderPass);
+    this.composer.addPass(ssaoPass);
     this.composer.addPass(bloomPass);
     this.composer.addPass(outputPass);
     this.useComposer = true;

@@ -21,6 +21,7 @@ import { getAbilityIcon, getClassEmblem, getClassPortrait } from './ui/IconGener
 import { AudioManager } from './audio/AudioManager.js';
 import { DODGE_ROLL_DURATION, DODGE_ROLL_COOLDOWN, DODGE_ROLL_SNARE, DODGE_ROLL_SNARE_RANGE, DODGE_ROLL_SNARE_DURATION } from './constants.js';
 import { Aura } from './engine/Aura.js';
+import { preloadAll as preloadModels } from './rendering/ModelLoader.js';
 
 // ---------------------------------------------------------------------------
 // Error overlay — shows runtime errors visually
@@ -121,6 +122,15 @@ class Game {
       this.updateLoadingBar(50);
 
       this.characterRenderer = new CharacterRenderer(this.sceneManager.getScene());
+
+      // Preload Meshy 3D models (non-blocking — falls back to procedural if not available)
+      {
+        const modelsLoaded = await preloadModels((loaded, total) => {
+          this.updateLoadingBar(50 + Math.floor((loaded / total) * 10));
+        });
+        console.log(`Meshy models preloaded: ${modelsLoaded}`);
+        this.characterRenderer.useMeshyModels = modelsLoaded > 0;
+      }
 
       // Render 3D class portraits for HUD unit frames
       this._classPortraits = CharacterRenderer.renderPortraits(256);
@@ -2639,7 +2649,7 @@ class Game {
           : school === 'fire' ? VFX_TEXTURES.fire
           : school === 'holy' ? VFX_TEXTURES.holy
           : VFX_TEXTURES[school] || null;
-        effects.spawnBeam(source.position, target.position, { color, duration: channelDuration + 0.5, school, tex: beamTex });
+        effects.spawnBeam(source.position, target.position, { color, duration: channelDuration + 0.5, school, tex: beamTex, sourceId: data.sourceId });
         this._activeBeams.set(data.sourceId, { targetId: data.targetId, school });
       }
     });
@@ -2656,6 +2666,8 @@ class Game {
     });
     eventBus.on(EVENTS.CHANNEL_END, (data) => {
       this._activeBeams.delete(data.sourceId);
+      // Force-remove any active beam effects from this source
+      effects.removeBeamsFromSource(data.sourceId);
     });
 
     // --- Auto-attack swing SFX ---
@@ -3079,6 +3091,17 @@ class Game {
       }
       this.cameraController.setFacing(player.facing);
       this.cameraController.update(deltaTime);
+    }
+
+    // Clean up beam VFX when channel is no longer active
+    if (this._activeBeams && this._activeBeams.size > 0) {
+      for (const [sourceId] of this._activeBeams) {
+        const unit = match.getUnit(sourceId);
+        if (!unit || !unit.channelState) {
+          this._activeBeams.delete(sourceId);
+          this.spellEffects.removeBeamsFromSource(sourceId);
+        }
+      }
     }
 
     this.spellEffects.update(deltaTime);

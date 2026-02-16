@@ -738,7 +738,7 @@ export class SpellEffects {
    * Energy visibly flows from target → caster along sinusoidal tendrils.
    */
   spawnBeam(from, to, config) {
-    const { color = 0x9900ff, duration = 1.0, school = 'shadow' } = config;
+    const { color = 0x9900ff, duration = 1.0, school = 'shadow', sourceId = null } = config;
 
     const baseColor = new THREE.Color(color);
     const brightColor = new THREE.Color(color).lerp(new THREE.Color(0xffffff), 0.45);
@@ -844,6 +844,7 @@ export class SpellEffects {
 
     this.activeEffects.push({
       type: 'beam',
+      sourceId,
       tendrils,
       orbs,
       wisps, wispGeo, wispMat, wispData,
@@ -853,6 +854,19 @@ export class SpellEffects {
       age: 0,
       maxAge: duration
     });
+  }
+
+  /**
+   * Force-remove all beam effects originating from a given sourceId (channel ended).
+   */
+  removeBeamsFromSource(sourceId) {
+    for (let i = this.activeEffects.length - 1; i >= 0; i--) {
+      const effect = this.activeEffects[i];
+      if (effect.type === 'beam' && effect.sourceId === sourceId) {
+        this.removeEffect(effect);
+        this.activeEffects.splice(i, 1);
+      }
+    }
   }
 
   // ──────────────────────────────────────────────
@@ -2842,27 +2856,31 @@ export class SpellEffects {
       });
     }
     // New particle-chain beam cleanup
-    if (effect.tendrils) {
-      for (const t of effect.tendrils) {
-        this.scene.remove(t.points);
-        t.geo.dispose();
-        t.mat.dispose();
+    if (effect.type === 'beam') {
+      if (effect.tendrils) {
+        for (const t of effect.tendrils) {
+          if (t.points) this.scene.remove(t.points);
+          if (t.geo) t.geo.dispose();
+          if (t.mat) t.mat.dispose();
+        }
       }
-    }
-    if (effect.orbs) {
-      for (const o of effect.orbs) {
-        this.scene.remove(o.mesh);
-        o.mesh.geometry.dispose();
-        o.mat.dispose();
+      if (effect.orbs) {
+        for (const o of effect.orbs) {
+          if (o.mesh) {
+            this.scene.remove(o.mesh);
+            if (o.mesh.geometry) o.mesh.geometry.dispose();
+          }
+          if (o.mat) o.mat.dispose();
+        }
       }
-    }
-    if (effect.wisps) {
-      this.scene.remove(effect.wisps);
-      effect.wispGeo.dispose();
-      effect.wispMat.dispose();
-    }
-    if (effect.glowTex) {
-      effect.glowTex.dispose();
+      if (effect.wisps) {
+        this.scene.remove(effect.wisps);
+        if (effect.wispGeo) effect.wispGeo.dispose();
+        if (effect.wispMat) effect.wispMat.dispose();
+      }
+      if (effect.glowTex) {
+        effect.glowTex.dispose();
+      }
     }
     if (effect.line) {
       this.scene.remove(effect.line);

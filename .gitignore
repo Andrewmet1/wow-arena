@@ -3,3 +3,6 @@ dist/
 .env
 .env.local
 *.log
+
+# Meshy 3D models (large GLBs — regenerate via Meshy API)
+public/assets/models/*.glb

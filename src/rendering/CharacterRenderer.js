@@ -1,4 +1,7 @@
 import * as THREE from 'three';
+import { isModelCached, loadCharacter, loadWeapon, getClassScale } from './ModelLoader.js';
+import { autoRig, attachWeapon } from './AutoRigger.js';
+import { resolveModelPath, ASSET_MANIFEST } from './AssetManifest.js';
 
 /**
  * CharacterRenderer — Procedural character model renderer for a dark fantasy Ebon Crucible game.
@@ -2213,12 +2216,15 @@ export default class CharacterRenderer {
     this.scene = scene;
     /** @type {Map<string, THREE.Group>} unitId -> character root group */
     this.characters = new Map();
+    /** Whether Meshy models should be used (set after preload) */
+    this.useMeshyModels = true;
   }
 
   // ── Character creation ──────────────────────────────────────────────────
 
   /**
-   * Creates a procedural character model for the given class and adds it to the scene.
+   * Creates a character model for the given class and adds it to the scene.
+   * Uses Meshy 3D models when available, falls back to procedural.
    * @param {string} unitId   — unique identifier for this unit
    * @param {string} classId  — one of TYRANT, WRAITH, INFERNAL, HARBINGER, REVENANT
    * @returns {THREE.Group} the root group for this character
@@ -2230,6 +2236,117 @@ export default class CharacterRenderer {
     }
 
     const normalizedId = typeof classId === 'string' ? classId.toUpperCase() : classId;
+    const lowerClassId = normalizedId.toLowerCase();
+
+    // Try Meshy model first
+    if (this.useMeshyModels) {
+      try {
+        const charPath = resolveModelPath(lowerClassId, 'character');
+        if (isModelCached(charPath)) {
+          return this._createMeshyCharacter(unitId, normalizedId, lowerClassId);
+        }
+      } catch {
+        // Fall through to procedural
+      }
+    }
+
+    // Procedural fallback
+    return this._createProceduralCharacter(unitId, normalizedId, classId);
+  }
+
+  /**
+   * Create a character from a cached Meshy model with auto-rigging.
+   * @private
+   */
+  _createMeshyCharacter(unitId, normalizedId, lowerClassId) {
+    // Create placeholder group immediately (sync) — model loads async but resolves from cache near-instantly
+    const placeholder = new THREE.Group();
+    placeholder.name = `character_${unitId}`;
+    placeholder.userData.classId = normalizedId;
+    placeholder.userData.unitId = unitId;
+    placeholder.userData.isMeshy = true;
+    placeholder.userData._originalEmissives = new Map();
+
+    this.scene.add(placeholder);
+    this.characters.set(unitId, placeholder);
+
+    // Async load + rig + attach (resolves from cache so effectively instant)
+    this._loadAndRigAsync(placeholder, unitId, normalizedId, lowerClassId);
+
+    return placeholder;
+  }
+
+  /**
+   * Async load, rig, and attach a Meshy model to an existing placeholder group.
+   * @private
+   */
+  async _loadAndRigAsync(placeholder, unitId, normalizedId, lowerClassId) {
+    try {
+      const charModel = await loadCharacter(lowerClassId);
+      const rigged = autoRig(charModel, lowerClassId);
+
+      // Scale based on manifest
+      const scale = getClassScale(lowerClassId) * 2.5;
+      rigged.scale.set(scale, scale, scale);
+
+      // Add rigged model as child of placeholder
+      placeholder.add(rigged);
+      placeholder.userData.riggedModel = rigged;
+      placeholder.userData.isRigged = true;
+      placeholder.userData.bonesByName = rigged.userData.bonesByName;
+      placeholder.userData.skeleton = rigged.userData.skeleton;
+
+      // Try to attach default weapon
+      try {
+        const manifest = ASSET_MANIFEST[lowerClassId];
+        if (manifest) {
+          const weaponModel = await loadWeapon(lowerClassId);
+          const hand = manifest.weaponHand || 'right';
+          attachWeapon(rigged, weaponModel, hand);
+        }
+      } catch {
+        // Weapon not available yet — that's OK
+      }
+
+      // Store emissives for hit-flash
+      placeholder.traverse((child) => {
+        if (child.isMesh) {
+          placeholder.userData._originalEmissives.set(child.uuid, {
+            emissive: child.material.emissive ? child.material.emissive.clone() : new THREE.Color(0x000000),
+            emissiveIntensity: child.material.emissiveIntensity || 0,
+          });
+        }
+      });
+
+      console.log(`CharacterRenderer: loaded Meshy model for ${normalizedId} (${unitId})`);
+    } catch (err) {
+      console.warn(`CharacterRenderer: Meshy model failed for ${normalizedId}, using procedural`, err);
+      // Fall back to procedural — add procedural children to placeholder
+      const builder = CLASS_BUILDERS.get(normalizedId);
+      if (builder) {
+        const proceduralModel = builder();
+        proceduralModel.scale.set(2.5, 2.5, 2.5);
+        // Move all children to placeholder
+        while (proceduralModel.children.length > 0) {
+          placeholder.add(proceduralModel.children[0]);
+        }
+        placeholder.traverse((child) => {
+          if (child.isMesh) {
+            placeholder.userData._originalEmissives.set(child.uuid, {
+              emissive: child.material.emissive ? child.material.emissive.clone() : new THREE.Color(0x000000),
+              emissiveIntensity: child.material.emissiveIntensity || 0,
+            });
+          }
+        });
+      }
+    }
+  }
+
+  /**
+   * Create a procedural (primitive-based) character.
+   * @private
+   */
+  _createProceduralCharacter(unitId, normalizedId, classId) {
     const builder = CLASS_BUILDERS.get(normalizedId);
     if (!builder) {
       console.warn(`CharacterRenderer: unknown classId "${classId}", falling back to TYRANT`);
@@ -2294,11 +2411,18 @@ export default class CharacterRenderer {
     const head = model.getObjectByName('head');
     const classId = model.userData.classId;
 
+    // Extended bones (Meshy rigged models)
+    const leftForearm = model.getObjectByName('leftForearm');
+    const rightForearm = model.getObjectByName('rightForearm');
+    const leftLowerLeg = model.getObjectByName('leftLowerLeg');
+    const rightLowerLeg = model.getObjectByName('rightLowerLeg');
+    const hips = model.getObjectByName('hips');
+
     // Breathing bob — smooth and organic
     const breathCycle = Math.sin(time * 2.2) * 0.04 + Math.sin(time * 1.3) * 0.02;
     body.position.y = 1.0 + breathCycle;
 
-    // Chest expansion (breathing) — always reset all axes to prevent sticky scale
+    // Chest expansion (breathing)
     body.scale.x = 1.0 + Math.sin(time * 2.2) * 0.008;
     body.scale.y = 1.0 + Math.sin(time * 2.2) * 0.015;
     body.scale.z = 1.0;
@@ -2307,16 +2431,21 @@ export default class CharacterRenderer {
     body.rotation.z = Math.sin(time * 0.8) * 0.03;
     body.rotation.y = Math.sin(time * 0.5) * 0.04;
 
+    // Hip sway for weight shifting
+    if (hips) {
+      hips.rotation.z = Math.sin(time * 0.8) * 0.02;
+      hips.rotation.y = Math.sin(time * 0.5) * 0.015;
+    }
+
     // Head: look around periodically
     if (head) {
       head.rotation.y = Math.sin(time * 0.7 + 0.5) * 0.08;
-      head.rotation.x = Math.sin(time * 0.9) * 0.04 - 0.05; // slight downward tilt
+      head.rotation.x = Math.sin(time * 0.9) * 0.04 - 0.05;
     }
 
     // Combat-ready arm poses based on class
     const isMelee = classId === CLASS_TYRANT || classId === CLASS_WRAITH || classId === CLASS_REVENANT;
     if (isMelee) {
-      // Weapon arm slightly forward, off-hand ready — combat stance
       if (rightArm) {
         rightArm.rotation.x = -0.4 + Math.sin(time * 1.8) * 0.06;
         rightArm.rotation.z = -0.15;
@@ -2325,8 +2454,10 @@ export default class CharacterRenderer {
         leftArm.rotation.x = -0.2 + Math.sin(time * 1.5 + 1) * 0.05;
         leftArm.rotation.z = 0.2;
       }
+      // Forearm bend for weapon grip
+      if (rightForearm) rightForearm.rotation.x = -0.3 + Math.sin(time * 1.8) * 0.04;
+      if (leftForearm) leftForearm.rotation.x = -0.15 + Math.sin(time * 1.5) * 0.03;
     } else {
-      // Caster: arms relaxed at sides with subtle sway
       if (leftArm) {
         leftArm.rotation.z = 0.15 + Math.sin(time * 1.5) * 0.08;
         leftArm.rotation.x = Math.sin(time * 1.2) * 0.05;
@@ -2335,11 +2466,18 @@ export default class CharacterRenderer {
         rightArm.rotation.z = -0.15 - Math.sin(time * 1.5) * 0.08;
         rightArm.rotation.x = Math.sin(time * 1.2 + 0.5) * 0.05;
       }
+      // Caster forearm — staff held loosely
+      if (rightForearm) rightForearm.rotation.x = -0.1 + Math.sin(time * 1.2) * 0.03;
+      if (leftForearm) leftForearm.rotation.x = Math.sin(time * 1.2 + 0.5) * 0.03;
     }
 
     // Subtle leg shift (weight transfer)
     if (leftLeg) leftLeg.rotation.z = Math.sin(time * 0.8) * 0.03;
     if (rightLeg) rightLeg.rotation.z = -Math.sin(time * 0.8) * 0.03;
+
+    // Alternating knee bend (weight shift)
+    if (leftLowerLeg) leftLowerLeg.rotation.x = 0.05 + Math.sin(time * 0.8) * 0.04;
+    if (rightLowerLeg) rightLowerLeg.rotation.x = 0.05 - Math.sin(time * 0.8) * 0.04;
 
     // Harbinger grimoire float
     if (classId === CLASS_HARBINGER) {
@@ -2350,7 +2488,6 @@ export default class CharacterRenderer {
       }
     }
 
-    // ── Animate named parts ──
     this._animateNamedParts(model, time);
   }
 
@@ -2505,7 +2642,31 @@ export default class CharacterRenderer {
       if (rightArm) rightArm.rotation.x = s * 0.5;
     }
 
-    // ── Animate named parts ──
+    // ── Extended bone walk enhancements (rigged models) ──
+    {
+      const leftForearm = model.getObjectByName('leftForearm');
+      const rightForearm = model.getObjectByName('rightForearm');
+      const leftLowerLeg = model.getObjectByName('leftLowerLeg');
+      const rightLowerLeg = model.getObjectByName('rightLowerLeg');
+      const hipsB = model.getObjectByName('hips');
+      const freq = speed * (classId === CLASS_WRAITH ? 9 : classId === CLASS_TYRANT ? 5 : 6.5);
+      const s = Math.sin(time * freq);
+
+      // Knee bend during stride (absorb landing)
+      if (leftLowerLeg) leftLowerLeg.rotation.x = 0.15 + Math.max(0, s) * 0.35;
+      if (rightLowerLeg) rightLowerLeg.rotation.x = 0.15 + Math.max(0, -s) * 0.35;
+
+      // Forearm swing (counter to upper arm)
+      if (leftForearm) leftForearm.rotation.x = -0.2 + s * 0.15;
+      if (rightForearm) rightForearm.rotation.x = -0.2 - s * 0.15;
+
+      // Hip rotation during walk (counter-rotate with upper body)
+      if (hipsB) {
+        hipsB.rotation.y = s * 0.06;
+        hipsB.rotation.z = s * 0.03;
+      }
+    }
+
     this._animateNamedParts(model, time);
   }
 
@@ -3264,19 +3425,58 @@ export default class CharacterRenderer {
     const body = model.getObjectByName('body');
     if (!body) return;
 
-    // Tilt backward
-    body.rotation.x = progress * (Math.PI / 2);
-    // Sink toward ground
-    body.position.y = 1.0 - progress * 0.7;
-
-    // Fall to side — root.rotation.z increases to PI/2
-    model.rotation.z = progress * (Math.PI / 2);
-
-    // Legs buckle
+    const head = model.getObjectByName('head');
+    const leftArm = model.getObjectByName('leftArm');
+    const rightArm = model.getObjectByName('rightArm');
     const leftLeg = model.getObjectByName('leftLeg');
     const rightLeg = model.getObjectByName('rightLeg');
-    if (leftLeg) leftLeg.rotation.x = progress * 0.8;
-    if (rightLeg) rightLeg.rotation.x = progress * 0.8;
+
+    // Ragdoll-style sequential collapse
+    // Phase 1 (0-0.3): knees buckle, body slumps
+    // Phase 2 (0.3-0.6): fall to side, arms go limp
+    // Phase 3 (0.6-1.0): settle on ground
+
+    const p1 = Math.min(progress / 0.3, 1);       // knees buckle
+    const p2 = Math.max(0, Math.min((progress - 0.2) / 0.4, 1)); // fall sideways
+    const p3 = Math.max(0, Math.min((progress - 0.5) / 0.5, 1)); // settle
+
+    // Body sinks and tilts
+    body.position.y = 1.0 - p1 * 0.3 - p2 * 0.4 - p3 * 0.1;
+    body.rotation.x = p1 * 0.3 + p2 * 0.4;
+
+    // Fall to side
+    model.rotation.z = p2 * (Math.PI / 2.2);
+
+    // Head drops
+    if (head) {
+      head.rotation.x = p1 * 0.4 + p2 * 0.3;
+      head.rotation.z = p2 * 0.3;
+    }
+
+    // Arms go limp — spread outward as body falls
+    if (leftArm) {
+      leftArm.rotation.z = p2 * 0.8;
+      leftArm.rotation.x = p1 * 0.3 + p2 * 0.5;
+    }
+    if (rightArm) {
+      rightArm.rotation.z = -p1 * 0.2 - p2 * 0.6;
+      rightArm.rotation.x = p1 * 0.2 + p2 * 0.4;
+    }
+
+    // Legs buckle
+    if (leftLeg) leftLeg.rotation.x = p1 * 0.8 + p2 * 0.3;
+    if (rightLeg) rightLeg.rotation.x = p1 * 0.6 + p2 * 0.4;
+
+    // Extended bones — forearms and lower legs go limp
+    const leftForearm = model.getObjectByName('leftForearm');
+    const rightForearm = model.getObjectByName('rightForearm');
+    const leftLowerLeg = model.getObjectByName('leftLowerLeg');
+    const rightLowerLeg = model.getObjectByName('rightLowerLeg');
+
+    if (leftForearm) leftForearm.rotation.x = -p2 * 0.8;
+    if (rightForearm) rightForearm.rotation.x = -p2 * 0.6;
+    if (leftLowerLeg) leftLowerLeg.rotation.x = p1 * 0.5 + p2 * 0.3;
+    if (rightLowerLeg) rightLowerLeg.rotation.x = p1 * 0.4 + p2 * 0.4;
   }
 
   /**
@@ -3288,13 +3488,26 @@ export default class CharacterRenderer {
     const rightArm = model.getObjectByName('rightArm');
     const head = model.getObjectByName('head');
 
+    // Dazed wobble
+    const wobble = Math.sin(time * 3) * 0.05;
+
     if (body) {
-      body.rotation.x = 0.3; // slump forward
-      body.position.y = 0.85; // sink slightly
+      body.rotation.x = 0.3;
+      body.position.y = 0.85;
+      body.rotation.z = wobble; // dazed sway
     }
-    if (leftArm) leftArm.rotation.z = 0.4; // arms hang out
-    if (rightArm) rightArm.rotation.z = -0.4;
-    if (head) head.rotation.x = 0.3; // head droops
+    if (leftArm) { leftArm.rotation.z = 0.4; leftArm.rotation.x = 0.2; }
+    if (rightArm) { rightArm.rotation.z = -0.4; rightArm.rotation.x = 0.2; }
+    if (head) {
+      head.rotation.x = 0.3;
+      head.rotation.z = Math.sin(time * 4) * 0.1; // head lolls
+    }
+
+    // Extended bones — forearms hang limp
+    const leftForearm = model.getObjectByName('leftForearm');
+    const rightForearm = model.getObjectByName('rightForearm');
+    if (leftForearm) leftForearm.rotation.x = -0.4;
+    if (rightForearm) rightForearm.rotation.x = -0.4;
   }
 
   /**
@@ -3328,15 +3541,30 @@ export default class CharacterRenderer {
     const leftLeg = model.getObjectByName('leftLeg');
     const rightLeg = model.getObjectByName('rightLeg');
 
+    // Panicked, erratic movement
     if (body) {
-      body.rotation.z = Math.sin(time * 12) * 0.15; // fast wobble
+      body.rotation.z = Math.sin(time * 12) * 0.15;
+      body.rotation.x = 0.15 + Math.sin(time * 8) * 0.1; // hunched forward in panic
       body.position.y = 1.0 + Math.abs(Math.sin(time * 8)) * 0.08;
     }
-    if (head) head.rotation.z = Math.sin(time * 10 + 1) * 0.2;
-    if (leftArm) leftArm.rotation.x = Math.sin(time * 14) * 0.5;
-    if (rightArm) rightArm.rotation.x = Math.cos(time * 14) * 0.5;
+    if (head) {
+      head.rotation.z = Math.sin(time * 10 + 1) * 0.2;
+      head.rotation.y = Math.sin(time * 8) * 0.3; // looking around frantically
+    }
+    if (leftArm) { leftArm.rotation.x = Math.sin(time * 14) * 0.5; leftArm.rotation.z = 0.3; }
+    if (rightArm) { rightArm.rotation.x = Math.cos(time * 14) * 0.5; rightArm.rotation.z = -0.3; }
     if (leftLeg) leftLeg.rotation.x = Math.sin(time * 10) * 0.6;
     if (rightLeg) rightLeg.rotation.x = Math.cos(time * 10) * 0.6;
+
+    // Extended bones — frantic flailing
+    const leftForearm = model.getObjectByName('leftForearm');
+    const rightForearm = model.getObjectByName('rightForearm');
+    const leftLowerLeg = model.getObjectByName('leftLowerLeg');
+    const rightLowerLeg = model.getObjectByName('rightLowerLeg');
+    if (leftForearm) leftForearm.rotation.x = Math.sin(time * 16) * 0.6;
+    if (rightForearm) rightForearm.rotation.x = Math.cos(time * 16) * 0.6;
+    if (leftLowerLeg) leftLowerLeg.rotation.x = 0.3 + Math.sin(time * 12) * 0.3;
+    if (rightLowerLeg) rightLowerLeg.rotation.x = 0.3 + Math.cos(time * 12) * 0.3;
   }
 
   /**
@@ -3357,6 +3585,7 @@ export default class CharacterRenderer {
   animateHit(model) {
     const originals = model.userData._originalEmissives;
 
+    // Red flash on all meshes
     model.traverse((child) => {
       if (child.isMesh && child.material) {
         child.material.emissive = new THREE.Color(0xff0000);
@@ -3364,8 +3593,34 @@ export default class CharacterRenderer {
       }
     });
 
+    // Physical flinch — body snaps back, arms spread, head recoils
+    const body = model.getObjectByName('body');
+    const head = model.getObjectByName('head');
+    const leftArm = model.getObjectByName('leftArm');
+    const rightArm = model.getObjectByName('rightArm');
+
+    if (body) {
+      body.rotation.x = -0.15;
+      body.position.y = (body.position.y || 1.0) - 0.05;
+    }
+    if (head) head.rotation.x = 0.2;
+    if (leftArm) { leftArm.rotation.z = 0.4; leftArm.rotation.x = -0.3; }
+    if (rightArm) { rightArm.rotation.z = -0.4; rightArm.rotation.x = -0.3; }
+
+    // Hit squash — brief scale distortion
+    if (body) {
+      body.scale.set(1.08, 0.92, 1.08);
+    }
+
     // Cancel previous hit flash timeout to prevent race conditions
     if (model.userData._hitFlashTimeout) clearTimeout(model.userData._hitFlashTimeout);
+
+    // Squash recovery (fast)
+    model.userData._squashTimeout = setTimeout(() => {
+      if (body) body.scale.set(1, 1, 1);
+    }, 80);
+
+    // Red flash + pose recovery
     model.userData._hitFlashTimeout = setTimeout(() => {
       model.traverse((child) => {
         if (child.isMesh && child.material && originals) {
@@ -3704,11 +3959,59 @@ export default class CharacterRenderer {
       case 'rolling': {
         this._resetPose(model);
         const rollProg = unitState.rollProgress || 0;
-        model.rotation.z = rollProg * Math.PI * 2; // full barrel roll
-        // Move body low during roll
+
+        // Full body tuck and forward roll
         const rollBody = model.getObjectByName('body');
+        const rollHead = model.getObjectByName('head');
+        const rollLA = model.getObjectByName('leftArm');
+        const rollRA = model.getObjectByName('rightArm');
+        const rollLL = model.getObjectByName('leftLeg');
+        const rollRL = model.getObjectByName('rightLeg');
+
+        // Body rotation — full forward somersault
         if (rollBody) {
-          rollBody.position.y = 0.5 + Math.sin(rollProg * Math.PI) * 0.3;
+          rollBody.rotation.x = rollProg * Math.PI * 2; // full forward flip
+          rollBody.position.y = 0.5 + Math.sin(rollProg * Math.PI) * 0.5; // arc up then down
+          // Tuck the body during middle of roll
+          const tuck = Math.sin(rollProg * Math.PI);
+          rollBody.scale.y = 1.0 - tuck * 0.2; // compress vertically
+        }
+
+        // Head tucked in
+        if (rollHead) rollHead.rotation.x = -0.6 * Math.sin(rollProg * Math.PI);
+
+        // Arms pulled in tight during roll
+        if (rollLA) {
+          rollLA.rotation.x = -1.2 * Math.sin(rollProg * Math.PI);
+          rollLA.rotation.z = 0.8 * Math.sin(rollProg * Math.PI);
+        }
+        if (rollRA) {
+          rollRA.rotation.x = -1.2 * Math.sin(rollProg * Math.PI);
+          rollRA.rotation.z = -0.8 * Math.sin(rollProg * Math.PI);
+        }
+
+        // Legs tucked during roll
+        if (rollLL) rollLL.rotation.x = -0.8 * Math.sin(rollProg * Math.PI);
+        if (rollRL) rollRL.rotation.x = -0.8 * Math.sin(rollProg * Math.PI);
+
+        // Extended bones — forearms and lower legs tuck tighter
+        const rollLF = model.getObjectByName('leftForearm');
+        const rollRF = model.getObjectByName('rightForearm');
+        const rollLLL = model.getObjectByName('leftLowerLeg');
+        const rollRLL = model.getObjectByName('rightLowerLeg');
+        const tuckAmt = Math.sin(rollProg * Math.PI);
+        if (rollLF) rollLF.rotation.x = -1.0 * tuckAmt;
+        if (rollRF) rollRF.rotation.x = -1.0 * tuckAmt;
+        if (rollLLL) rollLLL.rotation.x = 1.2 * tuckAmt;
+        if (rollRLL) rollRLL.rotation.x = 1.2 * tuckAmt;
+
+        // Recovery phase — stand up at end
+        if (rollProg > 0.8) {
+          const recoverT = (rollProg - 0.8) / 0.2;
+          if (rollBody) {
+            rollBody.position.y = 0.5 + recoverT * 0.5;
+            rollBody.scale.y = 0.8 + recoverT * 0.2;
+          }
         }
         break;
       }
@@ -3748,6 +4051,18 @@ export default class CharacterRenderer {
     const rightLeg = model.getObjectByName('rightLeg');
     if (leftLeg) leftLeg.rotation.set(0, 0, 0);
     if (rightLeg) rightLeg.rotation.set(0, 0, 0);
+
+    // Reset extended bones (rigged models)
+    const leftForearm = model.getObjectByName('leftForearm');
+    const rightForearm = model.getObjectByName('rightForearm');
+    const leftLowerLeg = model.getObjectByName('leftLowerLeg');
+    const rightLowerLeg = model.getObjectByName('rightLowerLeg');
+    const hips = model.getObjectByName('hips');
+    if (leftForearm) leftForearm.rotation.set(0, 0, 0);
+    if (rightForearm) rightForearm.rotation.set(0, 0, 0);
+    if (leftLowerLeg) leftLowerLeg.rotation.set(0, 0, 0);
+    if (rightLowerLeg) rightLowerLeg.rotation.set(0, 0, 0);
+    if (hips) hips.rotation.set(0, 0, 0);
 
     // Reset death fall rotation
     model.rotation.z = 0;
@@ -3827,8 +4142,8 @@ export default class CharacterRenderer {
       }
     };
 
-    // Create offscreen renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    // Create offscreen renderer (preserveDrawingBuffer needed for toDataURL)
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     renderer.setSize(size, size);
     renderer.setPixelRatio(1);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -3841,7 +4156,7 @@ export default class CharacterRenderer {
       const cfg = classConfigs[classId];
       scene.background = new THREE.Color(cfg.bgColor);
 
-      // Build the character model (same function used in-game)
+      // Use procedural model for portraits (reliable, sync)
       const builder = CLASS_BUILDERS.get(classId);
       if (!builder) continue;
       const model = builder();
