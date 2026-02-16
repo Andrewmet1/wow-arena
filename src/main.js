@@ -2794,6 +2794,30 @@ class Game {
         this.showMatchEnd(data);
       }, 500);
     });
+
+    // --- Ground zone VFX ---
+    const ZONE_COLORS = {
+      scorched_earth: 0xff4400,
+      ring_of_frost: 0x88ccff,
+      shadowfury: 0x6600aa,
+      abyssal_ground: 0x440088
+    };
+    eventBus.on(EVENTS.GROUND_ZONE_PLACED, (data) => {
+      if (!this.spellEffects) return;
+      const color = ZONE_COLORS[data.type] || 0xff4400;
+      this.spellEffects.spawnGroundZone(data.position, {
+        id: data.id,
+        color,
+        radius: data.radius,
+        duration: data.duration / 10, // ticks to seconds
+        school: data.school,
+        type: data.type
+      });
+    });
+    eventBus.on(EVENTS.GROUND_ZONE_EXPIRED, (data) => {
+      if (!this.spellEffects) return;
+      this.spellEffects.removeGroundZone(data.id);
+    });
   }
 
   _setModelTint(model, color, intensity) {

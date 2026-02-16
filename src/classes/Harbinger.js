@@ -3,6 +3,7 @@ import { ClassBase } from './ClassBase.js';
 import { SCHOOL, CC_TYPE, ABILITY_FLAG, RESOURCE_TYPE, AURA_TYPE } from '../constants.js';
 import { Aura } from '../engine/Aura.js';
 import { CrowdControlSystem } from '../engine/CrowdControl.js';
+import { EVENTS } from '../utils/EventBus.js';
 
 // ---------------------------------------------------------------------------
 // Ability definitions
@@ -15,7 +16,7 @@ const hexBlight = defineAbility({
   cost: { [RESOURCE_TYPE.MANA]: 200 },
   cooldown: 0,
   castTime: 0,
-  range: 35,
+  range: 45,
   slot: 1,
   description: 'Corrupts the target, dealing 9000 Shadow damage over 18s and slowing them by 30% for 6s. DoT ticks have a 10% chance to generate a Soul Shard.',
   execute(engine, source, target, currentTick) {
@@ -60,7 +61,7 @@ const creepingTorment = defineAbility({
   cost: { [RESOURCE_TYPE.MANA]: 250 },
   cooldown: 0,
   castTime: 0,
-  range: 35,
+  range: 45,
   slot: 2,
   description: 'Afflicts the target with creeping torment, dealing escalating Shadow damage over 20s. Starts low and ramps up over time. DoT ticks have a 10% chance to generate a Soul Shard.',
   execute(engine, source, target, currentTick) {
@@ -98,7 +99,7 @@ const volatileHex = defineAbility({
   cost: { [RESOURCE_TYPE.MANA]: 400 },
   cooldown: 0,
   castTime: 15,
-  range: 35,
+  range: 45,
   slot: 7,
   description: 'Afflicts the target with a volatile hex, dealing 12000 Shadow damage over 8s. Dispelling this effect deals 6000 instant Shadow damage. DoT ticks have a 10% chance to generate a Soul Shard.',
   execute(engine, source, target, currentTick) {
@@ -136,7 +137,7 @@ const siphonEssence = defineAbility({
   castTime: 0,
   channelDuration: 50,
   channelTickInterval: 10,
-  range: 35,
+  range: 45,
   flags: [ABILITY_FLAG.CHANNEL],
   slot: 3,
   description: 'Drains the target\'s life force, dealing 2000 Shadow damage and healing you for 3500 every 1s for 5s.',
@@ -153,7 +154,7 @@ const hexRupture = defineAbility({
   cost: { [RESOURCE_TYPE.SOUL_SHARDS]: 1 },
   cooldown: 0,
   castTime: 15,
-  range: 35,
+  range: 45,
   slot: 4,
   description: 'Ruptures the target\'s afflictions, dealing 3000 damage plus 2000 per active DoT. Extends all DoTs on the target by 3s.',
   execute(engine, source, target, currentTick) {
@@ -188,7 +189,7 @@ const dreadHowl = defineAbility({
   cost: { [RESOURCE_TYPE.MANA]: 300 },
   cooldown: 240, // 24s
   castTime: 12,
-  range: 30,
+  range: 45,
   slot: 5,
   description: 'Strikes dread into the target, causing them to flee in terror for 6s. Damage above 2000 will break the effect. Shares diminishing returns with Disorient.',
   execute(engine, source, target, currentTick) {
@@ -231,7 +232,7 @@ const netherSlam = defineAbility({
   cost: { [RESOURCE_TYPE.MANA]: 300 },
   cooldown: 300,
   castTime: 5,
-  range: 30,
+  range: 45,
   slot: 8,
   description: 'Unleashes a burst of nether energy, dealing 4000 damage and stunning the target for 3s.',
   execute(engine, source, target, currentTick) {
@@ -334,7 +335,7 @@ const hexSilence = defineAbility({
   cost: null,
   cooldown: 240,
   castTime: 0,
-  range: 35,
+  range: 45,
   flags: [ABILITY_FLAG.IGNORES_GCD],
   slot: 12,
   description: 'Commands your demon to interrupt the target, locking their spell school for 5s. Requires a living pet.',
@@ -377,6 +378,121 @@ const soulIgnite = defineAbility({
       }
     });
     source.auras.apply(aura);
+  }
+});
+
+const shadowfury = defineAbility({
+  id: 'shadowfury',
+  name: 'Shadowfury',
+  school: SCHOOL.SHADOW,
+  cost: { [RESOURCE_TYPE.MANA]: 350 },
+  cooldown: 250, // 25s
+  castTime: 0,
+  range: 45,
+  slot: 13,
+  description: 'Calls down a pillar of shadow at the target\'s location. After 1.5s, all enemies within 6 yards are stunned for 3s and take 5000 shadow damage.',
+  execute(engine, source, target, currentTick) {
+    const zonePos = { x: target.position.x, z: target.position.z };
+    const ZONE_RADIUS = 6;
+    const DELAY = 15; // 1.5s
+    const triggerTick = currentTick + DELAY;
+    let triggered = false;
+
+    engine.match.eventBus.emit(EVENTS.GROUND_ZONE_PLACED, {
+      id: 'shadowfury_' + currentTick,
+      sourceId: source.id,
+      position: zonePos,
+      radius: ZONE_RADIUS,
+      duration: DELAY,
+      school: SCHOOL.SHADOW,
+      type: 'shadowfury'
+    });
+
+    engine.match.dynamicEvents.push({
+      id: 'shadowfury_' + currentTick,
+      tick(engine, tick) {
+        if (triggered) { this.expired = true; return; }
+        if (tick < triggerTick) return;
+
+        triggered = true;
+        this.expired = true;
+        engine.match.eventBus.emit(EVENTS.GROUND_ZONE_EXPIRED, { id: this.id });
+
+        for (const unit of engine.match.units) {
+          if (unit.id === source.id || !unit.isAlive) continue;
+          const dx = unit.position.x - zonePos.x;
+          const dz = unit.position.z - zonePos.z;
+          if (dx * dx + dz * dz <= ZONE_RADIUS * ZONE_RADIUS) {
+            engine.dealDamage(source, unit, 5000, SCHOOL.SHADOW, 'shadowfury', tick);
+            CrowdControlSystem.applyCC(source, unit, CC_TYPE.STUN, 30, tick); // 3s stun
+          }
+        }
+      }
+    });
+  }
+});
+
+const abyssalGround = defineAbility({
+  id: 'abyssal_ground',
+  name: 'Abyssal Ground',
+  school: SCHOOL.SHADOW,
+  cost: { [RESOURCE_TYPE.MANA]: 400 },
+  cooldown: 200, // 20s
+  castTime: 0,
+  range: 45,
+  slot: 14,
+  description: 'Corrupts the ground at the target\'s location for 8s. Enemies inside take 1500 shadow damage per second and are slowed by 50%.',
+  execute(engine, source, target, currentTick) {
+    const zonePos = { x: target.position.x, z: target.position.z };
+    const ZONE_RADIUS = 7;
+    const ZONE_DURATION = 80; // 8s
+    const endTick = currentTick + ZONE_DURATION;
+    let lastTickAt = currentTick;
+
+    engine.match.eventBus.emit(EVENTS.GROUND_ZONE_PLACED, {
+      id: 'abyssal_ground_' + currentTick,
+      sourceId: source.id,
+      position: zonePos,
+      radius: ZONE_RADIUS,
+      duration: ZONE_DURATION,
+      school: SCHOOL.SHADOW,
+      type: 'abyssal_ground'
+    });
+
+    engine.match.dynamicEvents.push({
+      id: 'abyssal_ground_' + currentTick,
+      tick(engine, tick) {
+        if (tick >= endTick) {
+          this.expired = true;
+          engine.match.eventBus.emit(EVENTS.GROUND_ZONE_EXPIRED, { id: this.id });
+          return;
+        }
+        if (tick - lastTickAt < 10) return;
+        lastTickAt = tick;
+
+        for (const unit of engine.match.units) {
+          if (unit.id === source.id || !unit.isAlive) continue;
+          const dx = unit.position.x - zonePos.x;
+          const dz = unit.position.z - zonePos.z;
+          if (dx * dx + dz * dz <= ZONE_RADIUS * ZONE_RADIUS) {
+            engine.dealDamage(source, unit, 1500, SCHOOL.SHADOW, 'abyssal_ground', tick);
+            unit.auras.apply(new Aura({
+              id: 'abyssal_ground_slow',
+              name: 'Abyssal Ground',
+              type: AURA_TYPE.DEBUFF,
+              sourceId: source.id,
+              targetId: unit.id,
+              school: SCHOOL.SHADOW,
+              duration: 15,
+              appliedTick: tick,
+              statMods: { moveSpeedMultiplier: 0.5 },
+              isMagic: true,
+              isDispellable: true
+            }));
+          }
+        }
+      }
+    });
   }
 });
 
@@ -436,7 +552,9 @@ export const HarbingerClass = new ClassBase({
     wardedFlesh,
     riftAnchor,
     hexSilence,
-    soulIgnite
+    soulIgnite,
+    shadowfury,
+    abyssalGround
   ],
   chargedAbilities: [
     { abilityId: 'rift_anchor', maxCharges: 2, rechargeTicks: 150 }

@@ -1233,6 +1233,9 @@ export class SpellEffects {
         case 'teleport_flash':
           this.updateTeleportFlash(effect, deltaTime);
           break;
+        case 'ground_zone':
+          this.updateGroundZone(effect, deltaTime);
+          break;
       }
 
       // Remove completed effects
@@ -2727,6 +2730,94 @@ export class SpellEffects {
     }
 
     if (effect.age >= effect.maxAge) effect._remove = true;
+  }
+
+  // ──────────────────────────────────────────────
+  //  GROUND ZONE (persistent AoE circle — fire, frost, shadow)
+  // ──────────────────────────────────────────────
+
+  spawnGroundZone(position, config) {
+    const {
+      id, color = 0xff4400, radius = 7, duration = 8.0,
+      school = 'fire', type = 'scorched_earth'
+    } = config;
+    const schoolTex = VFX_TEXTURES[school] || SPELL_TEXTURES[school] || null;
+    const group = new THREE.Group();
+    group.position.set(position.x, 0.15, position.z);
+    this.scene.add(group);
+
+    // Main circle disc
+    const discGeo = new THREE.CircleGeometry(radius, 48);
+    const discMat = new THREE.MeshBasicMaterial({
+      color, transparent: true, opacity: 0.0, depthWrite: false,
+      side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+      map: PROC_TEXTURES.runeCircle
+    });
+    const disc = new THREE.Mesh(discGeo, discMat);
+    disc.rotation.x = -Math.PI / 2;
+    group.add(disc);
+
+    // Rotating outer ring
+    const ringGeo = new THREE.RingGeometry(radius * 0.88, radius * 1.05, 48);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color, transparent: true, opacity: 0.0, depthWrite: false,
+      side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+      map: schoolTex || PROC_TEXTURES.energySwirl
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = -Math.PI / 2;
+    group.add(ring);
+
+    // Rising wisps around the edge
+    const wisps = [];
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      const d = radius * (0.5 + Math.random() * 0.4);
+      const wGeo = new THREE.SphereGeometry(0.1 + Math.random() * 0.08, 6, 6);
+      const wMat = new THREE.MeshBasicMaterial({
+        color, transparent: true, opacity: 0.0,
+        map: schoolTex, blending: THREE.AdditiveBlending, depthWrite: false
+      });
+      const w = new THREE.Mesh(wGeo, wMat);
+      w.position.set(Math.cos(a) * d, 0, Math.sin(a) * d);
+      group.add(w);
+      wisps.push({ mesh: w, angle: a, dist: d, phase: Math.random() * Math.PI * 2 });
+    }
+
+    this.activeEffects.push({
+      type: 'ground_zone', zoneId: id, group, disc, discMat, ring, ringMat, wisps,
+      age: 0, maxAge: duration, _forceRemove: false
+    });
+  }
+
+  removeGroundZone(zoneId) {
+    for (const effect of this.activeEffects) {
+      if (effect.type === 'ground_zone' && effect.zoneId === zoneId) {
+        effect._forceRemove = true;
+        break;
+      }
+    }
+  }
+
+  updateGroundZone(effect, dt) {
+    effect.age += dt;
+    const fadeIn = Math.min(1, effect.age / 0.5);
+    const fadeOut = effect._forceRemove ? Math.max(0, 1 - (effect.age - effect.maxAge + 0.5) / 0.5) : 1;
+    const alpha = fadeIn * fadeOut;
+
+    if (effect.discMat) effect.discMat.opacity = 0.35 * alpha;
+    if (effect.ringMat) effect.ringMat.opacity = 0.5 * alpha;
+    if (effect.disc) effect.disc.rotation.z += dt * 0.3;
+    if (effect.ring) effect.ring.rotation.z -= dt * 0.6;
+
+    for (const w of effect.wisps) {
+      w.mesh.position.y = Math.sin(this._elapsedTime * 2 + w.phase) * 2.0 + 1.0;
+      w.mesh.material.opacity = alpha * 0.5;
+    }
+
+    if (effect._forceRemove || effect.age >= effect.maxAge + 0.5) {
+      effect._remove = true;
+    }
   }
 
   // ──────────────────────────────────────────────

@@ -80,6 +80,11 @@ const ARENA_TEXTURES = {
   stagingFloor: _loadTiledTex('/assets/textures/tex_staging_floor.webp', 3, 3),
   stagingWall:  _loadTiledTex('/assets/textures/tex_staging_wall.webp', 2, 1),
   gateIron:     _loadTiledTex('/assets/textures/tex_gate_iron.webp', 1, 1),
+  torchFlame: (() => {
+    const t = _texLoader.load('/assets/textures/tex_torch_flame.webp');
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  })(),
   sky:    (() => {
     const t = _texLoader.load('/assets/textures/tex_sky_panorama.webp');
     t.colorSpace = THREE.SRGBColorSpace;
@@ -722,11 +727,18 @@ export class ArenaRenderer {
           torchHead.position.set(tx, 3.55, wallZ - zSide * 0.45);
           cellGroup.add(torchHead);
 
-          // Flame glow
-          const flame = new THREE.Mesh(
-            new THREE.SphereGeometry(0.18, 6, 6),
-            new THREE.MeshBasicMaterial({ color: 0xff7722 })
-          );
+          // Flame glow (textured billboard)
+          const flameGeom = new THREE.PlaneGeometry(0.5, 0.7);
+          const flameMat = new THREE.MeshBasicMaterial({
+            map: ARENA_TEXTURES.torchFlame,
+            color: 0xffaa44,
+            transparent: true,
+            opacity: 0.9,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+          });
+          const flame = new THREE.Mesh(flameGeom, flameMat);
           flame.position.set(tx, 3.8, wallZ - zSide * 0.45);
           cellGroup.add(flame);
 
@@ -1151,53 +1163,63 @@ export class ArenaRenderer {
       new THREE.Vector3(0, 4, -38),
     ];
 
-    const flameMaterial = new THREE.MeshBasicMaterial({
-      color: 0xff8833,
-      transparent: true,
-      opacity: 0.85,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-    });
+    const flameTex = ARENA_TEXTURES.torchFlame;
 
     for (const pos of torchPositions) {
-      // Emissive flame sprite — no PointLight
-      const flameGeom = new THREE.PlaneGeometry(1.0, 1.5);
-      const flame = new THREE.Mesh(flameGeom, flameMaterial.clone());
+      // Textured flame billboard
+      const flameGeom = new THREE.PlaneGeometry(1.4, 2.0);
+      const flameMat = new THREE.MeshBasicMaterial({
+        map: flameTex,
+        color: 0xffaa44,
+        transparent: true,
+        opacity: 0.9,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      });
+      const flame = new THREE.Mesh(flameGeom, flameMat);
       flame.position.copy(pos);
       flame.name = 'TorchFlame';
 
       this.torchFlameSprites.push(flame);
       this.group.add(flame);
 
-      // --- 2-3 small emissive spheres per torch for dynamic fire look ---
-      const sphereCount = 2 + Math.floor(Math.random() * 2); // 2 or 3
-      const sphereColors = [0xff6600, 0xffaa22, 0xff4400];
+      // Point light for each arena wall torch
+      const light = new THREE.PointLight(0xff8844, 2.0, 18, 2);
+      light.position.copy(pos);
+      this.torchLights.push(light);
+      this.torchBaseLightIntensities.push(2.0);
+      this.group.add(light);
+
+      // 2-3 small textured flame wisps per torch for dynamic fire look
+      const sphereCount = 2 + Math.floor(Math.random() * 2);
+      const wispColors = [0xff6600, 0xffaa22, 0xff4400];
 
       for (let s = 0; s < sphereCount; s++) {
-        const sphereGeom = new THREE.SphereGeometry(0.15 + Math.random() * 0.1, 8, 8);
-        const sphereMat = new THREE.MeshBasicMaterial({
-          color: sphereColors[s % sphereColors.length],
+        const wispGeom = new THREE.PlaneGeometry(0.4 + Math.random() * 0.2, 0.5 + Math.random() * 0.3);
+        const wispMat = new THREE.MeshBasicMaterial({
+          map: flameTex,
+          color: wispColors[s % wispColors.length],
           transparent: true,
-          opacity: 0.8,
+          opacity: 0.75,
+          side: THREE.DoubleSide,
           depthWrite: false,
           blending: THREE.AdditiveBlending,
         });
-        const sphere = new THREE.Mesh(sphereGeom, sphereMat);
-        sphere.position.set(
+        const wisp = new THREE.Mesh(wispGeom, wispMat);
+        wisp.position.set(
           pos.x + (Math.random() - 0.5) * 0.3,
           pos.y + Math.random() * 0.4,
           pos.z + (Math.random() - 0.5) * 0.3,
         );
-        sphere.name = 'TorchFlameSphere';
-        // Store base Y for bobbing animation
-        sphere.userData.baseY = sphere.position.y;
-        sphere.userData.bobPhase = Math.random() * Math.PI * 2;
-        sphere.userData.bobSpeed = 2.0 + Math.random() * 2.0;
-        sphere.userData.bobAmplitude = 0.1 + Math.random() * 0.15;
+        wisp.name = 'TorchFlameSphere';
+        wisp.userData.baseY = wisp.position.y;
+        wisp.userData.bobPhase = Math.random() * Math.PI * 2;
+        wisp.userData.bobSpeed = 2.0 + Math.random() * 2.0;
+        wisp.userData.bobAmplitude = 0.1 + Math.random() * 0.15;
 
-        this.torchFlameSpheres.push(sphere);
-        this.group.add(sphere);
+        this.torchFlameSpheres.push(wisp);
+        this.group.add(wisp);
       }
     }
   }

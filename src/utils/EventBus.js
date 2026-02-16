@@ -88,5 +88,9 @@ export const EVENTS = {
 
   // GCD
   GCD_START: 'gcd_start',
-  GCD_END: 'gcd_end'
+  GCD_END: 'gcd_end',
+
+  // Ground zones
+  GROUND_ZONE_PLACED: 'ground_zone_placed',
+  GROUND_ZONE_EXPIRED: 'ground_zone_expired'
 };

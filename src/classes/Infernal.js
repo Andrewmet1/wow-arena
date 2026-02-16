@@ -3,6 +3,7 @@ import { ClassBase } from './ClassBase.js';
 import { SCHOOL, CC_TYPE, ABILITY_FLAG, RESOURCE_TYPE, AURA_TYPE } from '../constants.js';
 import { Aura } from '../engine/Aura.js';
 import { CrowdControlSystem } from '../engine/CrowdControl.js';
+import { EVENTS } from '../utils/EventBus.js';
 
 // ---------------------------------------------------------------------------
 // Ability definitions
@@ -15,7 +16,7 @@ const infernoBolt = defineAbility({
   cost: { [RESOURCE_TYPE.MANA]: 300 },
   cooldown: 0,
   castTime: 20, // 2.0s
-  range: 35,
+  range: 45,
   slot: 1,
   description: 'Hurls a ball of fire at the target, dealing 6500 damage and generating 1 Cinder stack.',
   execute(engine, source, target, currentTick) {
@@ -35,7 +36,7 @@ const cataclysmFlare = defineAbility({
   cost: { [RESOURCE_TYPE.MANA]: 500 },
   cooldown: 0,
   castTime: 35, // 3.5s
-  range: 35,
+  range: 45,
   slot: 2,
   description: 'Launches an immense bolt of fire at the target. Deals 22000 damage if 4 Cinder stacks are consumed, otherwise 14000. Applies Pyre.',
   execute(engine, source, target, currentTick) {
@@ -76,7 +77,7 @@ const searingPulse = defineAbility({
   cost: { [RESOURCE_TYPE.MANA]: 200 },
   cooldown: 80, // 8s
   castTime: 5, // 0.5s
-  range: 35,
+  range: 45,
   flags: [ABILITY_FLAG.IGNORES_GCD, ABILITY_FLAG.GUARANTEED_CRIT, ABILITY_FLAG.USABLE_WHILE_CASTING],
   charges: { max: 2, rechargeTicks: 80 },
   slot: 3,
@@ -96,7 +97,7 @@ const glacialLance = defineAbility({
   cost: { [RESOURCE_TYPE.MANA]: 250 },
   cooldown: 0,
   castTime: 18, // 1.8s
-  range: 35,
+  range: 45,
   slot: 4,
   description: 'Launches a bolt of frost at the target, dealing 5500 damage and slowing movement by 40% for 8s.',
   execute(engine, source, target, currentTick) {
@@ -127,7 +128,7 @@ const permafrostBurst = defineAbility({
   cost: { [RESOURCE_TYPE.MANA]: 200 },
   cooldown: 180, // 18s
   castTime: 0,
-  range: 20,
+  range: 45,
   slot: 5,
   description: 'Blasts the target with frost, dealing 3000 damage and rooting them for 4s.',
   execute(engine, source, target, currentTick) {
@@ -344,7 +345,7 @@ const spellFracture = defineAbility({
   cost: null,
   cooldown: 240, // 24s
   castTime: 0,
-  range: 35,
+  range: 45,
   flags: [ABILITY_FLAG.IGNORES_GCD],
   slot: 10,
   description: 'Counters the target\'s spellcast, interrupting it and locking that school for 6s.',
@@ -382,7 +383,7 @@ const emberBrand = defineAbility({
   cost: { [RESOURCE_TYPE.MANA]: 100 },
   cooldown: 0,
   castTime: 10, // 1.0s
-  range: 35,
+  range: 45,
   flags: [ABILITY_FLAG.USABLE_WHILE_MOVING],
   slot: 12,
   description: 'Scorches the target for 3500 damage. Castable while moving. Generates 1 Cinder stack.',
@@ -391,6 +392,129 @@ const emberBrand = defineAbility({
 
     // Generate cinder stack
     source.resources.gain(RESOURCE_TYPE.CINDER_STACKS, 1);
+  }
+});
+
+const scorchedEarth = defineAbility({
+  id: 'scorched_earth',
+  name: 'Scorched Earth',
+  school: SCHOOL.FIRE,
+  cost: { [RESOURCE_TYPE.MANA]: 400 },
+  cooldown: 200, // 20s
+  castTime: 0,
+  range: 45,
+  slot: 14,
+  description: 'Scorches the ground at the target\'s location for 8s. Enemies standing in the zone take 2000 fire damage per second and are slowed by 50%.',
+  execute(engine, source, target, currentTick) {
+    const zonePos = { x: target.position.x, z: target.position.z };
+    const ZONE_RADIUS = 7;
+    const ZONE_DURATION = 80; // 8s
+    const endTick = currentTick + ZONE_DURATION;
+    let lastTickAt = currentTick;
+
+    engine.match.eventBus.emit(EVENTS.GROUND_ZONE_PLACED, {
+      id: 'scorched_earth_' + currentTick,
+      sourceId: source.id,
+      position: zonePos,
+      radius: ZONE_RADIUS,
+      duration: ZONE_DURATION,
+      school: SCHOOL.FIRE,
+      type: 'scorched_earth'
+    });
+
+    engine.match.dynamicEvents.push({
+      id: 'scorched_earth_' + currentTick,
+      tick(engine, tick) {
+        if (tick >= endTick) {
+          this.expired = true;
+          engine.match.eventBus.emit(EVENTS.GROUND_ZONE_EXPIRED, { id: this.id });
+          return;
+        }
+        // Tick every 1s (10 ticks)
+        if (tick - lastTickAt < 10) return;
+        lastTickAt = tick;
+
+        for (const unit of engine.match.units) {
+          if (unit.id === source.id || !unit.isAlive) continue;
+          const dx = unit.position.x - zonePos.x;
+          const dz = unit.position.z - zonePos.z;
+          if (dx * dx + dz * dz <= ZONE_RADIUS * ZONE_RADIUS) {
+            engine.dealDamage(source, unit, 2000, SCHOOL.FIRE, 'scorched_earth', tick);
+            // Apply slow
+            unit.auras.apply(new Aura({
+              id: 'scorched_earth_slow',
+              name: 'Scorched Earth',
+              type: AURA_TYPE.DEBUFF,
+              sourceId: source.id,
+              targetId: unit.id,
+              school: SCHOOL.FIRE,
+              duration: 15, // 1.5s — refreshed each zone tick
+              appliedTick: tick,
+              statMods: { moveSpeedMultiplier: 0.5 },
+              isMagic: true,
+              isDispellable: true
+            }));
+          }
+        }
+      }
+    });
+  }
+});
+
+const ringOfFrost = defineAbility({
+  id: 'ring_of_frost',
+  name: 'Ring of Frost',
+  school: SCHOOL.FROST,
+  cost: { [RESOURCE_TYPE.MANA]: 300 },
+  cooldown: 300, // 30s
+  castTime: 0,
+  range: 45,
+  slot: 15,
+  description: 'Places a frost ring at the target\'s location. After 2s, enemies who enter are frozen for 4s and take 4000 frost damage. Lasts 10s.',
+  execute(engine, source, target, currentTick) {
+    const zonePos = { x: target.position.x, z: target.position.z };
+    const ZONE_RADIUS = 8;
+    const ARM_DELAY = 20; // 2s
+    const ZONE_DURATION = 100; // 10s total
+    const endTick = currentTick + ZONE_DURATION;
+    const armTick = currentTick + ARM_DELAY;
+    const frozenUnits = new Set();
+
+    engine.match.eventBus.emit(EVENTS.GROUND_ZONE_PLACED, {
+      id: 'ring_of_frost_' + currentTick,
+      sourceId: source.id,
+      position: zonePos,
+      radius: ZONE_RADIUS,
+      duration: ZONE_DURATION,
+      school: SCHOOL.FROST,
+      type: 'ring_of_frost'
+    });
+
+    engine.match.dynamicEvents.push({
+      id: 'ring_of_frost_' + currentTick,
+      tick(engine, tick) {
+        if (tick >= endTick) {
+          this.expired = true;
+          engine.match.eventBus.emit(EVENTS.GROUND_ZONE_EXPIRED, { id: this.id });
+          return;
+        }
+        // Not armed yet
+        if (tick < armTick) return;
+
+        for (const unit of engine.match.units) {
+          if (unit.id === source.id || !unit.isAlive) continue;
+          if (frozenUnits.has(unit.id)) continue; // Already triggered on this unit
+
+          const dx = unit.position.x - zonePos.x;
+          const dz = unit.position.z - zonePos.z;
+          if (dx * dx + dz * dz <= ZONE_RADIUS * ZONE_RADIUS) {
+            frozenUnits.add(unit.id);
+            engine.dealDamage(source, unit, 4000, SCHOOL.FROST, 'ring_of_frost', tick);
+            CrowdControlSystem.applyCC(source, unit, CC_TYPE.ROOT, 40, tick); // 4s root
+          }
+        }
+      }
+    });
   }
 });
 
@@ -437,7 +561,9 @@ export const InfernalClass = new ClassBase({
     arcaneBulwark,
     spellFracture,
     scaldwind,
-    emberBrand
+    emberBrand,
+    scorchedEarth,
+    ringOfFrost
   ],
   chargedAbilities: [
     { abilityId: 'searing_pulse', maxCharges: 2, rechargeTicks: 80 },

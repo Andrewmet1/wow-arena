@@ -411,6 +411,17 @@ export class AIController {
       if (hpPercent < 0.30) score += 150;
     }
 
+    // Ground zone abilities — great for kiting and peeling
+    if (this.isGroundZoneAbility(ability)) {
+      if (this.state === AI_STATE.KITE) {
+        score += 180; // Very high priority when being chased
+      } else if (distance < 12) {
+        score += 120; // Good when enemy is close
+      } else {
+        score += 60; // Always decent in pressure
+      }
+    }
+
     // Penalty for long cast times while in danger
     if (ability.castTime > 0 && hpPercent < 0.30) {
       score -= 30;
@@ -465,7 +476,11 @@ export class AIController {
   isCCAbility(ability) {
     return ability.cc || ['dread_howl', 'nerve_strike', 'blackjack', 'thunder_spike',
             'gavel_of_light', 'binding_prayer', 'permafrost_burst', 'scaldwind',
-            'wraith_bolt', 'nether_slam'].includes(ability.id);
+            'wraith_bolt', 'nether_slam', 'shadowfury', 'ring_of_frost'].includes(ability.id);
+  }
+
+  isGroundZoneAbility(ability) {
+    return ['scorched_earth', 'ring_of_frost', 'shadowfury', 'abyssal_ground'].includes(ability.id);
   }
 
   isBurstCooldown(ability) {
@@ -489,7 +504,10 @@ export class AIController {
            enemy.auras.hasAura('ember_wake_slow') ||
            enemy.auras.hasAura('tyrant_hamstring') ||
            enemy.auras.hasAura('crippling_poison') ||
-           enemy.auras.hasAura('revenant_judgment_slow');
+           enemy.auras.hasAura('revenant_judgment_slow') ||
+           enemy.auras.hasAura('hex_blight_slow') ||
+           enemy.auras.hasAura('scorched_earth_slow') ||
+           enemy.auras.hasAura('abyssal_ground_slow');
   }
 
   isDotAbility(ability) {

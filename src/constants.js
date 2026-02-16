@@ -25,7 +25,7 @@ export const PUSHBACK_AMOUNT_TICKS = 5; // 0.5s
 export const MAX_PUSHBACKS = 2;
 
 // Auto-attack
-export const MELEE_RANGE = 10;
+export const MELEE_RANGE = 5;
 export const DEFAULT_SWING_TIMER = 20; // 2.0s in ticks
 
 // DR system
