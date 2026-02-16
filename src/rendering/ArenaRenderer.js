@@ -517,129 +517,252 @@ export class ArenaRenderer {
   }
 
   // ---------------------------------------------------------------------------
-  // Starting Gates + Staging Cells (prison rooms outside the arena)
+  // Starting Gates + Staging Cells (open-top gladiator pens outside arena)
   // ---------------------------------------------------------------------------
 
   _buildGates() {
     const WALL_RADIUS = 41;
-    const GATE_WIDTH = 6;
-    const GATE_HEIGHT = 5;
-    const BAR_RADIUS = 0.08;
-    const BAR_SPACING = 0.45;
+    const GATE_WIDTH = 7;
+    const GATE_HEIGHT = 6;
+    const CELL_DEPTH = 12;
+    const CELL_WIDTH = 10;
+    const WALL_H = 4.5;
 
-    // Staging cell dimensions
-    const CELL_DEPTH = 12;   // how far back from the gate
-    const CELL_WIDTH = 10;   // wider than the gate opening
-    const CELL_HEIGHT = 5;
-
-    // Two gate positions: +X (East, angle 0) and -X (West, angle PI)
     const gateConfigs = [
-      { angle: 0,        sign: 1,  name: 'East' },
-      { angle: Math.PI,  sign: -1, name: 'West' },
+      { sign: 1,  name: 'East' },
+      { sign: -1, name: 'West' },
     ];
 
+    // Shared materials
+    const cellFloorMat = new THREE.MeshStandardMaterial({
+      color: 0x999999,
+      map: ARENA_TEXTURES.stagingFloor,
+      normalMap: ARENA_TEXTURES.stagingFloor._normalMap,
+      normalScale: new THREE.Vector2(2.0, 2.0),
+      roughness: 0.88,
+      metalness: 0.05,
+    });
+
+    const cellWallMat = new THREE.MeshStandardMaterial({
+      color: 0x888888,
+      map: ARENA_TEXTURES.stagingWall,
+      normalMap: ARENA_TEXTURES.stagingWall._normalMap,
+      normalScale: new THREE.Vector2(2.0, 2.0),
+      roughness: 0.9,
+      metalness: 0.08,
+    });
+
+    const stoneTrimMat = new THREE.MeshStandardMaterial({
+      color: 0x5a5a68,
+      map: ARENA_TEXTURES.pillar,
+      roughness: 0.85,
+      metalness: 0.12,
+    });
+
+    const ironFixtureMat = new THREE.MeshStandardMaterial({
+      color: 0x4a4a4a,
+      roughness: 0.3,
+      metalness: 0.85,
+    });
+
+    const gateIronMat = new THREE.MeshStandardMaterial({
+      color: 0x6a6a6a,
+      map: ARENA_TEXTURES.gateIron,
+      normalMap: ARENA_TEXTURES.gateIron._normalMap,
+      normalScale: new THREE.Vector2(1.5, 1.5),
+      roughness: 0.3,
+      metalness: 0.9,
+    });
+
+    const darkIronMat = new THREE.MeshStandardMaterial({
+      color: 0x3a3a3a,
+      roughness: 0.25,
+      metalness: 0.95,
+    });
+
     for (const cfg of gateConfigs) {
-      const { angle, sign, name } = cfg;
-
-      // Gate sits at the arena wall
+      const { sign, name } = cfg;
       const gateX = sign * WALL_RADIUS;
-      const gateZ = 0;
-
-      // Outward direction (away from arena center)
       const outX = sign;
+      const cellCenterX = gateX + outX * (CELL_DEPTH / 2 + 1);
 
-      // ─── Staging Cell Room ───
       const cellGroup = new THREE.Group();
       cellGroup.name = `StagingCell_${name}`;
 
-      const cellFloorMat = new THREE.MeshStandardMaterial({
-        color: 0x888888,
-        map: ARENA_TEXTURES.stagingFloor,
-        normalMap: ARENA_TEXTURES.stagingFloor._normalMap,
-        normalScale: new THREE.Vector2(1.5, 1.5),
-        roughness: 0.9,
-        metalness: 0.05,
-      });
-
-      const cellWallMat = new THREE.MeshStandardMaterial({
-        color: 0x777777,
-        map: ARENA_TEXTURES.stagingWall,
-        normalMap: ARENA_TEXTURES.stagingWall._normalMap,
-        normalScale: new THREE.Vector2(1.8, 1.8),
-        roughness: 0.92,
-        metalness: 0.08,
-      });
-
-      // Cell center (behind the gate, outward from arena)
-      const cellCenterX = gateX + outX * (CELL_DEPTH / 2 + 1);
-
-      // Floor
-      const floorGeom = new THREE.BoxGeometry(CELL_DEPTH + 2, 0.5, CELL_WIDTH);
+      // ─── Floor with stone border ───
+      const floorGeom = new THREE.BoxGeometry(CELL_DEPTH + 2, 0.4, CELL_WIDTH);
       const floor = new THREE.Mesh(floorGeom, cellFloorMat);
-      floor.position.set(cellCenterX, -0.25, gateZ);
+      floor.position.set(cellCenterX, -0.2, 0);
       floor.receiveShadow = true;
       cellGroup.add(floor);
 
-      // Ceiling
-      const ceilMat = new THREE.MeshStandardMaterial({
-        color: 0x444444,
-        map: ARENA_TEXTURES.stagingWall,
-        roughness: 0.95,
-        metalness: 0.05,
-      });
-      const ceiling = new THREE.Mesh(floorGeom, ceilMat);
-      ceiling.position.set(cellCenterX, CELL_HEIGHT + 0.25, gateZ);
-      ceiling.receiveShadow = true;
-      cellGroup.add(ceiling);
+      // Stone floor border trim (raised edge)
+      const borderThick = 0.4;
+      const trimH = 0.3;
+      const trimY = trimH / 2;
+      // Back border
+      const backTrim = new THREE.Mesh(
+        new THREE.BoxGeometry(borderThick, trimH, CELL_WIDTH + borderThick * 2),
+        stoneTrimMat
+      );
+      backTrim.position.set(gateX + outX * (CELL_DEPTH + 1 + borderThick / 2), trimY, 0);
+      cellGroup.add(backTrim);
+      // Side borders
+      for (const zSide of [-1, 1]) {
+        const sideTrim = new THREE.Mesh(
+          new THREE.BoxGeometry(CELL_DEPTH + 2 + borderThick, trimH, borderThick),
+          stoneTrimMat
+        );
+        sideTrim.position.set(cellCenterX, trimY, zSide * (CELL_WIDTH / 2 + borderThick / 2));
+        cellGroup.add(sideTrim);
+      }
 
-      // Back wall (furthest from arena)
-      const backWallGeom = new THREE.BoxGeometry(1.5, CELL_HEIGHT, CELL_WIDTH);
-      const backWall = new THREE.Mesh(backWallGeom, cellWallMat);
-      backWall.position.set(gateX + outX * (CELL_DEPTH + 1.75), CELL_HEIGHT / 2, gateZ);
+      // ─── Walls (shorter, no ceiling — open-top gladiator pen) ───
+      // Back wall
+      const backWall = new THREE.Mesh(
+        new THREE.BoxGeometry(1.2, WALL_H, CELL_WIDTH + 1),
+        cellWallMat
+      );
+      backWall.position.set(gateX + outX * (CELL_DEPTH + 1.6), WALL_H / 2, 0);
       backWall.castShadow = true;
       backWall.receiveShadow = true;
       cellGroup.add(backWall);
 
-      // Side walls (left and right)
-      const sideWallGeom = new THREE.BoxGeometry(CELL_DEPTH + 2, CELL_HEIGHT, 1.5);
+      // Side walls
       for (const zSide of [-1, 1]) {
-        const sideWall = new THREE.Mesh(sideWallGeom, cellWallMat);
-        sideWall.position.set(cellCenterX, CELL_HEIGHT / 2, gateZ + zSide * (CELL_WIDTH / 2 + 0.75));
+        const sideWall = new THREE.Mesh(
+          new THREE.BoxGeometry(CELL_DEPTH + 2, WALL_H, 1.2),
+          cellWallMat
+        );
+        sideWall.position.set(cellCenterX, WALL_H / 2, zSide * (CELL_WIDTH / 2 + 0.6));
         sideWall.castShadow = true;
         sideWall.receiveShadow = true;
         cellGroup.add(sideWall);
       }
 
-      // Torch light inside the cell
-      const torchLight = new THREE.PointLight(0xff8844, 1.5, 15, 2);
-      torchLight.position.set(gateX + outX * (CELL_DEPTH / 2 + 1), 4, gateZ);
-      torchLight.castShadow = false;
-      cellGroup.add(torchLight);
-
-      // Wall-mounted torch bracket (back wall)
-      const bracketMat = new THREE.MeshStandardMaterial({ color: 0x4a4a4a, roughness: 0.4, metalness: 0.8 });
-      const bracketGeom = new THREE.BoxGeometry(0.15, 0.6, 0.15);
-      const bracket = new THREE.Mesh(bracketGeom, bracketMat);
-      bracket.position.set(gateX + outX * (CELL_DEPTH + 0.5), 3.5, gateZ);
-      cellGroup.add(bracket);
-
-      // Flame sphere on torch
-      const flameMat = new THREE.MeshBasicMaterial({ color: 0xff6622 });
-      const flame = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), flameMat);
-      flame.position.set(gateX + outX * (CELL_DEPTH + 0.5), 3.9, gateZ);
-      cellGroup.add(flame);
-
-      // Chains on side walls (decorative)
-      const chainMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.3, metalness: 0.9 });
+      // ─── Wall-top crenellations ───
       for (const zSide of [-1, 1]) {
-        for (let cy = 1.5; cy <= 3.5; cy += 2) {
-          const chainGeom = new THREE.TorusGeometry(0.12, 0.03, 6, 8);
-          const chain = new THREE.Mesh(chainGeom, chainMat);
-          chain.position.set(
-            gateX + outX * (CELL_DEPTH * 0.7),
-            cy,
-            gateZ + zSide * (CELL_WIDTH / 2 + 0.1)
+        for (let ci = 0; ci < 5; ci++) {
+          const cx = gateX + outX * (2 + ci * 2.5);
+          const cren = new THREE.Mesh(
+            new THREE.BoxGeometry(1.0, 0.7, 1.4),
+            stoneTrimMat
           );
+          cren.position.set(cx, WALL_H + 0.35, zSide * (CELL_WIDTH / 2 + 0.6));
+          cren.castShadow = true;
+          cellGroup.add(cren);
+        }
+      }
+      // Back wall crenellations
+      for (let ci = -2; ci <= 2; ci++) {
+        const cren = new THREE.Mesh(
+          new THREE.BoxGeometry(1.4, 0.7, 1.0),
+          stoneTrimMat
+        );
+        cren.position.set(gateX + outX * (CELL_DEPTH + 1.6), WALL_H + 0.35, ci * 2.2);
+        cren.castShadow = true;
+        cellGroup.add(cren);
+      }
+
+      // ─── Corner stone pillars ───
+      const pillarR = 0.5;
+      const pillarH = WALL_H + 1.5;
+      const cornerPositions = [
+        { x: gateX + outX * (CELL_DEPTH + 1.6), z: -(CELL_WIDTH / 2 + 0.6) },
+        { x: gateX + outX * (CELL_DEPTH + 1.6), z:  (CELL_WIDTH / 2 + 0.6) },
+        { x: gateX + outX * 0.5,                z: -(CELL_WIDTH / 2 + 0.6) },
+        { x: gateX + outX * 0.5,                z:  (CELL_WIDTH / 2 + 0.6) },
+      ];
+      for (const cp of cornerPositions) {
+        const pillar = new THREE.Mesh(
+          new THREE.CylinderGeometry(pillarR, pillarR + 0.1, pillarH, 8),
+          stoneTrimMat
+        );
+        pillar.position.set(cp.x, pillarH / 2, cp.z);
+        pillar.castShadow = true;
+        cellGroup.add(pillar);
+        // Pillar cap
+        const cap = new THREE.Mesh(
+          new THREE.SphereGeometry(pillarR + 0.15, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2),
+          stoneTrimMat
+        );
+        cap.position.set(cp.x, pillarH, cp.z);
+        cellGroup.add(cap);
+      }
+
+      // ─── Wall-mounted torches (2 per side wall) ───
+      for (const zSide of [-1, 1]) {
+        for (let ti = 0; ti < 2; ti++) {
+          const tx = gateX + outX * (3.5 + ti * 5.5);
+          const wallZ = zSide * (CELL_WIDTH / 2 + 0.1);
+
+          // Iron bracket (L-shaped)
+          const bracketV = new THREE.Mesh(
+            new THREE.BoxGeometry(0.12, 0.8, 0.12), ironFixtureMat
+          );
+          bracketV.position.set(tx, 3.0, wallZ);
+          cellGroup.add(bracketV);
+          const bracketH = new THREE.Mesh(
+            new THREE.BoxGeometry(0.12, 0.12, 0.5), ironFixtureMat
+          );
+          bracketH.position.set(tx, 3.4, wallZ - zSide * 0.25);
+          cellGroup.add(bracketH);
+
+          // Torch head (cylinder)
+          const torchHead = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.08, 0.06, 0.3, 6),
+            new THREE.MeshStandardMaterial({ color: 0x5a3a1a, roughness: 0.9 })
+          );
+          torchHead.position.set(tx, 3.55, wallZ - zSide * 0.45);
+          cellGroup.add(torchHead);
+
+          // Flame glow
+          const flame = new THREE.Mesh(
+            new THREE.SphereGeometry(0.18, 6, 6),
+            new THREE.MeshBasicMaterial({ color: 0xff7722 })
+          );
+          flame.position.set(tx, 3.8, wallZ - zSide * 0.45);
+          cellGroup.add(flame);
+
+          // Point light
+          const light = new THREE.PointLight(0xff8844, 1.2, 10, 2);
+          light.position.set(tx, 3.8, wallZ - zSide * 0.45);
+          cellGroup.add(light);
+        }
+      }
+
+      // ─── Iron ring fixtures on back wall ───
+      for (const ringZ of [-2, 0, 2]) {
+        const ring = new THREE.Mesh(
+          new THREE.TorusGeometry(0.2, 0.04, 8, 12),
+          ironFixtureMat
+        );
+        ring.position.set(gateX + outX * (CELL_DEPTH + 1.0), 2.0, ringZ);
+        ring.rotation.y = Math.PI / 2;
+        cellGroup.add(ring);
+        // Mounting plate
+        const plate = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.12, 0.12, 0.08, 8),
+          ironFixtureMat
+        );
+        plate.position.set(gateX + outX * (CELL_DEPTH + 1.0), 2.2, ringZ);
+        plate.rotation.z = Math.PI / 2;
+        cellGroup.add(plate);
+      }
+
+      // ─── Hanging chains from back wall (dangling loose) ───
+      for (const chainZ of [-3, 3]) {
+        for (let link = 0; link < 5; link++) {
+          const chain = new THREE.Mesh(
+            new THREE.TorusGeometry(0.08, 0.025, 6, 8),
+            ironFixtureMat
+          );
+          chain.position.set(
+            gateX + outX * (CELL_DEPTH + 0.8),
+            3.5 - link * 0.3,
+            chainZ
+          );
+          chain.rotation.x = link % 2 === 0 ? 0 : Math.PI / 2;
           chain.rotation.y = Math.PI / 2;
           cellGroup.add(chain);
         }
@@ -647,91 +770,58 @@ export class ArenaRenderer {
 
       this.group.add(cellGroup);
 
-      // ─── Iron Portcullis Gate ───
+      // ═══════════════════════════════════════════════════════════
+      // ─── Portcullis Gate (thick iron bars in stone archway) ───
+      // ═══════════════════════════════════════════════════════════
       const gateGroup = new THREE.Group();
       gateGroup.name = `Gate_${name}`;
 
-      const ironMat = new THREE.MeshStandardMaterial({
-        color: 0x5a5a5a,
-        map: ARENA_TEXTURES.gateIron,
-        roughness: 0.35,
-        metalness: 0.85,
-      });
-
-      const darkIronMat = new THREE.MeshStandardMaterial({
-        color: 0x3a3a3a,
-        roughness: 0.3,
-        metalness: 0.9,
-      });
-
-      // Vertical bars
-      const barCount = Math.floor(GATE_WIDTH / BAR_SPACING);
+      // Thick vertical bars
+      const BAR_R = 0.12;
+      const BAR_GAP = 0.55;
+      const barCount = Math.floor(GATE_WIDTH / BAR_GAP);
       for (let i = 0; i <= barCount; i++) {
-        const offset = -GATE_WIDTH / 2 + i * BAR_SPACING;
-        const barGeom = new THREE.CylinderGeometry(BAR_RADIUS, BAR_RADIUS, GATE_HEIGHT, 8);
-        const bar = new THREE.Mesh(barGeom, ironMat);
-        bar.position.set(gateX, GATE_HEIGHT / 2, gateZ + offset);
+        const offset = -GATE_WIDTH / 2 + i * BAR_GAP;
+        const bar = new THREE.Mesh(
+          new THREE.CylinderGeometry(BAR_R, BAR_R, GATE_HEIGHT, 8),
+          gateIronMat
+        );
+        bar.position.set(gateX, GATE_HEIGHT / 2, offset);
         bar.castShadow = true;
         gateGroup.add(bar);
       }
 
-      // Horizontal crossbars (3)
-      for (let h = 1; h <= 3; h++) {
-        const y = h * (GATE_HEIGHT / 4);
-        const crossGeom = new THREE.CylinderGeometry(BAR_RADIUS * 1.3, BAR_RADIUS * 1.3, GATE_WIDTH, 8);
-        const cross = new THREE.Mesh(crossGeom, darkIronMat);
-        cross.position.set(gateX, y, gateZ);
-        // Rotate cylinder to lie along Z axis
+      // Horizontal crossbars (4 — more substantial)
+      for (let h = 0; h < 4; h++) {
+        const y = 0.8 + h * (GATE_HEIGHT - 1.2) / 3;
+        const cross = new THREE.Mesh(
+          new THREE.CylinderGeometry(BAR_R * 0.8, BAR_R * 0.8, GATE_WIDTH + 0.2, 8),
+          darkIronMat
+        );
+        cross.position.set(gateX, y, 0);
         cross.rotation.x = Math.PI / 2;
         cross.castShadow = true;
         gateGroup.add(cross);
       }
 
-      // Spike tips
-      const spikeMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.25, metalness: 0.95 });
+      // Bottom rail (thick bar along the ground)
+      const bottomRail = new THREE.Mesh(
+        new THREE.BoxGeometry(0.3, 0.25, GATE_WIDTH + 0.4),
+        darkIronMat
+      );
+      bottomRail.position.set(gateX, 0.125, 0);
+      gateGroup.add(bottomRail);
+
+      // Spike tips on every bar
       for (let i = 0; i <= barCount; i++) {
-        const offset = -GATE_WIDTH / 2 + i * BAR_SPACING;
-        const spikeGeom = new THREE.ConeGeometry(BAR_RADIUS * 2.5, 0.5, 6);
-        const spike = new THREE.Mesh(spikeGeom, spikeMat);
-        spike.position.set(gateX, GATE_HEIGHT + 0.25, gateZ + offset);
+        const offset = -GATE_WIDTH / 2 + i * BAR_GAP;
+        const spike = new THREE.Mesh(
+          new THREE.ConeGeometry(BAR_R * 2, 0.6, 6),
+          darkIronMat
+        );
+        spike.position.set(gateX, GATE_HEIGHT + 0.3, offset);
         gateGroup.add(spike);
       }
-
-      // Stone frame pillars flanking the gate
-      const frameMat = new THREE.MeshStandardMaterial({
-        color: 0x6a7080,
-        map: ARENA_TEXTURES.pillar,
-        roughness: 0.85,
-        metalness: 0.15,
-      });
-
-      for (const zSide of [-1, 1]) {
-        const pillarGeom = new THREE.BoxGeometry(1.5, GATE_HEIGHT + 1.5, 1.0);
-        const pillar = new THREE.Mesh(pillarGeom, frameMat);
-        pillar.position.set(gateX, (GATE_HEIGHT + 1.5) / 2, gateZ + zSide * (GATE_WIDTH / 2 + 0.5));
-        pillar.castShadow = true;
-        pillar.receiveShadow = true;
-        gateGroup.add(pillar);
-      }
-
-      // Stone lintel across the top
-      const lintelGeom = new THREE.BoxGeometry(1.5, 1.2, GATE_WIDTH + 2);
-      const lintel = new THREE.Mesh(lintelGeom, frameMat);
-      lintel.position.set(gateX, GATE_HEIGHT + 0.6, gateZ);
-      lintel.castShadow = true;
-      lintel.receiveShadow = true;
-      gateGroup.add(lintel);
-
-      // Upper housing (the slot the portcullis retracts into)
-      const housingMat = new THREE.MeshStandardMaterial({
-        color: 0x3a3a40,
-        roughness: 0.8,
-        metalness: 0.3,
-      });
-      const housingGeom = new THREE.BoxGeometry(2.0, 3.0, GATE_WIDTH + 2.5);
-      const housing = new THREE.Mesh(housingGeom, housingMat);
-      housing.position.set(gateX, GATE_HEIGHT + 2.7, gateZ);
-      cellGroup.add(housing); // Part of the cell, not the moving gate
 
       // Store animation data
       gateGroup._closedY = 0;
@@ -740,6 +830,81 @@ export class ArenaRenderer {
 
       this.group.add(gateGroup);
       this.gates.push(gateGroup);
+
+      // ═══════════════════════════════════════════════
+      // ─── Stone Archway Frame (static, not moving) ─
+      // ═══════════════════════════════════════════════
+      const archGroup = new THREE.Group();
+      archGroup.name = `GateArch_${name}`;
+
+      // Massive stone pillars flanking the gate
+      for (const zSide of [-1, 1]) {
+        // Main pillar body
+        const pH = GATE_HEIGHT + 2.5;
+        const pillar = new THREE.Mesh(
+          new THREE.BoxGeometry(2.0, pH, 1.5),
+          stoneTrimMat
+        );
+        pillar.position.set(gateX, pH / 2, zSide * (GATE_WIDTH / 2 + 0.75));
+        pillar.castShadow = true;
+        pillar.receiveShadow = true;
+        archGroup.add(pillar);
+
+        // Pillar base (wider)
+        const base = new THREE.Mesh(
+          new THREE.BoxGeometry(2.4, 0.5, 1.9),
+          stoneTrimMat
+        );
+        base.position.set(gateX, 0.25, zSide * (GATE_WIDTH / 2 + 0.75));
+        archGroup.add(base);
+
+        // Pillar capital (wider top)
+        const capital = new THREE.Mesh(
+          new THREE.BoxGeometry(2.3, 0.4, 1.8),
+          stoneTrimMat
+        );
+        capital.position.set(gateX, pH, zSide * (GATE_WIDTH / 2 + 0.75));
+        archGroup.add(capital);
+
+        // Skull ornament on pillar face (facing into cell)
+        const skull = new THREE.Mesh(
+          new THREE.SphereGeometry(0.25, 8, 6),
+          new THREE.MeshStandardMaterial({ color: 0xb0a890, roughness: 0.8, metalness: 0.1 })
+        );
+        skull.position.set(gateX + outX * 1.0, GATE_HEIGHT * 0.7, zSide * (GATE_WIDTH / 2 + 0.75));
+        skull.scale.set(1, 1.1, 0.7);
+        archGroup.add(skull);
+      }
+
+      // Heavy stone lintel
+      const lintel = new THREE.Mesh(
+        new THREE.BoxGeometry(2.2, 1.5, GATE_WIDTH + 3),
+        stoneTrimMat
+      );
+      lintel.position.set(gateX, GATE_HEIGHT + 1.75, 0);
+      lintel.castShadow = true;
+      lintel.receiveShadow = true;
+      archGroup.add(lintel);
+
+      // Decorative keystone (center of lintel, facing out)
+      const keystone = new THREE.Mesh(
+        new THREE.BoxGeometry(0.6, 0.8, 1.2),
+        new THREE.MeshStandardMaterial({ color: 0x7a7a88, roughness: 0.7, metalness: 0.2 })
+      );
+      keystone.position.set(gateX + outX * 1.15, GATE_HEIGHT + 1.5, 0);
+      archGroup.add(keystone);
+
+      // Iron gate track grooves (visible slots where portcullis slides)
+      for (const zSide of [-1, 1]) {
+        const groove = new THREE.Mesh(
+          new THREE.BoxGeometry(0.3, GATE_HEIGHT + 2, 0.15),
+          darkIronMat
+        );
+        groove.position.set(gateX, (GATE_HEIGHT + 2) / 2, zSide * (GATE_WIDTH / 2 + 0.1));
+        archGroup.add(groove);
+      }
+
+      this.group.add(archGroup);
     }
   }
 
