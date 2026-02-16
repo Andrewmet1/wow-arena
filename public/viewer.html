@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ebon Crucible — Character Viewer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #111; color: #ccc; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+  #viewer-canvas { display: block; width: 100vw; height: 100vh; }
+
+  #controls {
+    position: fixed; top: 0; left: 0; width: 280px; height: 100vh;
+    background: rgba(0,0,0,0.85); padding: 16px; overflow-y: auto;
+    border-right: 1px solid #333; z-index: 10;
+  }
+  #controls h1 { font-size: 16px; color: #f0c040; margin-bottom: 12px; }
+  #controls h2 { font-size: 13px; color: #888; margin: 12px 0 6px; text-transform: uppercase; letter-spacing: 1px; }
+
+  .btn-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+  .btn {
+    background: #2a2a3a; border: 1px solid #444; color: #ddd; padding: 6px 10px;
+    border-radius: 4px; cursor: pointer; font-size: 12px; transition: all 0.15s;
+  }
+  .btn:hover { background: #3a3a5a; border-color: #666; }
+  .btn.active { background: #4a3a1a; border-color: #f0c040; color: #f0c040; }
+
+  .toggle-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+  .toggle-row label { font-size: 12px; flex: 1; }
+  .toggle-row input[type="checkbox"] { accent-color: #f0c040; }
+
+  .slider-row { margin: 6px 0; }
+  .slider-row label { font-size: 11px; display: block; margin-bottom: 2px; color: #999; }
+  .slider-row input[type="range"] { width: 100%; accent-color: #f0c040; }
+
+  #info {
+    position: fixed; bottom: 16px; left: 16px; right: 16px;
+    background: rgba(0,0,0,0.8); padding: 10px 16px; border-radius: 6px;
+    font-size: 11px; color: #888; z-index: 10; font-family: monospace;
+  }
+  #info span { color: #f0c040; }
+</style>
+</head>
+<body>
+<canvas id="viewer-canvas"></canvas>
+
+<div id="controls">
+  <h1>Character Viewer</h1>
+
+  <h2>Class</h2>
+  <div class="btn-row" id="class-buttons"></div>
+
+  <h2>View Mode</h2>
+  <div class="btn-row">
+    <button class="btn active" data-mode="raw" onclick="setViewMode('raw')">Raw Model</button>
+    <button class="btn" data-mode="rigged" onclick="setViewMode('rigged')">Auto-Rigged</button>
+    <button class="btn" data-mode="procedural" onclick="setViewMode('procedural')">Procedural</button>
+  </div>
+
+  <h2>Display</h2>
+  <div class="toggle-row">
+    <label>Wireframe</label>
+    <input type="checkbox" id="toggle-wireframe" onchange="toggleWireframe(this.checked)">
+  </div>
+  <div class="toggle-row">
+    <label>Skeleton Helper</label>
+    <input type="checkbox" id="toggle-skeleton" onchange="toggleSkeleton(this.checked)">
+  </div>
+  <div class="toggle-row">
+    <label>Bounding Box</label>
+    <input type="checkbox" id="toggle-bbox" onchange="toggleBBox(this.checked)">
+  </div>
+  <div class="toggle-row">
+    <label>Auto-Rotate</label>
+    <input type="checkbox" id="toggle-rotate" checked onchange="toggleAutoRotate(this.checked)">
+  </div>
+  <div class="toggle-row">
+    <label>Grid</label>
+    <input type="checkbox" id="toggle-grid" checked onchange="toggleGrid(this.checked)">
+  </div>
+
+  <h2>Animation Test</h2>
+  <div class="btn-row">
+    <button class="btn" onclick="playAnim('idle')">Idle</button>
+    <button class="btn" onclick="playAnim('walk')">Walk</button>
+    <button class="btn" onclick="playAnim('roll')">Roll</button>
+    <button class="btn" onclick="playAnim('hit')">Hit</button>
+    <button class="btn" onclick="playAnim('death')">Death</button>
+    <button class="btn" onclick="playAnim('stun')">Stun</button>
+    <button class="btn" onclick="playAnim('fear')">Fear</button>
+    <button class="btn" onclick="playAnim('none')">T-Pose</button>
+  </div>
+
+  <h2>Scale</h2>
+  <div class="slider-row">
+    <label>Model Scale: <span id="scale-val">2.5</span></label>
+    <input type="range" min="0.5" max="8" step="0.1" value="2.5" id="scale-slider"
+           oninput="setScale(this.value)">
+  </div>
+
+  <h2>Camera</h2>
+  <div class="slider-row">
+    <label>Height: <span id="cam-height-val">3</span></label>
+    <input type="range" min="0" max="10" step="0.5" value="3" id="cam-height"
+           oninput="setCamHeight(this.value)">
+  </div>
+  <div class="slider-row">
+    <label>Distance: <span id="cam-dist-val">8</span></label>
+    <input type="range" min="2" max="20" step="0.5" value="8" id="cam-dist"
+           oninput="setCamDist(this.value)">
+  </div>
+</div>
+
+<div id="info">Loading...</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "/node_modules/three/build/three.module.js",
+    "three/addons/": "/node_modules/three/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+// ── State ──
+let scene, camera, renderer, controls, clock;
+let currentModel = null;
+let skeletonHelper = null;
+let bboxHelper = null;
+let gridHelper = null;
+let autoRotate = true;
+let currentAnim = 'idle';
+let currentClass = 'tyrant';
+let viewMode = 'raw';
+let modelScale = 2.5;
+let camHeight = 3;
+let camDist = 8;
+
+const CLASSES = ['tyrant', 'wraith', 'infernal', 'harbinger', 'revenant'];
+const CLASS_COLORS = {
+  tyrant: '#ff4422', wraith: '#8844cc', infernal: '#ff6600',
+  harbinger: '#44ff44', revenant: '#ffdd66'
+};
+
+const loader = new GLTFLoader();
+
+// ── Init ──
+function init() {
+  clock = new THREE.Clock();
+
+  renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('viewer-canvas'), antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 2.0;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.shadowMap.enabled = true;
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x1a1a2e);
+
+  // Env map
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  pmrem.dispose();
+
+  camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(0, camHeight, camDist);
+
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, 2, 0);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.update();
+
+  // Lighting
+  scene.add(new THREE.AmbientLight(0xaabbcc, 2.0));
+  const key = new THREE.DirectionalLight(0xffeedd, 3.0);
+  key.position.set(5, 10, 5);
+  key.castShadow = true;
+  scene.add(key);
+  const fill = new THREE.DirectionalLight(0x8899cc, 1.5);
+  fill.position.set(-5, 5, -3);
+  scene.add(fill);
+  const rim = new THREE.DirectionalLight(0xff8844, 1.0);
+  rim.position.set(0, 3, -8);
+  scene.add(rim);
+
+  // Ground
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(20, 20),
+    new THREE.MeshStandardMaterial({ color: 0x222233, roughness: 0.9 })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // Grid
+  gridHelper = new THREE.GridHelper(20, 20, 0x444466, 0x333344);
+  gridHelper.position.y = 0.01;
+  scene.add(gridHelper);
+
+  // Build class buttons
+  const btnRow = document.getElementById('class-buttons');
+  CLASSES.forEach((cls, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'btn' + (i === 0 ? ' active' : '');
+    btn.textContent = cls.charAt(0).toUpperCase() + cls.slice(1);
+    btn.style.borderColor = i === 0 ? CLASS_COLORS[cls] : '';
+    btn.onclick = () => selectClass(cls);
+    btn.dataset.class = cls;
+    btnRow.appendChild(btn);
+  });
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  loadModel('tyrant');
+  animate();
+}
+
+// ── Model Loading ──
+async function loadModel(classId) {
+  clearModel();
+  currentClass = classId;
+  updateInfo('Loading...');
+
+  try {
+    if (viewMode === 'raw' || viewMode === 'rigged') {
+      const charPath = `/assets/models/char_${classId}.glb`;
+      const gltf = await new Promise((resolve, reject) => {
+        loader.load(charPath, resolve, undefined, reject);
+      });
+
+      currentModel = gltf.scene;
+      currentModel.scale.setScalar(modelScale);
+
+      // Ensure PBR materials
+      currentModel.traverse(child => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          if (child.material.map) child.material.map.colorSpace = THREE.SRGBColorSpace;
+        }
+      });
+
+      if (viewMode === 'rigged') {
+        // Dynamic import of AutoRigger
+        const { autoRig } = await import('/src/rendering/AutoRigger.js');
+        const rigged = autoRig(currentModel, classId);
+        rigged.scale.setScalar(modelScale);
+        currentModel = rigged;
+      }
+
+      scene.add(currentModel);
+
+      // Compute stats
+      let verts = 0, tris = 0, meshCount = 0;
+      currentModel.traverse(c => {
+        if (c.isMesh) {
+          meshCount++;
+          verts += c.geometry.getAttribute('position')?.count || 0;
+          const idx = c.geometry.getIndex();
+          tris += idx ? idx.count / 3 : (c.geometry.getAttribute('position')?.count || 0) / 3;
+        }
+      });
+
+      // Get bounding box info
+      const box = new THREE.Box3().setFromObject(currentModel);
+      const sz = new THREE.Vector3();
+      box.getSize(sz);
+
+      updateInfo(`<span>${classId.toUpperCase()}</span> [${viewMode}] | ` +
+        `${meshCount} meshes | ${(verts/1000).toFixed(1)}K verts | ${(tris/1000).toFixed(1)}K tris | ` +
+        `Size: ${sz.x.toFixed(1)} x ${sz.y.toFixed(1)} x ${sz.z.toFixed(1)}`);
+
+    } else if (viewMode === 'procedural') {
+      // Load procedural model from CharacterRenderer
+      const module = await import('/src/rendering/CharacterRenderer.js');
+      const CharacterRenderer = module.default;
+      const tempScene = new THREE.Scene();
+      const cr = new CharacterRenderer(tempScene);
+      cr.useMeshyModels = false;
+      const model = cr.createCharacter('viewer', classId.toUpperCase());
+      tempScene.remove(model);
+      currentModel = model;
+      scene.add(currentModel);
+
+      updateInfo(`<span>${classId.toUpperCase()}</span> [procedural] | Primitive-based model`);
+    }
+  } catch (err) {
+    console.error('Load failed:', err);
+    updateInfo(`<span style="color:red">ERROR</span>: ${err.message}`);
+  }
+}
+
+function clearModel() {
+  if (skeletonHelper) { scene.remove(skeletonHelper); skeletonHelper = null; }
+  if (bboxHelper) { scene.remove(bboxHelper); bboxHelper = null; }
+  if (currentModel) {
+    scene.remove(currentModel);
+    currentModel.traverse(c => {
+      if (c.isMesh) {
+        c.geometry.dispose();
+        if (Array.isArray(c.material)) c.material.forEach(m => m.dispose());
+        else if (c.material) c.material.dispose();
+      }
+    });
+    currentModel = null;
+  }
+}
+
+// ── Animation ──
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  const time = clock.getElapsedTime();
+
+  if (autoRotate && currentModel) {
+    currentModel.rotation.y += dt * 0.5;
+  }
+
+  // Simple procedural animations for rigged/procedural models
+  if (currentModel && currentAnim !== 'none') {
+    const body = currentModel.getObjectByName('body');
+    const head = currentModel.getObjectByName('head');
+    const leftArm = currentModel.getObjectByName('leftArm');
+    const rightArm = currentModel.getObjectByName('rightArm');
+    const leftLeg = currentModel.getObjectByName('leftLeg');
+    const rightLeg = currentModel.getObjectByName('rightLeg');
+
+    if (currentAnim === 'idle' && body) {
+      body.position.y = 1.0 + Math.sin(time * 2.2) * 0.04;
+      body.rotation.z = Math.sin(time * 0.8) * 0.03;
+      if (head) head.rotation.y = Math.sin(time * 0.7) * 0.08;
+      if (leftArm) leftArm.rotation.z = 0.15 + Math.sin(time * 1.5) * 0.08;
+      if (rightArm) rightArm.rotation.z = -0.15 - Math.sin(time * 1.5) * 0.08;
+    } else if (currentAnim === 'walk' && body) {
+      const s = Math.sin(time * 7);
+      body.position.y = 1.0 + Math.abs(s) * 0.1;
+      body.rotation.x = 0.1;
+      body.rotation.z = s * 0.06;
+      if (leftLeg) leftLeg.rotation.x = s * 0.8;
+      if (rightLeg) rightLeg.rotation.x = -s * 0.8;
+      if (leftArm) leftArm.rotation.x = -s * 0.4;
+      if (rightArm) rightArm.rotation.x = s * 0.4;
+    } else if (currentAnim === 'roll' && body) {
+      const p = (time * 2) % 1;
+      body.rotation.x = p * Math.PI * 2;
+      body.position.y = 0.5 + Math.sin(p * Math.PI) * 0.5;
+      if (leftArm) { leftArm.rotation.x = -1.2 * Math.sin(p * Math.PI); leftArm.rotation.z = 0.8 * Math.sin(p * Math.PI); }
+      if (rightArm) { rightArm.rotation.x = -1.2 * Math.sin(p * Math.PI); rightArm.rotation.z = -0.8 * Math.sin(p * Math.PI); }
+    } else if (currentAnim === 'hit' && body) {
+      const flash = Math.sin(time * 20) > 0 ? 1 : 0;
+      body.rotation.x = -0.15 * flash;
+      if (leftArm) leftArm.rotation.z = 0.4 * flash;
+      if (rightArm) rightArm.rotation.z = -0.4 * flash;
+    } else if (currentAnim === 'death' && body) {
+      const p = Math.min((time * 0.5) % 3, 1);
+      body.position.y = 1.0 - p * 0.7;
+      body.rotation.x = p * 1.2;
+      currentModel.rotation.z = p * (Math.PI / 2.2);
+    } else if (currentAnim === 'stun' && body) {
+      body.rotation.x = 0.3;
+      body.position.y = 0.85;
+      body.rotation.z = Math.sin(time * 3) * 0.05;
+      if (head) head.rotation.z = Math.sin(time * 4) * 0.1;
+    } else if (currentAnim === 'fear' && body) {
+      body.rotation.z = Math.sin(time * 12) * 0.15;
+      body.position.y = 1.0 + Math.abs(Math.sin(time * 8)) * 0.08;
+      if (leftArm) leftArm.rotation.x = Math.sin(time * 14) * 0.5;
+      if (rightArm) rightArm.rotation.x = Math.cos(time * 14) * 0.5;
+      if (leftLeg) leftLeg.rotation.x = Math.sin(time * 10) * 0.6;
+      if (rightLeg) rightLeg.rotation.x = Math.cos(time * 10) * 0.6;
+    }
+  }
+
+  if (skeletonHelper) skeletonHelper.update();
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+// ── Controls API (called from HTML) ──
+window.selectClass = function(cls) {
+  document.querySelectorAll('#class-buttons .btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.class === cls);
+    b.style.borderColor = b.dataset.class === cls ? CLASS_COLORS[cls] : '';
+  });
+  currentAnim = 'idle';
+  loadModel(cls);
+};
+
+window.setViewMode = function(mode) {
+  viewMode = mode;
+  document.querySelectorAll('[data-mode]').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === mode);
+  });
+  loadModel(currentClass);
+};
+
+window.toggleWireframe = function(on) {
+  if (!currentModel) return;
+  currentModel.traverse(c => {
+    if (c.isMesh) {
+      if (Array.isArray(c.material)) c.material.forEach(m => m.wireframe = on);
+      else c.material.wireframe = on;
+    }
+  });
+};
+
+window.toggleSkeleton = function(on) {
+  if (skeletonHelper) { scene.remove(skeletonHelper); skeletonHelper = null; }
+  if (on && currentModel) {
+    skeletonHelper = new THREE.SkeletonHelper(currentModel);
+    skeletonHelper.visible = true;
+    scene.add(skeletonHelper);
+  }
+};
+
+window.toggleBBox = function(on) {
+  if (bboxHelper) { scene.remove(bboxHelper); bboxHelper = null; }
+  if (on && currentModel) {
+    bboxHelper = new THREE.BoxHelper(currentModel, 0xffff00);
+    scene.add(bboxHelper);
+  }
+};
+
+window.toggleAutoRotate = function(on) { autoRotate = on; };
+
+window.toggleGrid = function(on) {
+  if (gridHelper) gridHelper.visible = on;
+};
+
+window.playAnim = function(anim) {
+  currentAnim = anim;
+  // Reset model rotation for clean animation start
+  if (currentModel && anim !== 'death') {
+    // Reset bones
+    ['body', 'head', 'leftArm', 'rightArm', 'leftLeg', 'rightLeg'].forEach(name => {
+      const obj = currentModel.getObjectByName(name);
+      if (obj) { obj.rotation.set(0, 0, 0); if (name === 'body') obj.position.y = 1.0; }
+    });
+    currentModel.rotation.z = 0;
+  }
+  document.querySelectorAll('[onclick^="playAnim"]').forEach(b => {
+    b.classList.toggle('active', b.textContent.toLowerCase().includes(anim) ||
+      (anim === 'none' && b.textContent === 'T-Pose'));
+  });
+};
+
+window.setScale = function(val) {
+  modelScale = parseFloat(val);
+  document.getElementById('scale-val').textContent = val;
+  if (currentModel) currentModel.scale.setScalar(modelScale);
+};
+
+window.setCamHeight = function(val) {
+  camHeight = parseFloat(val);
+  document.getElementById('cam-height-val').textContent = val;
+  controls.target.y = camHeight * 0.66;
+};
+
+window.setCamDist = function(val) {
+  camDist = parseFloat(val);
+  document.getElementById('cam-dist-val').textContent = val;
+};
+
+function updateInfo(html) {
+  document.getElementById('info').innerHTML = html;
+}
+
+// Go
+init();
+</script>
+</body>
+</html>

@@ -242,6 +242,8 @@ export function autoRig(staticModel, classId) {
   const cfg = getRigConfig(classId);
   const { rootBone, bones, bonesByName } = createSkeleton();
 
+  staticModel.updateMatrixWorld(true);
+
   // Compute bounding box of all meshes
   const bbox = new THREE.Box3();
   staticModel.traverse((child) => {
@@ -253,8 +255,6 @@ export function autoRig(staticModel, classId) {
     }
   });
 
-  staticModel.updateMatrixWorld(true);
-
   const size = new THREE.Vector3();
   const center = new THREE.Vector3();
   bbox.getSize(size);
@@ -263,80 +263,122 @@ export function autoRig(staticModel, classId) {
   const height = size.y || 1;
   const minY = bbox.min.y;
 
-  // Create the rigged output group
+  // Create the rigged output group — rootBone is the single shared bone hierarchy
   const riggedGroup = new THREE.Group();
   riggedGroup.name = 'riggedCharacter';
-
-  // Create skeleton
-  const skeleton = new THREE.Skeleton(bones);
-
-  // Add root bone to group
   riggedGroup.add(rootBone);
 
-  // Process each mesh in the static model
+  // Create skeleton from the shared bones
+  const skeleton = new THREE.Skeleton(bones);
+
+  // Collect all meshes first (avoid modifying hierarchy during traverse)
+  const meshes = [];
   staticModel.traverse((child) => {
-    if (!child.isMesh) return;
+    if (child.isMesh) meshes.push(child);
+  });
 
+  // Merge all mesh geometries into a single SkinnedMesh for proper skeleton binding.
+  // Multiple SkinnedMeshes sharing one Skeleton is problematic — merge instead.
+  const mergedPositions = [];
+  const mergedNormals = [];
+  const mergedUvs = [];
+  const mergedIndices = [];
+  const mergedSkinIndices = [];
+  const mergedSkinWeights = [];
+  const materialGroups = []; // { start, count, materialIndex }
+  const materials = [];
+  let vertexOffset = 0;
+  let indexOffset = 0;
+
+  for (const child of meshes) {
     const geo = child.geometry.clone();
-
-    // Apply world transform from the original hierarchy
     geo.applyMatrix4(child.matrixWorld);
 
     const posAttr = geo.getAttribute('position');
+    const normAttr = geo.getAttribute('normal');
+    const uvAttr = geo.getAttribute('uv');
     const vertCount = posAttr.count;
 
-    // Create skin data buffers
-    const skinIndices = new Float32Array(vertCount * 4);
-    const skinWeights = new Float32Array(vertCount * 4);
-
+    // Classify vertices and compute skin weights
     for (let i = 0; i < vertCount; i++) {
       const x = posAttr.getX(i);
       const y = posAttr.getY(i);
       const z = posAttr.getZ(i);
 
-      // Normalize to [0,1] height, centered X/Z
+      mergedPositions.push(x, y, z);
+      if (normAttr) mergedNormals.push(normAttr.getX(i), normAttr.getY(i), normAttr.getZ(i));
+      else mergedNormals.push(0, 1, 0);
+      if (uvAttr) mergedUvs.push(uvAttr.getX(i), uvAttr.getY(i));
+      else mergedUvs.push(0, 0);
+
       const ny = (y - minY) / height;
-      const nx = (x - center.x) / height; // use height for aspect ratio
+      const nx = (x - center.x) / height;
       const nz = (z - center.z) / height;
 
       const { indices, weights } = classifyVertex(nx, ny, nz, cfg);
-
-      skinIndices[i * 4] = indices[0];
-      skinIndices[i * 4 + 1] = indices[1];
-      skinIndices[i * 4 + 2] = indices[2];
-      skinIndices[i * 4 + 3] = indices[3];
-
-      skinWeights[i * 4] = weights[0];
-      skinWeights[i * 4 + 1] = weights[1];
-      skinWeights[i * 4 + 2] = weights[2];
-      skinWeights[i * 4 + 3] = weights[3];
+      mergedSkinIndices.push(...indices);
+      mergedSkinWeights.push(...weights);
     }
 
-    geo.setAttribute('skinIndex', new THREE.BufferAttribute(new Uint16Array(skinIndices), 4));
-    geo.setAttribute('skinWeight', new THREE.BufferAttribute(new Float32Array(skinWeights), 4));
+    // Handle indices
+    const indexAttr = geo.getIndex();
+    const startIndex = indexOffset;
+    if (indexAttr) {
+      for (let i = 0; i < indexAttr.count; i++) {
+        mergedIndices.push(indexAttr.getX(i) + vertexOffset);
+      }
+      indexOffset += indexAttr.count;
+    } else {
+      for (let i = 0; i < vertCount; i++) {
+        mergedIndices.push(i + vertexOffset);
+      }
+      indexOffset += vertCount;
+    }
 
-    // Create SkinnedMesh
-    const mat = child.material.clone();
-    const skinnedMesh = new THREE.SkinnedMesh(geo, mat);
-    skinnedMesh.castShadow = true;
-    skinnedMesh.receiveShadow = true;
-    skinnedMesh.name = child.name || 'mesh';
+    // Track material group
+    const matClone = child.material.clone();
+    const matIdx = materials.length;
+    materials.push(matClone);
+    materialGroups.push({
+      start: startIndex,
+      count: indexOffset - startIndex,
+      materialIndex: matIdx,
+    });
 
-    // Bind skeleton
-    skinnedMesh.add(rootBone.clone(false)); // SkinnedMesh needs bone root as child for binding
-    skinnedMesh.bind(skeleton);
+    vertexOffset += vertCount;
+    geo.dispose();
+  }
 
-    riggedGroup.add(skinnedMesh);
-  });
+  // Build merged BufferGeometry
+  const mergedGeo = new THREE.BufferGeometry();
+  mergedGeo.setAttribute('position', new THREE.Float32BufferAttribute(mergedPositions, 3));
+  mergedGeo.setAttribute('normal', new THREE.Float32BufferAttribute(mergedNormals, 3));
+  mergedGeo.setAttribute('uv', new THREE.Float32BufferAttribute(mergedUvs, 2));
+  mergedGeo.setIndex(mergedIndices);
+  mergedGeo.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(mergedSkinIndices, 4));
+  mergedGeo.setAttribute('skinWeight', new THREE.Float32BufferAttribute(mergedSkinWeights, 4));
 
-  // Store bone references for easy access by animation system
+  // Add material groups for multi-material rendering
+  for (const grp of materialGroups) {
+    mergedGeo.addGroup(grp.start, grp.count, grp.materialIndex);
+  }
+
+  // Create single SkinnedMesh with the shared skeleton
+  const skinnedMesh = new THREE.SkinnedMesh(mergedGeo, materials);
+  skinnedMesh.castShadow = true;
+  skinnedMesh.receiveShadow = true;
+  skinnedMesh.name = 'characterMesh';
+  skinnedMesh.add(rootBone);
+  skinnedMesh.bind(skeleton);
+
+  riggedGroup.add(skinnedMesh);
+
+  // Store bone references for animation system
   riggedGroup.userData.skeleton = skeleton;
   riggedGroup.userData.bonesByName = bonesByName;
   riggedGroup.userData.isRigged = true;
-
-  // Create named group aliases that the existing animation system expects
-  // The animation system uses model.getObjectByName('body'), 'head', 'leftArm', 'rightArm', etc.
-  // Our bones already have these names, so getObjectByName will find them.
+  riggedGroup.userData.meshCount = meshes.length;
+  riggedGroup.userData.vertexCount = vertexOffset;
 
   return riggedGroup;
 }
