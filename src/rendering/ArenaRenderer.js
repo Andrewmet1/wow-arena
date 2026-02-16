@@ -123,6 +123,12 @@ export class ArenaRenderer {
 
     /** Floating ember meshes for rising animation. */
     this.floatingEmbers = [];
+
+    /** Gate portcullis meshes (two gates, opposite ends). */
+    this.gates = [];
+    this._gatesOpen = false;
+    this._gateAnimating = false;
+    this._gateAnimStart = 0;
   }
 
   // ---------------------------------------------------------------------------
@@ -137,6 +143,7 @@ export class ArenaRenderer {
     this._buildFloorTileStrips();
     this._buildFloorCracks();
     this._buildWalls();
+    this._buildGates();
     this._buildPillars();
     this._buildBloodStains();
     this._buildParticles();
@@ -161,6 +168,17 @@ export class ArenaRenderer {
     this._animateEmblemRings(deltaTime);
     this._animateTorchFlameSpheres(deltaTime);
     this._animateFloatingEmbers(deltaTime);
+    this._animateGates(deltaTime);
+  }
+
+  /**
+   * Trigger gate open animation.
+   */
+  openGates() {
+    if (this._gatesOpen) return;
+    this._gatesOpen = true;
+    this._gateAnimating = true;
+    this._gateAnimStart = performance.now() / 1000;
   }
 
   /**
@@ -493,6 +511,151 @@ export class ArenaRenderer {
     arch.castShadow = true;
     arch.name = 'ArchCurve';
     this.group.add(arch);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Starting Gates (portcullis on opposite ends of the arena)
+  // ---------------------------------------------------------------------------
+
+  _buildGates() {
+    const WALL_RADIUS = 41;
+    const GATE_WIDTH = 6;    // wide enough for a character
+    const GATE_HEIGHT = 5;   // matches wall height
+    const BAR_RADIUS = 0.06;
+    const BAR_SPACING = 0.5;
+
+    // Two gate positions: +X (angle 0) and -X (angle PI)
+    const gateAngles = [0, Math.PI];
+
+    for (const angle of gateAngles) {
+      const gateGroup = new THREE.Group();
+      gateGroup.name = `Gate_${angle === 0 ? 'East' : 'West'}`;
+
+      // Gate center position (at the wall)
+      const cx = Math.cos(angle) * WALL_RADIUS;
+      const cz = Math.sin(angle) * WALL_RADIUS;
+
+      // Direction tangent to wall
+      const tx = -Math.sin(angle);
+      const tz = Math.cos(angle);
+
+      // Normal direction (inward into arena)
+      const nx = -Math.cos(angle);
+      const nz = -Math.sin(angle);
+
+      // Iron portcullis material
+      const ironMat = new THREE.MeshStandardMaterial({
+        color: 0x3a3a3a,
+        roughness: 0.4,
+        metalness: 0.8,
+      });
+
+      const brightIronMat = new THREE.MeshStandardMaterial({
+        color: 0x5a5a5a,
+        roughness: 0.35,
+        metalness: 0.85,
+      });
+
+      // Vertical bars
+      const barCount = Math.floor(GATE_WIDTH / BAR_SPACING);
+      for (let i = 0; i <= barCount; i++) {
+        const offset = -GATE_WIDTH / 2 + i * BAR_SPACING;
+        const barGeom = new THREE.CylinderGeometry(BAR_RADIUS, BAR_RADIUS, GATE_HEIGHT, 6);
+        const bar = new THREE.Mesh(barGeom, ironMat);
+        bar.position.set(
+          cx + tx * offset,
+          GATE_HEIGHT / 2,
+          cz + tz * offset
+        );
+        bar.castShadow = true;
+        gateGroup.add(bar);
+      }
+
+      // Horizontal crossbars (3 of them)
+      for (let h = 1; h <= 3; h++) {
+        const y = h * (GATE_HEIGHT / 4);
+        const crossGeom = new THREE.CylinderGeometry(BAR_RADIUS * 1.2, BAR_RADIUS * 1.2, GATE_WIDTH, 6);
+        const cross = new THREE.Mesh(crossGeom, brightIronMat);
+        cross.position.set(cx, y, cz);
+        cross.rotation.z = Math.PI / 2;
+        // Rotate to align with wall tangent
+        cross.rotation.y = angle;
+        cross.castShadow = true;
+        gateGroup.add(cross);
+      }
+
+      // Stone frame pillars (flanking the gate)
+      const frameMat = new THREE.MeshStandardMaterial({
+        color: 0x5a6070,
+        roughness: 0.85,
+        metalness: 0.15,
+        map: ARENA_TEXTURES.pillar,
+      });
+
+      for (const side of [-1, 1]) {
+        const pillarGeom = new THREE.BoxGeometry(0.8, GATE_HEIGHT + 1, 1.2);
+        const pillar = new THREE.Mesh(pillarGeom, frameMat);
+        pillar.position.set(
+          cx + tx * (GATE_WIDTH / 2 + 0.4) * side,
+          (GATE_HEIGHT + 1) / 2,
+          cz + tz * (GATE_WIDTH / 2 + 0.4) * side
+        );
+        pillar.rotation.y = -angle + Math.PI / 2;
+        pillar.castShadow = true;
+        pillar.receiveShadow = true;
+        gateGroup.add(pillar);
+      }
+
+      // Stone lintel across the top
+      const lintelGeom = new THREE.BoxGeometry(GATE_WIDTH + 2, 1, 1.2);
+      const lintel = new THREE.Mesh(lintelGeom, frameMat);
+      lintel.position.set(cx, GATE_HEIGHT + 0.5, cz);
+      lintel.rotation.y = -angle + Math.PI / 2;
+      lintel.castShadow = true;
+      lintel.receiveShadow = true;
+      gateGroup.add(lintel);
+
+      // Spike tips on top of each vertical bar
+      const spikeMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.3, metalness: 0.9 });
+      for (let i = 0; i <= barCount; i++) {
+        const offset = -GATE_WIDTH / 2 + i * BAR_SPACING;
+        const spikeGeom = new THREE.ConeGeometry(BAR_RADIUS * 2, 0.4, 6);
+        const spike = new THREE.Mesh(spikeGeom, spikeMat);
+        spike.position.set(
+          cx + tx * offset,
+          GATE_HEIGHT + 0.2,
+          cz + tz * offset
+        );
+        gateGroup.add(spike);
+      }
+
+      // Store initial Y so we can animate the portcullis upward
+      gateGroup._closedY = 0;
+      gateGroup._openY = GATE_HEIGHT + 2; // slides fully above lintel
+      gateGroup._gateHeight = GATE_HEIGHT;
+
+      this.group.add(gateGroup);
+      this.gates.push(gateGroup);
+    }
+  }
+
+  _animateGates(_dt) {
+    if (!this._gateAnimating) return;
+
+    const elapsed = performance.now() / 1000 - this._gateAnimStart;
+    const duration = 2.0; // 2 second gate open animation
+    const t = Math.min(1, elapsed / duration);
+
+    // Ease-out cubic for a heavy gate feel
+    const eased = 1 - Math.pow(1 - t, 3);
+
+    for (const gate of this.gates) {
+      gate.position.y = gate._closedY + (gate._openY - gate._closedY) * eased;
+    }
+
+    if (t >= 1) {
+      this._gateAnimating = false;
+    }
   }
 
   // ---------------------------------------------------------------------------
