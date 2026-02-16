@@ -153,20 +153,12 @@ export class MovementSystem {
     unit.dodgeRollCooldownEndTick = currentTick + DODGE_ROLL_COOLDOWN;
     unit.dodgeImmune = true;
 
-    // Set move target for the roll
+    // Set move target for the roll, clamped to current bounds
     const rollDist = DODGE_ROLL_DISTANCE;
     const targetX = unit.position.x + direction.x * rollDist;
     const targetZ = unit.position.z + direction.z * rollDist;
-
-    // Clamp to arena bounds (slightly inside wall)
-    const dist = Math.sqrt(targetX * targetX + targetZ * targetZ);
-    const ARENA_RADIUS = 38;
-    if (dist > ARENA_RADIUS) {
-      const scale = ARENA_RADIUS / dist;
-      unit.moveTarget = new Vec3(targetX * scale, 0, targetZ * scale);
-    } else {
-      unit.moveTarget = new Vec3(targetX, 0, targetZ);
-    }
+    const clamped = this.los.clampToBounds({ x: targetX, y: 0, z: targetZ });
+    unit.moveTarget = new Vec3(clamped.x, 0, clamped.z);
 
     return true;
   }

@@ -1984,15 +1984,15 @@ class Game {
     if (!playerClass) throw new Error(`Unknown class: ${this.playerClassId}`);
     const playerUnit = new Unit(0, this.playerClassId, playerClass.name);
     playerClass.applyToUnit(playerUnit, this._selectedLoadout || null);
-    playerUnit.position = new Vec3(-35, 0, 0); // Near west gate
-    playerUnit.facing = Math.PI / 2; // Face toward +X (toward enemy)
+    playerUnit.position = new Vec3(-48, 0, 0); // Inside west staging cell
+    playerUnit.facing = Math.PI / 2; // Face toward gate/arena
 
     const enemyClass = CLASS_REGISTRY[this.enemyClassId];
     if (!enemyClass) throw new Error(`Unknown class: ${this.enemyClassId}`);
     const enemyUnit = new Unit(1, this.enemyClassId, enemyClass.name);
     enemyClass.applyToUnit(enemyUnit);
-    enemyUnit.position = new Vec3(35, 0, 0); // Near east gate
-    enemyUnit.facing = -Math.PI / 2; // Face toward -X (toward player)
+    enemyUnit.position = new Vec3(48, 0, 0); // Inside east staging cell
+    enemyUnit.facing = -Math.PI / 2; // Face toward gate/arena
 
     this.matchState.addUnit(playerUnit);
     this.matchState.addUnit(enemyUnit);
@@ -2116,6 +2116,8 @@ class Game {
       if (remaining <= 0) {
         // Open gates when countdown finishes
         if (this.arenaRenderer) this.arenaRenderer.openGates();
+        // Allow movement into the arena
+        if (this.matchState?.los) this.matchState.los.gatesOpen = true;
 
         // Show "FIGHT!" then remove
         numEl.textContent = 'FIGHT!';

@@ -1,5 +1,11 @@
 import { PILLAR_POSITIONS, PILLAR_RADIUS, ARENA_RADIUS } from '../constants.js';
 
+// Staging cell bounds (rectangular areas outside arena gates)
+const STAGING_CELLS = [
+  { minX: -54, maxX: -41, minZ: -5, maxZ: 5 },  // West cell (player)
+  { minX: 41, maxX: 54, minZ: -5, maxZ: 5 },     // East cell (enemy)
+];
+
 export class LineOfSight {
   constructor(pillars = null) {
     // Pillars as circles: { x, z, radius }
@@ -8,6 +14,9 @@ export class LineOfSight {
       z: p.z,
       radius: PILLAR_RADIUS
     }));
+
+    /** When false, units are confined to their staging cell. Set true when gates open. */
+    this.gatesOpen = false;
   }
 
   /**
@@ -110,13 +119,40 @@ export class LineOfSight {
    * Check if a position is inside the arena bounds
    */
   isInBounds(pos) {
+    if (!this.gatesOpen) {
+      // During staging, check if in any cell
+      for (const cell of STAGING_CELLS) {
+        if (pos.x >= cell.minX && pos.x <= cell.maxX && pos.z >= cell.minZ && pos.z <= cell.maxZ) {
+          return true;
+        }
+      }
+      return false;
+    }
     return (pos.x * pos.x + pos.z * pos.z) <= ARENA_RADIUS * ARENA_RADIUS;
   }
 
   /**
-   * Clamp position to arena bounds
+   * Clamp position to arena bounds (or staging cell if gates closed)
    */
   clampToBounds(pos) {
+    if (!this.gatesOpen) {
+      // Find which staging cell this unit is closest to and clamp to it
+      let bestCell = STAGING_CELLS[0];
+      let bestDist = Infinity;
+      for (const cell of STAGING_CELLS) {
+        const cx = (cell.minX + cell.maxX) / 2;
+        const cz = (cell.minZ + cell.maxZ) / 2;
+        const d = (pos.x - cx) ** 2 + (pos.z - cz) ** 2;
+        if (d < bestDist) { bestDist = d; bestCell = cell; }
+      }
+      return {
+        x: Math.max(bestCell.minX, Math.min(bestCell.maxX, pos.x)),
+        y: pos.y || 0,
+        z: Math.max(bestCell.minZ, Math.min(bestCell.maxZ, pos.z)),
+      };
+    }
+
+    // Normal arena circular bounds
     const distSq = pos.x * pos.x + pos.z * pos.z;
     if (distSq <= ARENA_RADIUS * ARENA_RADIUS) return pos;
 

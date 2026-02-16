@@ -77,6 +77,9 @@ const ARENA_TEXTURES = {
   floor:  _loadTiledTex('/assets/textures/tex_arena_floor.webp', 10, 10),
   wall:   _loadTiledTex('/assets/textures/tex_arena_wall.webp', 2, 1),
   pillar: _loadTiledTex('/assets/textures/tex_arena_pillar.webp', 1, 2),
+  stagingFloor: _loadTiledTex('/assets/textures/tex_staging_floor.webp', 3, 3),
+  stagingWall:  _loadTiledTex('/assets/textures/tex_staging_wall.webp', 2, 1),
+  gateIron:     _loadTiledTex('/assets/textures/tex_gate_iron.webp', 1, 1),
   sky:    (() => {
     const t = _texLoader.load('/assets/textures/tex_sky_panorama.webp');
     t.colorSpace = THREE.SRGBColorSpace;
@@ -514,124 +517,225 @@ export class ArenaRenderer {
   }
 
   // ---------------------------------------------------------------------------
-  // Starting Gates (portcullis on opposite ends of the arena)
+  // Starting Gates + Staging Cells (prison rooms outside the arena)
   // ---------------------------------------------------------------------------
 
   _buildGates() {
     const WALL_RADIUS = 41;
-    const GATE_WIDTH = 6;    // wide enough for a character
-    const GATE_HEIGHT = 5;   // matches wall height
-    const BAR_RADIUS = 0.06;
-    const BAR_SPACING = 0.5;
+    const GATE_WIDTH = 6;
+    const GATE_HEIGHT = 5;
+    const BAR_RADIUS = 0.08;
+    const BAR_SPACING = 0.45;
 
-    // Two gate positions: +X (angle 0) and -X (angle PI)
-    const gateAngles = [0, Math.PI];
+    // Staging cell dimensions
+    const CELL_DEPTH = 12;   // how far back from the gate
+    const CELL_WIDTH = 10;   // wider than the gate opening
+    const CELL_HEIGHT = 5;
 
-    for (const angle of gateAngles) {
-      const gateGroup = new THREE.Group();
-      gateGroup.name = `Gate_${angle === 0 ? 'East' : 'West'}`;
+    // Two gate positions: +X (East, angle 0) and -X (West, angle PI)
+    const gateConfigs = [
+      { angle: 0,        sign: 1,  name: 'East' },
+      { angle: Math.PI,  sign: -1, name: 'West' },
+    ];
 
-      // Gate center position (at the wall)
-      const cx = Math.cos(angle) * WALL_RADIUS;
-      const cz = Math.sin(angle) * WALL_RADIUS;
+    for (const cfg of gateConfigs) {
+      const { angle, sign, name } = cfg;
 
-      // Direction tangent to wall
-      const tx = -Math.sin(angle);
-      const tz = Math.cos(angle);
+      // Gate sits at the arena wall
+      const gateX = sign * WALL_RADIUS;
+      const gateZ = 0;
 
-      // Normal direction (inward into arena)
-      const nx = -Math.cos(angle);
-      const nz = -Math.sin(angle);
+      // Outward direction (away from arena center)
+      const outX = sign;
 
-      // Iron portcullis material
-      const ironMat = new THREE.MeshStandardMaterial({
-        color: 0x3a3a3a,
-        roughness: 0.4,
-        metalness: 0.8,
+      // ─── Staging Cell Room ───
+      const cellGroup = new THREE.Group();
+      cellGroup.name = `StagingCell_${name}`;
+
+      const cellFloorMat = new THREE.MeshStandardMaterial({
+        color: 0x888888,
+        map: ARENA_TEXTURES.stagingFloor,
+        normalMap: ARENA_TEXTURES.stagingFloor._normalMap,
+        normalScale: new THREE.Vector2(1.5, 1.5),
+        roughness: 0.9,
+        metalness: 0.05,
       });
 
-      const brightIronMat = new THREE.MeshStandardMaterial({
+      const cellWallMat = new THREE.MeshStandardMaterial({
+        color: 0x777777,
+        map: ARENA_TEXTURES.stagingWall,
+        normalMap: ARENA_TEXTURES.stagingWall._normalMap,
+        normalScale: new THREE.Vector2(1.8, 1.8),
+        roughness: 0.92,
+        metalness: 0.08,
+      });
+
+      // Cell center (behind the gate, outward from arena)
+      const cellCenterX = gateX + outX * (CELL_DEPTH / 2 + 1);
+
+      // Floor
+      const floorGeom = new THREE.BoxGeometry(CELL_DEPTH + 2, 0.5, CELL_WIDTH);
+      const floor = new THREE.Mesh(floorGeom, cellFloorMat);
+      floor.position.set(cellCenterX, -0.25, gateZ);
+      floor.receiveShadow = true;
+      cellGroup.add(floor);
+
+      // Ceiling
+      const ceilMat = new THREE.MeshStandardMaterial({
+        color: 0x444444,
+        map: ARENA_TEXTURES.stagingWall,
+        roughness: 0.95,
+        metalness: 0.05,
+      });
+      const ceiling = new THREE.Mesh(floorGeom, ceilMat);
+      ceiling.position.set(cellCenterX, CELL_HEIGHT + 0.25, gateZ);
+      ceiling.receiveShadow = true;
+      cellGroup.add(ceiling);
+
+      // Back wall (furthest from arena)
+      const backWallGeom = new THREE.BoxGeometry(1.5, CELL_HEIGHT, CELL_WIDTH);
+      const backWall = new THREE.Mesh(backWallGeom, cellWallMat);
+      backWall.position.set(gateX + outX * (CELL_DEPTH + 1.75), CELL_HEIGHT / 2, gateZ);
+      backWall.castShadow = true;
+      backWall.receiveShadow = true;
+      cellGroup.add(backWall);
+
+      // Side walls (left and right)
+      const sideWallGeom = new THREE.BoxGeometry(CELL_DEPTH + 2, CELL_HEIGHT, 1.5);
+      for (const zSide of [-1, 1]) {
+        const sideWall = new THREE.Mesh(sideWallGeom, cellWallMat);
+        sideWall.position.set(cellCenterX, CELL_HEIGHT / 2, gateZ + zSide * (CELL_WIDTH / 2 + 0.75));
+        sideWall.castShadow = true;
+        sideWall.receiveShadow = true;
+        cellGroup.add(sideWall);
+      }
+
+      // Torch light inside the cell
+      const torchLight = new THREE.PointLight(0xff8844, 1.5, 15, 2);
+      torchLight.position.set(gateX + outX * (CELL_DEPTH / 2 + 1), 4, gateZ);
+      torchLight.castShadow = false;
+      cellGroup.add(torchLight);
+
+      // Wall-mounted torch bracket (back wall)
+      const bracketMat = new THREE.MeshStandardMaterial({ color: 0x4a4a4a, roughness: 0.4, metalness: 0.8 });
+      const bracketGeom = new THREE.BoxGeometry(0.15, 0.6, 0.15);
+      const bracket = new THREE.Mesh(bracketGeom, bracketMat);
+      bracket.position.set(gateX + outX * (CELL_DEPTH + 0.5), 3.5, gateZ);
+      cellGroup.add(bracket);
+
+      // Flame sphere on torch
+      const flameMat = new THREE.MeshBasicMaterial({ color: 0xff6622 });
+      const flame = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), flameMat);
+      flame.position.set(gateX + outX * (CELL_DEPTH + 0.5), 3.9, gateZ);
+      cellGroup.add(flame);
+
+      // Chains on side walls (decorative)
+      const chainMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.3, metalness: 0.9 });
+      for (const zSide of [-1, 1]) {
+        for (let cy = 1.5; cy <= 3.5; cy += 2) {
+          const chainGeom = new THREE.TorusGeometry(0.12, 0.03, 6, 8);
+          const chain = new THREE.Mesh(chainGeom, chainMat);
+          chain.position.set(
+            gateX + outX * (CELL_DEPTH * 0.7),
+            cy,
+            gateZ + zSide * (CELL_WIDTH / 2 + 0.1)
+          );
+          chain.rotation.y = Math.PI / 2;
+          cellGroup.add(chain);
+        }
+      }
+
+      this.group.add(cellGroup);
+
+      // ─── Iron Portcullis Gate ───
+      const gateGroup = new THREE.Group();
+      gateGroup.name = `Gate_${name}`;
+
+      const ironMat = new THREE.MeshStandardMaterial({
         color: 0x5a5a5a,
+        map: ARENA_TEXTURES.gateIron,
         roughness: 0.35,
         metalness: 0.85,
+      });
+
+      const darkIronMat = new THREE.MeshStandardMaterial({
+        color: 0x3a3a3a,
+        roughness: 0.3,
+        metalness: 0.9,
       });
 
       // Vertical bars
       const barCount = Math.floor(GATE_WIDTH / BAR_SPACING);
       for (let i = 0; i <= barCount; i++) {
         const offset = -GATE_WIDTH / 2 + i * BAR_SPACING;
-        const barGeom = new THREE.CylinderGeometry(BAR_RADIUS, BAR_RADIUS, GATE_HEIGHT, 6);
+        const barGeom = new THREE.CylinderGeometry(BAR_RADIUS, BAR_RADIUS, GATE_HEIGHT, 8);
         const bar = new THREE.Mesh(barGeom, ironMat);
-        bar.position.set(
-          cx + tx * offset,
-          GATE_HEIGHT / 2,
-          cz + tz * offset
-        );
+        bar.position.set(gateX, GATE_HEIGHT / 2, gateZ + offset);
         bar.castShadow = true;
         gateGroup.add(bar);
       }
 
-      // Horizontal crossbars (3 of them)
+      // Horizontal crossbars (3)
       for (let h = 1; h <= 3; h++) {
         const y = h * (GATE_HEIGHT / 4);
-        const crossGeom = new THREE.CylinderGeometry(BAR_RADIUS * 1.2, BAR_RADIUS * 1.2, GATE_WIDTH, 6);
-        const cross = new THREE.Mesh(crossGeom, brightIronMat);
-        cross.position.set(cx, y, cz);
-        cross.rotation.z = Math.PI / 2;
-        // Rotate to align with wall tangent
-        cross.rotation.y = angle;
+        const crossGeom = new THREE.CylinderGeometry(BAR_RADIUS * 1.3, BAR_RADIUS * 1.3, GATE_WIDTH, 8);
+        const cross = new THREE.Mesh(crossGeom, darkIronMat);
+        cross.position.set(gateX, y, gateZ);
+        // Rotate cylinder to lie along Z axis
+        cross.rotation.x = Math.PI / 2;
         cross.castShadow = true;
         gateGroup.add(cross);
       }
 
-      // Stone frame pillars (flanking the gate)
+      // Spike tips
+      const spikeMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.25, metalness: 0.95 });
+      for (let i = 0; i <= barCount; i++) {
+        const offset = -GATE_WIDTH / 2 + i * BAR_SPACING;
+        const spikeGeom = new THREE.ConeGeometry(BAR_RADIUS * 2.5, 0.5, 6);
+        const spike = new THREE.Mesh(spikeGeom, spikeMat);
+        spike.position.set(gateX, GATE_HEIGHT + 0.25, gateZ + offset);
+        gateGroup.add(spike);
+      }
+
+      // Stone frame pillars flanking the gate
       const frameMat = new THREE.MeshStandardMaterial({
-        color: 0x5a6070,
+        color: 0x6a7080,
+        map: ARENA_TEXTURES.pillar,
         roughness: 0.85,
         metalness: 0.15,
-        map: ARENA_TEXTURES.pillar,
       });
 
-      for (const side of [-1, 1]) {
-        const pillarGeom = new THREE.BoxGeometry(0.8, GATE_HEIGHT + 1, 1.2);
+      for (const zSide of [-1, 1]) {
+        const pillarGeom = new THREE.BoxGeometry(1.5, GATE_HEIGHT + 1.5, 1.0);
         const pillar = new THREE.Mesh(pillarGeom, frameMat);
-        pillar.position.set(
-          cx + tx * (GATE_WIDTH / 2 + 0.4) * side,
-          (GATE_HEIGHT + 1) / 2,
-          cz + tz * (GATE_WIDTH / 2 + 0.4) * side
-        );
-        pillar.rotation.y = -angle + Math.PI / 2;
+        pillar.position.set(gateX, (GATE_HEIGHT + 1.5) / 2, gateZ + zSide * (GATE_WIDTH / 2 + 0.5));
         pillar.castShadow = true;
         pillar.receiveShadow = true;
         gateGroup.add(pillar);
       }
 
       // Stone lintel across the top
-      const lintelGeom = new THREE.BoxGeometry(GATE_WIDTH + 2, 1, 1.2);
+      const lintelGeom = new THREE.BoxGeometry(1.5, 1.2, GATE_WIDTH + 2);
       const lintel = new THREE.Mesh(lintelGeom, frameMat);
-      lintel.position.set(cx, GATE_HEIGHT + 0.5, cz);
-      lintel.rotation.y = -angle + Math.PI / 2;
+      lintel.position.set(gateX, GATE_HEIGHT + 0.6, gateZ);
       lintel.castShadow = true;
       lintel.receiveShadow = true;
       gateGroup.add(lintel);
 
-      // Spike tips on top of each vertical bar
-      const spikeMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.3, metalness: 0.9 });
-      for (let i = 0; i <= barCount; i++) {
-        const offset = -GATE_WIDTH / 2 + i * BAR_SPACING;
-        const spikeGeom = new THREE.ConeGeometry(BAR_RADIUS * 2, 0.4, 6);
-        const spike = new THREE.Mesh(spikeGeom, spikeMat);
-        spike.position.set(
-          cx + tx * offset,
-          GATE_HEIGHT + 0.2,
-          cz + tz * offset
-        );
-        gateGroup.add(spike);
-      }
+      // Upper housing (the slot the portcullis retracts into)
+      const housingMat = new THREE.MeshStandardMaterial({
+        color: 0x3a3a40,
+        roughness: 0.8,
+        metalness: 0.3,
+      });
+      const housingGeom = new THREE.BoxGeometry(2.0, 3.0, GATE_WIDTH + 2.5);
+      const housing = new THREE.Mesh(housingGeom, housingMat);
+      housing.position.set(gateX, GATE_HEIGHT + 2.7, gateZ);
+      cellGroup.add(housing); // Part of the cell, not the moving gate
 
-      // Store initial Y so we can animate the portcullis upward
+      // Store animation data
       gateGroup._closedY = 0;
-      gateGroup._openY = GATE_HEIGHT + 2; // slides fully above lintel
+      gateGroup._openY = GATE_HEIGHT + 2;
       gateGroup._gateHeight = GATE_HEIGHT;
 
       this.group.add(gateGroup);
@@ -643,10 +747,10 @@ export class ArenaRenderer {
     if (!this._gateAnimating) return;
 
     const elapsed = performance.now() / 1000 - this._gateAnimStart;
-    const duration = 2.0; // 2 second gate open animation
+    const duration = 2.5; // 2.5 second heavy gate open
     const t = Math.min(1, elapsed / duration);
 
-    // Ease-out cubic for a heavy gate feel
+    // Ease-out cubic for heavy gate feel
     const eased = 1 - Math.pow(1 - t, 3);
 
     for (const gate of this.gates) {
