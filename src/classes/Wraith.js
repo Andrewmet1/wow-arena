@@ -314,9 +314,13 @@ const frenzyEdge = defineAbility({
       isMagic: false,
       onApply(unit) {
         unit.classData.energyRegenMod = 1.3;
+        const energyPool = unit.resources.get('energy');
+        if (energyPool) energyPool.setRegenModifier(1.3);
       },
       onRemove(unit) {
         unit.classData.energyRegenMod = 1.0;
+        const energyPool = unit.resources.get('energy');
+        if (energyPool) energyPool.setRegenModifier(1.0);
       }
     }));
   }

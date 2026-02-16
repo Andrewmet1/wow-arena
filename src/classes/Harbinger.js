@@ -229,6 +229,10 @@ const bloodTithe = defineAbility({
   slot: 9,
   description: 'Sacrifices 25% of your demon\'s HP to grant an absorb shield equal to 300% of the sacrificed amount for 10s. May kill the pet.',
   execute(engine, source, target, currentTick) {
+    if (!source.classData.petAlive || source.classData.petHp <= 0) {
+      engine.match.eventBus.emit('ability_cast_failed', { sourceId: source.id, abilityId: 'blood_tithe', reason: 'no_pet' });
+      return;
+    }
     const sacrifice = source.classData.petHp * 0.25;
     source.classData.petHp -= sacrifice;
 
@@ -276,12 +280,13 @@ const riftAnchor = defineAbility({
   name: 'Rift Anchor',
   school: SCHOOL.SHADOW,
   cost: null,
-  cooldown: 50, // 5s — short cooldown so place then teleport is viable
+  cooldown: 0,
   castTime: 0,
   range: 0,
   flags: [ABILITY_FLAG.IGNORES_GCD],
+  charges: { max: 2, rechargeTicks: 150 }, // 2 charges, 15s recharge
   slot: 11,
-  description: 'Places a Rift Anchor at your location. Use again to teleport back to it. 5s cooldown between uses.',
+  description: 'Places a Rift Anchor at your location (charge 1). Use again to teleport back to it (charge 2). 2 charges.',
   execute(engine, source, target, currentTick) {
     if (source.classData.demonicCircle) {
       // Teleport to the circle and consume it
@@ -311,7 +316,10 @@ const hexSilence = defineAbility({
   slot: 12,
   description: 'Commands your demon to interrupt the target, locking their spell school for 5s. Requires a living pet.',
   execute(engine, source, target, currentTick) {
-    if (!source.classData.petAlive) return;
+    if (!source.classData.petAlive) {
+      engine.match.eventBus.emit('ability_cast_failed', { sourceId: source.id, abilityId: 'hex_silence', reason: 'no_pet' });
+      return;
+    }
     engine.interruptTarget(source, target, 50, currentTick);
   }
 });
@@ -406,6 +414,9 @@ export const HarbingerClass = new ClassBase({
     riftAnchor,
     hexSilence,
     soulIgnite
+  ],
+  chargedAbilities: [
+    { abilityId: 'rift_anchor', maxCharges: 2, rechargeTicks: 150 }
   ],
   coreAbilityIds: ['hex_blight', 'creeping_torment', 'hex_silence'],
   defaultLoadout: ['hex_blight', 'creeping_torment', 'hex_silence', 'siphon_essence', 'rift_anchor', 'volatile_hex']

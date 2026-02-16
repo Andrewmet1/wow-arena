@@ -2449,83 +2449,114 @@ class Game {
             this.audio.playSFX('fire_impact');
           }
 
-          // ═══ REVENANT (Paladin) — holy light & divine VFX ═══
+          // ═══ REVENANT (Paladin) — diverse holy VFX ═══
+
+          // Hallowed Strike — melee physical hit: weapon swing + sparking impact (NO pillar)
           else if (aid === 'hallowed_strike') {
-            effects.spawnWeaponSwing(pos, { color: 0xffd700, size: 4, school: 'holy', tex: VFX_TEXTURES.revenantSmite });
-            effects.spawnHolyPillar(pos, { color: 0xffd700, height: 6, radius: 0.8, duration: 0.5, tex: VFX_TEXTURES.revenantPillar });
-            if (target) effects.spawnImpact(tpos, { color: 0xffd700, school: 'holy', size: 2, tex: VFX_TEXTURES.revenantSmite });
+            effects.spawnWeaponSwing(pos, { color: 0xf0e68c, size: 4, school: 'holy', tex: VFX_TEXTURES.revenantSmite });
+            if (target) effects.spawnImpact(tpos, { color: 0xffe4b5, school: 'holy', size: 2.5, particleCount: 10, tex: VFX_TEXTURES.revenantSmite });
           }
+
+          // Divine Reckoning — ranged judgment bolt: golden projectile + ground slam on impact
           else if (aid === 'divine_reckoning') {
             if (target) {
-              effects.spawnProjectile(pos, tpos, { color: 0xffd700, school: 'holy', size: 0.9, speed: 50, tex: VFX_TEXTURES.energyOrb });
-              effects.spawnHolyPillar(tpos, { color: 0xffd700, height: 12, radius: 1.5, duration: 1.0, tex: VFX_TEXTURES.revenantPillar });
+              effects.spawnProjectile(pos, tpos, { color: 0xffd700, school: 'holy', size: 1.0, speed: 55, tex: VFX_TEXTURES.energyOrb });
+              effects.spawnGroundSlam(tpos, { color: 0xffa500, size: 3, school: 'holy', debrisCount: 6, tex: VFX_TEXTURES.revenantSmite });
+              effects.spawnImpact(tpos, { color: 0xffd700, school: 'holy', size: 3, particleCount: 14, tex: VFX_TEXTURES.revenantSmite });
             }
             this.audio.playSFX('holy_impact');
           }
+
+          // Radiant Verdict — big HP spender finisher: massive sword arc + explosive radiant burst
           else if (aid === 'radiant_verdict') {
-            effects.spawnWeaponSwing(pos, { color: 0xffd700, size: 6, school: 'holy', tex: VFX_TEXTURES.revenantSmite });
-            effects.spawnHolyPillar(pos, { color: 0xffd700, height: 14, radius: 2.0, duration: 1.2, tex: VFX_TEXTURES.revenantPillar });
-            if (target) effects.spawnImpact(tpos, { color: 0xffd700, school: 'holy', size: 5, particleCount: 20, tex: VFX_TEXTURES.revenantSmite });
+            effects.spawnWeaponSwing(pos, { color: 0xfffacd, size: 7, school: 'holy', tex: VFX_TEXTURES.revenantSmite });
+            effects.spawnDaggerFlurry(pos, { color: 0xffd700, slashCount: 3, size: 5, duration: 0.6, tex: VFX_TEXTURES.steelSlash });
+            if (target) {
+              effects.spawnImpact(tpos, { color: 0xffffff, school: 'holy', size: 6, particleCount: 24, tex: VFX_TEXTURES.revenantSmite });
+              effects.spawnGroundSlam(tpos, { color: 0xffd700, size: 5, school: 'holy', debrisCount: 8, tex: VFX_TEXTURES.impactRing });
+            }
             this.audio.playSFX('holy_impact');
           }
+
+          // Sanctified Gale — AoE divine tempest: holy vortex + ground slam shockwave
           else if (aid === 'sanctified_gale') {
-            effects.spawnVortex(pos, { color: 0xffd700, radius: 4, height: 7, duration: 3.0, school: 'holy' });
-            effects.spawnHolyPillar(pos, { color: 0xffd700, height: 16, radius: 2.0, duration: 2.0 });
-            effects.spawnGroundSlam(pos, { color: 0xffd700, size: 5, school: 'holy', debrisCount: 10 });
+            effects.spawnVortex(pos, { color: 0xdaa520, radius: 4, height: 7, duration: 2.5, school: 'holy' });
+            effects.spawnGroundSlam(pos, { color: 0xffd700, size: 6, school: 'holy', debrisCount: 12, tex: VFX_TEXTURES.impactRing });
+            effects.spawnRuneCircle(pos, { color: 0xffd700, radius: 4, duration: 2.0, school: 'holy' });
             this.audio.playSFX('holy_impact');
           }
+
+          // Ember Wake — holy lash with slow: fire-tinted holy burst + ember sparks
           else if (aid === 'ember_wake') {
-            effects.spawnFireColumn(pos, { color: 0xffaa33, height: 8, radius: 1.5, duration: 1.2 });
-            effects.spawnHolyPillar(pos, { color: 0xffd700, height: 10, radius: 1.5, duration: 1.0 });
-            effects.spawnGroundSlam(pos, { color: 0xffd700, size: 4, school: 'holy' });
+            effects.spawnFireColumn(pos, { color: 0xffaa33, height: 6, radius: 1.2, duration: 0.8 });
+            if (target) {
+              effects.spawnImpact(tpos, { color: 0xff8c00, school: 'fire', size: 4, particleCount: 16, tex: VFX_TEXTURES.fire });
+              effects.spawnGroundSlam(tpos, { color: 0xffa500, size: 3, school: 'holy', debrisCount: 6 });
+            }
             this.audio.playSFX('holy_impact');
           }
+
+          // Gavel of Light — 5s stun: hammer strike from sky + shockwave ring + stun impact
           else if (aid === 'gavel_of_light') {
             if (target) {
-              effects.spawnHolyPillar(tpos, { color: 0xffd700, height: 16, radius: 2.0, duration: 1.5 });
-              effects.spawnGroundSlam(tpos, { color: 0xffd700, size: 5, school: 'holy', debrisCount: 10 });
-              effects.spawnImpact(tpos, { color: 0xffd700, school: 'holy', size: 5, particleCount: 22 });
+              effects.spawnLightningStrike(tpos, { color: 0xffd700, duration: 0.6, segments: 8 });
+              effects.spawnGroundSlam(tpos, { color: 0xffd700, size: 5, school: 'holy', debrisCount: 10, tex: VFX_TEXTURES.stunImpact });
+              effects.spawnImpact(tpos, { color: 0xffffff, school: 'holy', size: 4, particleCount: 18, tex: VFX_TEXTURES.stunImpact });
+              effects.spawnRuneCircle(tpos, { color: 0xdaa520, radius: 2.0, duration: 1.5, school: 'holy' });
             }
             this.audio.playSFX('holy_impact');
           }
+
+          // Binding Prayer — incapacitate: holy chains rune prison (no pillar)
           else if (aid === 'binding_prayer') {
             if (target) {
-              effects.spawnHolyPillar(tpos, { color: 0xffd700, height: 10, radius: 1.2, duration: 2.0 });
-              effects.spawnRuneCircle(tpos, { color: 0xffd700, radius: 2.5, duration: 2.5, school: 'holy' });
+              effects.spawnRuneCircle(tpos, { color: 0xffd700, radius: 2.5, duration: 3.0, school: 'holy' });
+              effects.spawnShieldBubble(tpos, { color: 0xffd70044, radius: 2.0, duration: 2.5, school: 'holy' });
+              effects.spawnImpact(tpos, { color: 0xffd700, school: 'holy', size: 2, particleCount: 8, tex: VFX_TEXTURES.revenantShield });
             }
-            effects.spawnRuneCircle(pos, { color: 0xffd700, radius: 2.0, duration: 2.0, school: 'holy' });
           }
+
+          // Aegis of Dawn — divine shield immunity: golden bubble + radiant rune circle
           else if (aid === 'aegis_of_dawn') {
-            effects.spawnShieldBubble(pos, { color: 0xffd700, radius: 3.0, duration: 5.0, school: 'holy' });
-            effects.spawnHolyPillar(pos, { color: 0xffd700, height: 18, radius: 2.5, duration: 1.5, tex: VFX_TEXTURES.revenantShield });
-            effects.spawnRuneCircle(pos, { color: 0xffd700, radius: 3.5, duration: 3.0, school: 'holy' });
+            effects.spawnShieldBubble(pos, { color: 0xffd700, radius: 3.5, duration: 6.0, school: 'holy' });
+            effects.spawnRuneCircle(pos, { color: 0xdaa520, radius: 3.5, duration: 4.0, school: 'holy' });
+            effects.spawnImpact(pos, { color: 0xffffff, school: 'holy', size: 5, particleCount: 20, tex: VFX_TEXTURES.revenantShield });
             this.audio.playSFX('holy_impact');
           }
+
+          // Sovereign Mend — full heal: cascading green-gold heal burst + warm glow aura
           else if (aid === 'sovereign_mend') {
-            effects.spawnHolyPillar(pos, { color: 0xffd700, height: 14, radius: 2.0, duration: 1.5, tex: VFX_TEXTURES.revenantHeal });
-            effects.spawnHealBurst(pos, { color: 0xffd700, size: 6, school: 'holy', particleCount: 22 });
-            effects.spawnRuneCircle(pos, { color: 0xffd700, radius: 3.0, duration: 2.0, school: 'holy' });
-            this.audio.playSFX('holy_impact');
-          }
-          else if (aid === 'holy_restoration') {
-            effects.spawnHealBurst(pos, { color: 0xffd700, size: 4, school: 'holy', particleCount: 14 });
-            effects.spawnHolyPillar(pos, { color: 0xffd700, height: 8, radius: 1.0, duration: 1.0 });
+            effects.spawnHealBurst(pos, { color: 0x90ee90, size: 7, school: 'holy', particleCount: 28 });
+            effects.spawnHolyPillar(pos, { color: 0xffd700, height: 12, radius: 1.5, duration: 1.2, tex: VFX_TEXTURES.revenantHeal });
+            effects.spawnAuraEffect(pos, { color: 0x98fb98, radius: 4.0, duration: 2.5 });
             this.audio.playSFX('heal_cast');
           }
+
+          // Holy Restoration — HP spender heal: warm golden heal motes rising
+          else if (aid === 'holy_restoration') {
+            effects.spawnHealBurst(pos, { color: 0xffd700, size: 5, school: 'holy', particleCount: 18 });
+            effects.spawnAuraEffect(pos, { color: 0xffe4b5, radius: 3.0, duration: 2.0 });
+            this.audio.playSFX('heal_cast');
+          }
+
+          // Unchained Grace — freedom: breaking chains burst + speed aura
           else if (aid === 'unchained_grace') {
-            effects.spawnChargeTrail(pos, { x: pos.x, z: pos.z + 3 }, { color: 0xffd700, duration: 0.8 });
-            effects.spawnHolyPillar(pos, { color: 0xffd700, height: 6, radius: 1.0, duration: 0.8 });
-            effects.spawnAuraEffect(pos, { color: 0xffd700, radius: 3.0, duration: 2.0 });
+            effects.spawnShadowNova(pos, { color: 0xffd700, radius: 3, duration: 0.5 });
+            effects.spawnImpact(pos, { color: 0xffffff, school: 'holy', size: 3, particleCount: 12, tex: VFX_TEXTURES.revenantShield });
+            effects.spawnAuraEffect(pos, { color: 0xffd700, radius: 3.5, duration: 2.5 });
           }
+
+          // Sanctified Rebuff — interrupt: shield bash spark (no pillar)
           else if (aid === 'sanctified_rebuff') {
-            effects.spawnWeaponSwing(pos, { color: 0xffd700, size: 3, school: 'holy' });
-            effects.spawnHolyPillar(pos, { color: 0xffd700, height: 5, radius: 0.6, duration: 0.4 });
-            if (target) effects.spawnImpact(tpos, { color: 0xffd700, school: 'holy', size: 2 });
+            effects.spawnWeaponSwing(pos, { color: 0xc0c0c0, size: 3, school: 'physical', tex: VFX_TEXTURES.steelSlash });
+            if (target) effects.spawnImpact(tpos, { color: 0xffffff, school: 'holy', size: 2.5, particleCount: 8, tex: VFX_TEXTURES.stunImpact });
           }
+
+          // Valiant Charge — speed buff: golden charge trail + wind burst
           else if (aid === 'valiant_charge') {
-            if (target) effects.spawnChargeTrail(pos, tpos, { color: 0xffd700, duration: 0.8 });
-            effects.spawnHolyPillar(pos, { color: 0xffd700, height: 8, radius: 1.0, duration: 0.6 });
-            effects.spawnImpact(pos, { color: 0xffd700, school: 'holy', size: 3 });
+            effects.spawnChargeTrail(pos, { x: pos.x + 5, z: pos.z + 5 }, { color: 0xffd700, duration: 1.0 });
+            effects.spawnShadowNova(pos, { color: 0xffd700, radius: 2, duration: 0.4 });
+            effects.spawnImpact(pos, { color: 0xffd700, school: 'holy', size: 3, particleCount: 10, tex: VFX_TEXTURES.energyOrb });
           }
         }
       }
@@ -2540,9 +2571,13 @@ class Game {
         const ability = source.abilities.get(data.abilityId);
         const school = ability?.school || 'shadow';
         const color = effects.getSchoolColor(school);
-        // Spawn single beam that lasts the full channel duration
+        // Spawn textured beam that lasts the full channel duration
         const channelDuration = ability?.channelDuration ? ability.channelDuration / 10 : 5.0;
-        effects.spawnBeam(source.position, target.position, { color, duration: channelDuration + 0.5 });
+        const beamTex = school === 'shadow' ? VFX_TEXTURES.harbingerDrain
+          : school === 'fire' ? VFX_TEXTURES.fire
+          : school === 'holy' ? VFX_TEXTURES.holy
+          : VFX_TEXTURES[school] || null;
+        effects.spawnBeam(source.position, target.position, { color, duration: channelDuration + 0.5, school, tex: beamTex });
         this._activeBeams.set(data.sourceId, { targetId: data.targetId, school });
       }
     });

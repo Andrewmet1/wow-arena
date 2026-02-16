@@ -732,10 +732,12 @@ export class SpellEffects {
   // ──────────────────────────────────────────────
 
   /**
-   * Spawn a thick glowing beam effect between two positions (e.g., Drain Life)
+   * Spawn a rich textured drain beam between two positions (e.g., Drain Life / Siphon Essence).
+   * Features: textured core with UV scroll, outer spiral strands, orbiting soul orbs,
+   * pulsing glow, and particle siphon trail flowing from target to caster.
    */
   spawnBeam(from, to, config) {
-    const { color = 0x00ff00, duration = 1.0 } = config;
+    const { color = 0x9900ff, duration = 1.0, school = 'shadow', tex = null } = config;
 
     const startY = (from.y || 0) + 3.5;
     const endY = (to.y || 0) + 3.5;
@@ -744,41 +746,122 @@ export class SpellEffects {
     const dist = start.distanceTo(end);
     const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
 
+    const beamTex = tex || VFX_TEXTURES.harbingerDrain || VFX_TEXTURES[school] || null;
     const group = new THREE.Group();
 
-    // Core beam — thick bright cylinder
-    const coreGeo = new THREE.CylinderGeometry(0.12, 0.12, dist, 8, 1, true);
+    // ── 1. Textured core beam with UV-scrolling ──
+    const coreGeo = new THREE.CylinderGeometry(0.18, 0.18, dist, 12, 8, true);
     const coreMat = new THREE.MeshBasicMaterial({
       color,
+      map: beamTex,
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.95,
       side: THREE.DoubleSide,
-      depthWrite: false
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
     });
     const core = new THREE.Mesh(coreGeo, coreMat);
     group.add(core);
 
-    // Outer glow — larger translucent cylinder
-    const glowGeo = new THREE.CylinderGeometry(0.35, 0.35, dist, 8, 1, true);
+    // ── 2. Outer pulsing glow cylinder ──
+    const glowGeo = new THREE.CylinderGeometry(0.45, 0.45, dist, 12, 1, true);
     const glowMat = new THREE.MeshBasicMaterial({
       color,
       transparent: true,
-      opacity: 0.25,
+      opacity: 0.18,
       side: THREE.DoubleSide,
-      depthWrite: false
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
     });
     const glow = new THREE.Mesh(glowGeo, glowMat);
     group.add(glow);
 
-    // 4 small energy particles along beam
-    const particles = [];
-    for (let i = 0; i < 4; i++) {
-      const pGeo = new THREE.SphereGeometry(0.15 + Math.random() * 0.1, 6, 6);
-      const pMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.7 });
-      const p = new THREE.Mesh(pGeo, pMat);
-      p.position.y = (Math.random() - 0.5) * dist;
-      group.add(p);
-      particles.push({ mesh: p, speed: 2 + Math.random() * 3, offset: Math.random() * Math.PI * 2, dist });
+    // ── 3. Two spiral energy strands wrapping around the core ──
+    const spirals = [];
+    for (let s = 0; s < 2; s++) {
+      const spiralPts = [];
+      const spiralSegs = 48;
+      const spiralRadius = 0.35;
+      const phaseOff = s * Math.PI;
+      for (let i = 0; i <= spiralSegs; i++) {
+        const t = i / spiralSegs;
+        const angle = t * Math.PI * 6 + phaseOff; // 3 full wraps
+        spiralPts.push(new THREE.Vector3(
+          Math.cos(angle) * spiralRadius,
+          (t - 0.5) * dist,
+          Math.sin(angle) * spiralRadius
+        ));
+      }
+      const spiralCurve = new THREE.CatmullRomCurve3(spiralPts);
+      const spiralGeo = new THREE.TubeGeometry(spiralCurve, spiralSegs, 0.06, 6, false);
+      const spiralMat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(color).lerp(new THREE.Color(0xffffff), 0.3),
+        map: beamTex,
+        transparent: true,
+        opacity: 0.6,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+      });
+      const spiralMesh = new THREE.Mesh(spiralGeo, spiralMat);
+      group.add(spiralMesh);
+      spirals.push({ mesh: spiralMesh, mat: spiralMat });
+    }
+
+    // ── 4. Orbiting soul orbs (textured spheres that travel along beam) ──
+    const orbs = [];
+    for (let i = 0; i < 6; i++) {
+      const orbGeo = new THREE.SphereGeometry(0.12 + Math.random() * 0.08, 8, 8);
+      const orbMat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(color).lerp(new THREE.Color(0xffffff), 0.5),
+        map: beamTex,
+        transparent: true,
+        opacity: 0.8,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+      });
+      const orb = new THREE.Mesh(orbGeo, orbMat);
+      const phase = (i / 6) * Math.PI * 2;
+      const tPos = Math.random(); // position along beam 0-1
+      orb.position.set(
+        Math.cos(phase) * 0.5,
+        (tPos - 0.5) * dist,
+        Math.sin(phase) * 0.5
+      );
+      group.add(orb);
+      orbs.push({
+        mesh: orb, mat: orbMat, phase,
+        speed: 3 + Math.random() * 4,       // travel speed along beam (toward caster)
+        orbitSpeed: 2 + Math.random() * 3,   // orbit rotation speed
+        orbitRadius: 0.3 + Math.random() * 0.3,
+        dist
+      });
+    }
+
+    // ── 5. Siphon particle trail (small sparks flowing target→caster) ──
+    const siphonParticles = [];
+    for (let i = 0; i < 8; i++) {
+      const spGeo = new THREE.SphereGeometry(0.05 + Math.random() * 0.04, 4, 4);
+      const spMat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(color).lerp(new THREE.Color(0xff4444), 0.3),
+        transparent: true,
+        opacity: 0.9,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+      });
+      const sp = new THREE.Mesh(spGeo, spMat);
+      const t = Math.random();
+      sp.position.set(
+        (Math.random() - 0.5) * 0.4,
+        (t - 0.5) * dist,
+        (Math.random() - 0.5) * 0.4
+      );
+      group.add(sp);
+      siphonParticles.push({
+        mesh: sp, mat: spMat,
+        speed: 5 + Math.random() * 6,
+        drift: Math.random() * Math.PI * 2,
+        dist
+      });
     }
 
     // Orient group to point from start to end
@@ -793,7 +876,10 @@ export class SpellEffects {
       beamGroup: group,
       coreMat,
       glowMat,
-      particles,
+      spirals,
+      orbs,
+      siphonParticles,
+      coreGeo,
       from,
       to,
       age: 0,
@@ -1458,35 +1544,86 @@ export class SpellEffects {
 
   updateBeam(effect, dt) {
     effect.age += dt;
-    const fade = 1 - effect.age / effect.maxAge;
+    const fade = Math.min(1, 1 - (effect.age - effect.maxAge + 0.3) / 0.3); // fade last 0.3s
+    const pulse = 0.7 + Math.sin(effect.age * 10) * 0.3;
 
-    // Pulse the core beam opacity
+    // ── Core beam: UV scroll + pulsing opacity ──
     if (effect.coreMat) {
-      effect.coreMat.opacity = (0.7 + Math.sin(effect.age * 12) * 0.3) * fade;
-    }
-    if (effect.glowMat) {
-      effect.glowMat.opacity = (0.15 + Math.sin(effect.age * 8) * 0.1) * fade;
-    }
-
-    // Animate energy particles along beam
-    if (effect.particles) {
-      for (const p of effect.particles) {
-        p.mesh.position.y += p.speed * dt;
-        if (p.mesh.position.y > p.dist * 0.5) p.mesh.position.y = -p.dist * 0.5;
-        p.mesh.material.opacity = (0.5 + Math.sin(effect.age * 10 + p.offset) * 0.3) * fade;
+      effect.coreMat.opacity = pulse * Math.min(fade, 1);
+      if (effect.coreMat.map) {
+        effect.coreMat.map.offset.y -= dt * 1.5; // scroll texture along beam
+        effect.coreMat.map.offset.x = Math.sin(effect.age * 3) * 0.1;
       }
     }
 
-    // Update beam position if from/to are live references (for channels)
+    // ── Outer glow: slow pulse ──
+    if (effect.glowMat) {
+      effect.glowMat.opacity = (0.12 + Math.sin(effect.age * 6) * 0.08) * Math.min(fade, 1);
+    }
+
+    // ── Spiral strands: rotate + pulse opacity ──
+    if (effect.spirals) {
+      for (let i = 0; i < effect.spirals.length; i++) {
+        const s = effect.spirals[i];
+        s.mesh.rotation.y += dt * (1.5 + i * 0.5);
+        s.mat.opacity = (0.4 + Math.sin(effect.age * 8 + i * Math.PI) * 0.2) * Math.min(fade, 1);
+        if (s.mat.map) {
+          s.mat.map.offset.y -= dt * 2;
+        }
+      }
+    }
+
+    // ── Orbiting soul orbs: travel along beam + orbit ──
+    if (effect.orbs) {
+      for (const orb of effect.orbs) {
+        // Travel from target end (positive y) toward caster (negative y)
+        orb.mesh.position.y -= orb.speed * dt;
+        if (orb.mesh.position.y < -orb.dist * 0.5) {
+          orb.mesh.position.y = orb.dist * 0.5;
+        }
+        // Orbit around beam axis
+        orb.phase += orb.orbitSpeed * dt;
+        orb.mesh.position.x = Math.cos(orb.phase) * orb.orbitRadius;
+        orb.mesh.position.z = Math.sin(orb.phase) * orb.orbitRadius;
+        // Pulse size
+        const scale = 0.8 + Math.sin(effect.age * 12 + orb.phase) * 0.4;
+        orb.mesh.scale.setScalar(scale);
+        orb.mat.opacity = (0.6 + Math.sin(effect.age * 8 + orb.phase) * 0.3) * Math.min(fade, 1);
+      }
+    }
+
+    // ── Siphon particles: fast flow toward caster ──
+    if (effect.siphonParticles) {
+      for (const sp of effect.siphonParticles) {
+        sp.mesh.position.y -= sp.speed * dt;
+        if (sp.mesh.position.y < -sp.dist * 0.5) {
+          sp.mesh.position.y = sp.dist * 0.5;
+          sp.mesh.position.x = (Math.random() - 0.5) * 0.5;
+          sp.mesh.position.z = (Math.random() - 0.5) * 0.5;
+        }
+        sp.drift += dt * 4;
+        sp.mesh.position.x += Math.sin(sp.drift) * dt * 0.3;
+        sp.mesh.position.z += Math.cos(sp.drift) * dt * 0.3;
+        sp.mat.opacity = (0.6 + Math.sin(effect.age * 15 + sp.drift) * 0.3) * Math.min(fade, 1);
+      }
+    }
+
+    // ── Update beam position if from/to are live references (for channels) ──
     if (effect.beamGroup && effect.from && effect.to) {
       const startY = (effect.from.y || 0) + 3.5;
       const endY = (effect.to.y || 0) + 3.5;
       const start = new THREE.Vector3(effect.from.x, startY, effect.from.z);
       const end = new THREE.Vector3(effect.to.x, endY, effect.to.z);
+      const newDist = start.distanceTo(end);
       const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
       effect.beamGroup.position.copy(mid);
       effect.beamGroup.lookAt(end);
       effect.beamGroup.rotation.x += Math.PI / 2;
+      // Rescale core/glow if distance changed
+      const distRatio = effect.coreGeo ? newDist / effect.coreGeo.parameters.height : 1;
+      if (Math.abs(distRatio - 1) > 0.05) {
+        effect.beamGroup.scale.y = distRatio;
+      }
     }
 
     if (effect.age >= effect.maxAge) {

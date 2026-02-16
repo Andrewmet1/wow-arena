@@ -180,6 +180,7 @@ const aegisOfDawn = defineAbility({
   execute(engine, source, target, currentTick) {
     // Check Forbearance
     if (source.classData.hasForbearance && currentTick < source.classData.forbearanceEndTick) {
+      engine.match.eventBus.emit('ability_cast_failed', { sourceId: source.id, abilityId: 'aegis_of_dawn', reason: 'forbearance' });
       return;
     }
 
@@ -230,6 +231,7 @@ const sovereignMend = defineAbility({
   execute(engine, source, target, currentTick) {
     // Check Forbearance
     if (source.classData.hasForbearance && currentTick < source.classData.forbearanceEndTick) {
+      engine.match.eventBus.emit('ability_cast_failed', { sourceId: source.id, abilityId: 'sovereign_mend', reason: 'forbearance' });
       return;
     }
 
@@ -254,7 +256,10 @@ const holyRestoration = defineAbility({
   description: 'Consumes all Holy Power to heal yourself for 4000 + 3000 per Holy Power spent.',
   execute(engine, source, target, currentTick) {
     const holyPower = source.resources.getCurrent(RESOURCE_TYPE.HOLY_POWER);
-    if (holyPower < 3) return;
+    if (holyPower < 3) {
+      engine.match.eventBus.emit('ability_cast_failed', { sourceId: source.id, abilityId: 'holy_restoration', reason: 'resource' });
+      return;
+    }
 
     const healing = 4000 + (3000 * holyPower);
     source.resources.set(RESOURCE_TYPE.HOLY_POWER, 0);
