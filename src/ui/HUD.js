@@ -19,10 +19,12 @@ export class HUD {
   //  Construction
   // ───────────────────────────────────────────────
 
-  constructor(hudElement) {
+  constructor(hudElement, options = {}) {
     /** @type {HTMLElement} */
     this.root = hudElement;
     this.root.classList.add('hud-root');
+    /** @type {Map<string, string>|null} classId → dataURL for 3D rendered portraits */
+    this._classPortraits = options.classPortraits || null;
 
     // Inject all CSS first
     this.createStyles();
@@ -1147,9 +1149,10 @@ export class HUD {
     // Name
     frame.name.textContent = unit.name || '---';
 
-    // Portrait
+    // Portrait — prefer 3D rendered portrait, fall back to splash art
     if (unit.classId && frame._currentClassId !== unit.classId) {
-      frame.portrait.src = `assets/art/${unit.classId}_splash.webp`;
+      const portraitUrl = this._classPortraits?.get(unit.classId) || `assets/art/${unit.classId}_splash.webp`;
+      frame.portrait.src = portraitUrl;
       frame.portrait.alt = unit.name || '';
       frame._currentClassId = unit.classId;
     }

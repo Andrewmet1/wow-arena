@@ -122,6 +122,9 @@ class Game {
 
       this.characterRenderer = new CharacterRenderer(this.sceneManager.getScene());
 
+      // Render 3D class portraits for HUD unit frames
+      this._classPortraits = CharacterRenderer.renderPortraits(256);
+
       this.cameraController = new CameraController(this.sceneManager.getCamera());
       this.cameraController.attachEvents(canvas);
       this.updateLoadingBar(60);
@@ -129,7 +132,7 @@ class Game {
       this.spellEffects = new SpellEffects(this.sceneManager.getScene());
 
       const hudElement = document.getElementById('hud');
-      this.hud = new HUD(hudElement);
+      this.hud = new HUD(hudElement, { classPortraits: this._classPortraits });
       this.updateLoadingBar(70);
 
       this.inputManager = new InputManager();

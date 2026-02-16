@@ -1123,7 +1123,7 @@ function buildInfernal() {
   rightHand.position.y = -0.55;
   rightArm.add(rightHand);
 
-  // ── Staff: ornate gnarled staff with IcosahedronGeometry crystal ──
+  // ── Staff: ornate arcane staff with metal claw cage and large crystal ──
   const staffMat = mat({ color: 0x8a6a48, roughness: 0.85, metalness: 0.05, map: WEAPON_TEXTURES.infernal_staff });
 
   // Staff shaft — slightly tapered
@@ -1136,31 +1136,67 @@ function buildInfernal() {
   staff.position.y = -0.35;
   rightArm.add(staff);
 
-  // Staff head — gnarled prong cradle (small ring at top)
-  const staffCradle = new THREE.Mesh(
-    new THREE.TorusGeometry(0.08, 0.02, 8, 12),
-    mat({ color: 0x3a2a1a, metalness: 0.5, roughness: 0.4 })
-  );
-  staffCradle.name = 'staffCradle';
-  staffCradle.position.y = 0.72;
-  staff.add(staffCradle);
+  // Decorative metal bands on shaft
+  const bandMat = mat({ color: 0xc0a040, metalness: 0.85, roughness: 0.2 });
+  for (let b = 0; b < 3; b++) {
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.038, 0.008, 8, 16), bandMat);
+    band.position.y = -0.2 + b * 0.3;
+    band.rotation.x = Math.PI / 2;
+    staff.add(band);
+  }
 
-  // Glowing crystal on staff tip — IcosahedronGeometry for gem-like facets
+  // ── Metal claw cage holding the crystal (4 prongs) ──
+  const clawMat = mat({ color: 0x8a7040, metalness: 0.8, roughness: 0.3 });
+  for (let c = 0; c < 4; c++) {
+    const angle = (c / 4) * Math.PI * 2;
+    const clawPts = [];
+    for (let i = 0; i <= 10; i++) {
+      const t = i / 10;
+      const spread = Math.sin(t * Math.PI) * 0.08;
+      clawPts.push(new THREE.Vector3(
+        Math.cos(angle) * (0.03 + spread),
+        0.55 + t * 0.22,
+        Math.sin(angle) * (0.03 + spread)
+      ));
+    }
+    const clawCurve = new THREE.CatmullRomCurve3(clawPts);
+    const clawGeo = new THREE.TubeGeometry(clawCurve, 10, 0.01, 6, false);
+    staff.add(new THREE.Mesh(clawGeo, clawMat));
+  }
+
+  // Glowing crystal on staff tip — larger, more dramatic
   const crystal = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(0.12, 1),
+    new THREE.IcosahedronGeometry(0.14, 1),
     mat({
       color: emberOrange,
       emissive: 0xff6600,
-      emissiveIntensity: 1.5,
-      roughness: 0.15,
-      metalness: 0.3,
+      emissiveIntensity: 2.0,
+      roughness: 0.1,
+      metalness: 0.4,
     })
   );
   crystal.name = 'staffCrystal';
   crystal.position.y = 0.72;
   staff.add(crystal);
 
-  // Floating flame particle above staff — small emissive sphere
+  // Inner core glow (smaller brighter sphere inside crystal)
+  const coreGlow = new THREE.Mesh(
+    new THREE.SphereGeometry(0.06, 10, 8),
+    mat({
+      color: 0xffaa00,
+      emissive: 0xff8800,
+      emissiveIntensity: 3.0,
+      roughness: 0.0,
+      metalness: 0.0,
+      transparent: true,
+      opacity: 0.7,
+    })
+  );
+  coreGlow.name = 'crystalCore';
+  coreGlow.position.y = 0.72;
+  staff.add(coreGlow);
+
+  // Floating flame particle above staff
   const staffFlame = new THREE.Mesh(
     new THREE.SphereGeometry(0.04, 10, 8),
     mat({
@@ -1174,28 +1210,21 @@ function buildInfernal() {
     })
   );
   staffFlame.name = 'staffFlame';
-  staffFlame.position.y = 0.9;
+  staffFlame.position.y = 0.92;
   staff.add(staffFlame);
 
-  // Floating ember sparks near crystal (extras)
+  // Orbiting ember sparks (3 around crystal)
   const emberMat = mat({
-    color: 0xff4500,
-    emissive: 0xff6600,
-    emissiveIntensity: 2.0,
-    roughness: 0.1,
-    metalness: 0.0,
-    transparent: true,
-    opacity: 0.8,
+    color: 0xff4500, emissive: 0xff6600, emissiveIntensity: 2.0,
+    roughness: 0.1, metalness: 0.0, transparent: true, opacity: 0.8,
   });
-  const ember1 = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), emberMat);
-  ember1.name = 'ember';
-  ember1.position.set(0.08, 0.28, 0.04);
-  crystal.add(ember1);
-
-  const ember2 = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 6), emberMat);
-  ember2.name = 'ember2';
-  ember2.position.set(-0.06, 0.22, -0.05);
-  crystal.add(ember2);
+  for (let e = 0; e < 3; e++) {
+    const eAngle = (e / 3) * Math.PI * 2;
+    const ember = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 6), emberMat);
+    ember.name = e === 0 ? 'ember' : `ember${e + 1}`;
+    ember.position.set(Math.cos(eAngle) * 0.1, 0.25 + e * 0.06, Math.sin(eAngle) * 0.1);
+    crystal.add(ember);
+  }
 
   // ── Legs: minimal, hidden under robe ──
   const leftLeg = legs.getObjectByName('leftLeg');
@@ -1544,7 +1573,7 @@ function buildHarbinger() {
   rightHandMesh.position.y = -0.52;
   rightArm.add(rightHandMesh);
 
-  // ── Staff: gnarled with skull / dark crystal top ──
+  // ── Staff: gnarled necromantic staff with detailed skull, bone prongs & soul crystal ──
   const staffWood = mat({ color: 0x7a5830, roughness: 0.88, metalness: 0.05, map: WEAPON_TEXTURES.harbinger_staff });
   const staff = new THREE.Mesh(
     new THREE.CylinderGeometry(0.025, 0.035, 1.8, 12),
@@ -1555,22 +1584,104 @@ function buildHarbinger() {
   staff.position.y = -0.4;
   rightArm.add(staff);
 
-  // Skull atop staff
-  const skull = new THREE.Mesh(
-    new THREE.SphereGeometry(0.07, 12, 10),
+  // Gnarled wood knots along shaft
+  const knotMat = mat({ color: 0x5a3820, roughness: 0.95, metalness: 0.0, map: WEAPON_TEXTURES.harbinger_staff });
+  for (let k = 0; k < 3; k++) {
+    const knot = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 6), knotMat);
+    knot.scale.set(1.2, 0.6, 1.0);
+    knot.position.set((k % 2 === 0 ? 0.025 : -0.025), -0.3 + k * 0.35, 0.015);
+    staff.add(knot);
+  }
+
+  // ── Skull atop staff — detailed cranium, brow, jaw, eye sockets ──
+  const skullGrp = new THREE.Group();
+  skullGrp.name = 'staffSkull';
+  skullGrp.position.y = 0.64;
+  staff.add(skullGrp);
+
+  // Cranium (slightly elongated sphere)
+  const cranium = new THREE.Mesh(
+    new THREE.SphereGeometry(0.08, 14, 12),
     boneMat
   );
-  skull.name = 'staffSkull';
-  skull.scale.set(1.0, 1.1, 0.9);
-  skull.position.y = 0.62;
-  staff.add(skull);
+  cranium.scale.set(0.9, 1.15, 0.85);
+  skullGrp.add(cranium);
 
-  // Skull eye glow
-  const skullEyeMat = mat({ color: purpleAccent, emissive: purpleAccent, emissiveIntensity: 1.5, roughness: 0.2, metalness: 0.0 });
-  const skullEye = new THREE.Mesh(new THREE.SphereGeometry(0.015, 8, 6), skullEyeMat);
-  skullEye.name = 'skullEye';
-  skullEye.position.set(0, 0.01, 0.06);
-  skull.add(skullEye);
+  // Brow ridge (flattened torus across front)
+  const browMat = mat({ color: 0x9a8e78, roughness: 0.85, metalness: 0.1 });
+  const brow = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.015, 6, 12, Math.PI), browMat);
+  brow.position.set(0, 0.015, 0.055);
+  brow.rotation.x = -0.3;
+  skullGrp.add(brow);
+
+  // Eye sockets (dark recessed spheres)
+  const eyeSocketMat = mat({ color: 0x111111, roughness: 1.0, metalness: 0.0 });
+  const leftEyeSocket = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), eyeSocketMat);
+  leftEyeSocket.position.set(-0.03, 0.01, 0.065);
+  skullGrp.add(leftEyeSocket);
+  const rightEyeSocket = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), eyeSocketMat);
+  rightEyeSocket.position.set(0.03, 0.01, 0.065);
+  skullGrp.add(rightEyeSocket);
+
+  // Glowing eyes inside sockets
+  const skullEyeMat = mat({ color: purpleAccent, emissive: purpleAccent, emissiveIntensity: 2.5, roughness: 0.1, metalness: 0.0 });
+  const skullLeftEye = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 6), skullEyeMat);
+  skullLeftEye.name = 'skullEye';
+  skullLeftEye.position.set(-0.03, 0.01, 0.072);
+  skullGrp.add(skullLeftEye);
+  const skullRightEye = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 6), skullEyeMat);
+  skullRightEye.position.set(0.03, 0.01, 0.072);
+  skullGrp.add(skullRightEye);
+
+  // Nasal cavity
+  const skullNose = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.018, 0.01), eyeSocketMat);
+  skullNose.position.set(0, -0.015, 0.07);
+  skullGrp.add(skullNose);
+
+  // Jawbone (smaller flattened sphere below cranium)
+  const skullJaw = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), boneMat);
+  skullJaw.name = 'skullJaw';
+  skullJaw.scale.set(0.85, 0.5, 0.7);
+  skullJaw.position.set(0, -0.06, 0.01);
+  skullGrp.add(skullJaw);
+
+  // Teeth row (tiny boxes across jaw front)
+  const toothMat = mat({ color: 0xd0c8a8, roughness: 0.6, metalness: 0.2 });
+  for (let t = -2; t <= 2; t++) {
+    const tooth = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.012, 0.006), toothMat);
+    tooth.position.set(t * 0.012, -0.045, 0.055);
+    skullGrp.add(tooth);
+  }
+
+  // ── Bone prongs curving up from staff to cradle the skull ──
+  const prongMat = mat({ color: 0xa09878, roughness: 0.8, metalness: 0.15 });
+  for (let p = 0; p < 3; p++) {
+    const angle = (p / 3) * Math.PI * 2 + 0.3;
+    const prongPts = [];
+    for (let i = 0; i <= 8; i++) {
+      const t = i / 8;
+      const r = 0.04 * (1 - t * 0.6); // taper outward then inward
+      prongPts.push(new THREE.Vector3(
+        Math.cos(angle) * r + Math.cos(angle) * t * 0.06,
+        t * 0.14 + 0.5,
+        Math.sin(angle) * r + Math.sin(angle) * t * 0.06
+      ));
+    }
+    const prongCurve = new THREE.CatmullRomCurve3(prongPts);
+    const prongGeo = new THREE.TubeGeometry(prongCurve, 8, 0.012, 6, false);
+    const prong = new THREE.Mesh(prongGeo, prongMat);
+    staff.add(prong);
+  }
+
+  // ── Soul crystal embedded in skull forehead ──
+  const soulCrystal = new THREE.Mesh(
+    new THREE.OctahedronGeometry(0.03, 0),
+    mat({ color: 0x44ff44, emissive: 0x22cc22, emissiveIntensity: 2.0, roughness: 0.1, metalness: 0.3, transparent: true, opacity: 0.85 })
+  );
+  soulCrystal.name = 'soulCrystal';
+  soulCrystal.position.set(0, 0.05, 0.07);
+  soulCrystal.rotation.z = Math.PI / 4;
+  skullGrp.add(soulCrystal);
 
   // ── Runic circle at feet — RingGeometry with green emissive glow, named 'runeCircle' ──
   const runeCircle = new THREE.Mesh(
@@ -3663,5 +3774,119 @@ export default class CharacterRenderer {
     for (const unitId of this.characters.keys()) {
       this.removeCharacter(unitId);
     }
+  }
+
+  // ── 3D Portrait Renderer ──────────────────────────────────────────────────
+
+  /**
+   * Renders 3D bust portraits for all classes using an offscreen WebGLRenderer.
+   * Returns a Map of classId → data URL (PNG).
+   * @param {number} [size=256] — portrait resolution (square)
+   * @returns {Map<string, string>} classId → dataURL
+   */
+  static renderPortraits(size = 256) {
+    const portraits = new Map();
+    const allClasses = [CLASS_TYRANT, CLASS_WRAITH, CLASS_INFERNAL, CLASS_HARBINGER, CLASS_REVENANT];
+
+    // Class-specific camera and lighting configs for dramatic portraits
+    const classConfigs = {
+      [CLASS_TYRANT]: {
+        camPos: [0.6, 2.4, 2.0],  camLookAt: [0, 1.6, 0],
+        keyColor: 0xffeedd, keyIntensity: 2.5, keyPos: [2, 3, 2],
+        fillColor: 0x883322, fillIntensity: 0.8, fillPos: [-2, 1, 1],
+        rimColor: 0xff4422, rimIntensity: 1.5, rimPos: [-1, 2, -2],
+        bgColor: 0x1a0808
+      },
+      [CLASS_WRAITH]: {
+        camPos: [0.5, 2.2, 1.8],  camLookAt: [0, 1.5, 0],
+        keyColor: 0xccccff, keyIntensity: 2.0, keyPos: [1.5, 3, 2],
+        fillColor: 0x442266, fillIntensity: 0.8, fillPos: [-2, 1, 0.5],
+        rimColor: 0x8844cc, rimIntensity: 1.8, rimPos: [-1, 2.5, -2],
+        bgColor: 0x0a0812
+      },
+      [CLASS_INFERNAL]: {
+        camPos: [0.4, 2.5, 2.0],  camLookAt: [0, 1.7, 0],
+        keyColor: 0xfff0dd, keyIntensity: 2.5, keyPos: [2, 3.5, 2],
+        fillColor: 0xff6600, fillIntensity: 0.6, fillPos: [-2, 1, 1],
+        rimColor: 0xff4400, rimIntensity: 2.0, rimPos: [0, 2, -2.5],
+        bgColor: 0x120808
+      },
+      [CLASS_HARBINGER]: {
+        camPos: [0.5, 2.3, 1.9],  camLookAt: [0, 1.6, 0],
+        keyColor: 0xddffdd, keyIntensity: 2.0, keyPos: [1.5, 3, 2],
+        fillColor: 0x225522, fillIntensity: 0.8, fillPos: [-2, 1, 0.5],
+        rimColor: 0x44ff44, rimIntensity: 1.5, rimPos: [-1, 2.5, -2],
+        bgColor: 0x061008
+      },
+      [CLASS_REVENANT]: {
+        camPos: [0.5, 2.4, 2.0],  camLookAt: [0, 1.6, 0],
+        keyColor: 0xffffee, keyIntensity: 2.5, keyPos: [2, 3, 2],
+        fillColor: 0xddaa44, fillIntensity: 0.8, fillPos: [-2, 1, 1],
+        rimColor: 0xffdd66, rimIntensity: 1.8, rimPos: [-1, 2, -2],
+        bgColor: 0x100e06
+      }
+    };
+
+    // Create offscreen renderer
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(size, size);
+    renderer.setPixelRatio(1);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+
+    const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 50);
+
+    for (const classId of allClasses) {
+      const scene = new THREE.Scene();
+      const cfg = classConfigs[classId];
+      scene.background = new THREE.Color(cfg.bgColor);
+
+      // Build the character model (same function used in-game)
+      const builder = CLASS_BUILDERS.get(classId);
+      if (!builder) continue;
+      const model = builder();
+      model.scale.set(2.5, 2.5, 2.5);
+      scene.add(model);
+
+      // Slight heroic body turn — facing slightly toward camera
+      model.rotation.y = -0.2;
+
+      // 3-point lighting: key, fill, rim
+      const key = new THREE.DirectionalLight(cfg.keyColor, cfg.keyIntensity);
+      key.position.set(...cfg.keyPos);
+      scene.add(key);
+
+      const fill = new THREE.DirectionalLight(cfg.fillColor, cfg.fillIntensity);
+      fill.position.set(...cfg.fillPos);
+      scene.add(fill);
+
+      const rim = new THREE.DirectionalLight(cfg.rimColor, cfg.rimIntensity);
+      rim.position.set(...cfg.rimPos);
+      scene.add(rim);
+
+      // Ambient for shadow fill
+      scene.add(new THREE.AmbientLight(0x222222, 0.4));
+
+      // Camera: heroic upward angle at upper body
+      camera.position.set(...cfg.camPos);
+      camera.lookAt(new THREE.Vector3(...cfg.camLookAt));
+      camera.updateProjectionMatrix();
+
+      renderer.render(scene, camera);
+
+      // Extract data URL
+      portraits.set(classId.toLowerCase(), renderer.domElement.toDataURL('image/png'));
+
+      // Dispose model
+      model.traverse(child => {
+        if (child.isMesh) {
+          child.geometry.dispose();
+          if (child.material.dispose) child.material.dispose();
+        }
+      });
+    }
+
+    renderer.dispose();
+    return portraits;
   }
 }

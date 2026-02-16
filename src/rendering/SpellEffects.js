@@ -732,166 +732,124 @@ export class SpellEffects {
   // ──────────────────────────────────────────────
 
   /**
-   * Spawn a rich textured drain beam between two positions (e.g., Drain Life / Siphon Essence).
-   * Features: textured core with UV scroll, outer spiral strands, orbiting soul orbs,
-   * pulsing glow, and particle siphon trail flowing from target to caster.
+   * Spawn a WoW-style drain beam tethered between two live position references.
+   * Uses a particle-chain approach: each tendril is a Points cloud whose positions
+   * are recomputed every frame based on current source/target positions.
+   * Energy visibly flows from target → caster along sinusoidal tendrils.
    */
   spawnBeam(from, to, config) {
-    const { color = 0x9900ff, duration = 1.0, school = 'shadow', tex = null } = config;
+    const { color = 0x9900ff, duration = 1.0, school = 'shadow' } = config;
 
-    const startY = (from.y || 0) + 3.5;
-    const endY = (to.y || 0) + 3.5;
-    const start = new THREE.Vector3(from.x, startY, from.z);
-    const end = new THREE.Vector3(to.x, endY, to.z);
-    const dist = start.distanceTo(end);
-    const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+    const baseColor = new THREE.Color(color);
+    const brightColor = new THREE.Color(color).lerp(new THREE.Color(0xffffff), 0.45);
+    const warmColor = new THREE.Color(color).lerp(new THREE.Color(0xff6644), 0.25);
 
-    const beamTex = tex || VFX_TEXTURES.harbingerDrain || VFX_TEXTURES[school] || null;
-    const group = new THREE.Group();
-    const lighterColor = new THREE.Color(color).lerp(new THREE.Color(0xffffff), 0.35);
-    const coreColor = new THREE.Color(color).lerp(new THREE.Color(0xffffff), 0.15);
+    // ── Procedural soft-glow sprite texture ──
+    const glowCanvas = document.createElement('canvas');
+    glowCanvas.width = 64; glowCanvas.height = 64;
+    const gCtx = glowCanvas.getContext('2d');
+    const grad = gCtx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grad.addColorStop(0, 'rgba(255,255,255,1.0)');
+    grad.addColorStop(0.3, 'rgba(255,255,255,0.6)');
+    grad.addColorStop(0.7, 'rgba(255,255,255,0.15)');
+    grad.addColorStop(1, 'rgba(255,255,255,0.0)');
+    gCtx.fillStyle = grad;
+    gCtx.fillRect(0, 0, 64, 64);
+    const glowTex = new THREE.CanvasTexture(glowCanvas);
 
-    // ── 1. Three sinusoidal tendrils (the organic WoW-style drain look) ──
+    // ── 1. Three sinusoidal tendril chains (Points-based, updated each frame) ──
+    const TENDRIL_COUNT = 3;
+    const POINTS_PER_TENDRIL = 40;
     const tendrils = [];
-    for (let t = 0; t < 3; t++) {
-      const pts = [];
-      const segs = 64;
-      const phaseOff = (t / 3) * Math.PI * 2;
-      const waveAmp = 0.4 + t * 0.15; // each tendril slightly different width
-      const waveFreq = 2.5 + t * 0.5; // slightly different frequency
-      for (let i = 0; i <= segs; i++) {
-        const frac = i / segs;
-        const y = (frac - 0.5) * dist;
-        // Sinusoidal wave perpendicular to beam axis, different per tendril
-        const angle = frac * Math.PI * waveFreq * 2 + phaseOff;
-        pts.push(new THREE.Vector3(
-          Math.cos(angle) * waveAmp * Math.sin(frac * Math.PI), // taper at endpoints
-          y,
-          Math.sin(angle) * waveAmp * Math.sin(frac * Math.PI)
-        ));
+    for (let t = 0; t < TENDRIL_COUNT; t++) {
+      const positions = new Float32Array(POINTS_PER_TENDRIL * 3);
+      const sizes = new Float32Array(POINTS_PER_TENDRIL);
+      for (let i = 0; i < POINTS_PER_TENDRIL; i++) {
+        const frac = i / (POINTS_PER_TENDRIL - 1);
+        sizes[i] = (0.8 + Math.sin(frac * Math.PI) * 1.8) * (t === 0 ? 1.2 : 0.9);
       }
-      const curve = new THREE.CatmullRomCurve3(pts);
-      const tubRadius = 0.06 + t * 0.02;
-      const tubGeo = new THREE.TubeGeometry(curve, segs, tubRadius, 6, false);
-      const tubMat = new THREE.MeshBasicMaterial({
-        color: t === 0 ? coreColor : lighterColor,
-        map: beamTex,
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+      const mat = new THREE.PointsMaterial({
+        color: t === 0 ? brightColor : baseColor,
+        map: glowTex,
+        size: t === 0 ? 1.2 : 0.9,
         transparent: true,
-        opacity: t === 0 ? 0.85 : 0.5,
-        side: THREE.DoubleSide,
+        opacity: t === 0 ? 0.9 : 0.55,
         depthWrite: false,
-        blending: THREE.AdditiveBlending
+        blending: THREE.AdditiveBlending,
+        sizeAttenuation: true
       });
-      const tendril = new THREE.Mesh(tubGeo, tubMat);
-      group.add(tendril);
-      tendrils.push({ mesh: tendril, mat: tubMat, phaseOff, waveAmp, waveFreq });
+      const points = new THREE.Points(geo, mat);
+      this.scene.add(points);
+      tendrils.push({
+        points, geo, mat,
+        phaseOff: (t / TENDRIL_COUNT) * Math.PI * 2,
+        waveAmp: 0.6 + t * 0.25,
+        waveFreq: 2.0 + t * 0.6,
+        count: POINTS_PER_TENDRIL
+      });
     }
 
-    // ── 2. Very thin core thread (subtle center line) ──
-    const corePts = [];
-    for (let i = 0; i <= 24; i++) {
-      corePts.push(new THREE.Vector3(0, ((i / 24) - 0.5) * dist, 0));
-    }
-    const coreCurve = new THREE.CatmullRomCurve3(corePts);
-    const coreGeo = new THREE.TubeGeometry(coreCurve, 24, 0.04, 6, false);
-    const coreMat = new THREE.MeshBasicMaterial({
-      color: lighterColor,
-      map: beamTex,
-      transparent: true,
-      opacity: 0.6,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending
-    });
-    group.add(new THREE.Mesh(coreGeo, coreMat));
-
-    // ── 3. Soul orbs flowing along tendrils (target → caster) ──
+    // ── 2. Soul orbs flowing target → caster (individual meshes) ──
     const orbs = [];
-    for (let i = 0; i < 8; i++) {
-      const orbGeo = new THREE.SphereGeometry(0.08 + Math.random() * 0.06, 6, 6);
+    for (let i = 0; i < 6; i++) {
+      const orbGeo = new THREE.SphereGeometry(0.15 + Math.random() * 0.1, 8, 8);
       const orbMat = new THREE.MeshBasicMaterial({
-        color: lighterColor,
-        map: beamTex,
-        transparent: true,
-        opacity: 0.85,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending
-      });
-      const orb = new THREE.Mesh(orbGeo, orbMat);
-      const phase = (i / 8) * Math.PI * 2;
-      const tPos = Math.random();
-      orb.position.set(
-        Math.cos(phase) * 0.3,
-        (tPos - 0.5) * dist,
-        Math.sin(phase) * 0.3
-      );
-      group.add(orb);
-      orbs.push({
-        mesh: orb, mat: orbMat, phase,
-        speed: 4 + Math.random() * 5,
-        orbitSpeed: 3 + Math.random() * 3,
-        orbitRadius: 0.2 + Math.random() * 0.25,
-        dist
-      });
-    }
-
-    // ── 4. Dense siphon particle trail (flowing energy target→caster) ──
-    const siphonParticles = [];
-    for (let i = 0; i < 14; i++) {
-      const spGeo = new THREE.SphereGeometry(0.04 + Math.random() * 0.03, 4, 4);
-      const spMat = new THREE.MeshBasicMaterial({
-        color: new THREE.Color(color).lerp(new THREE.Color(0xff6644), 0.2),
+        color: brightColor,
         transparent: true,
         opacity: 0.9,
         depthWrite: false,
         blending: THREE.AdditiveBlending
       });
-      const sp = new THREE.Mesh(spGeo, spMat);
-      const frac = Math.random();
-      sp.position.set(
-        (Math.random() - 0.5) * 0.6,
-        (frac - 0.5) * dist,
-        (Math.random() - 0.5) * 0.6
-      );
-      group.add(sp);
-      siphonParticles.push({
-        mesh: sp, mat: spMat,
-        speed: 6 + Math.random() * 7,
-        drift: Math.random() * Math.PI * 2,
-        dist
+      const orb = new THREE.Mesh(orbGeo, orbMat);
+      this.scene.add(orb);
+      orbs.push({
+        mesh: orb, mat: orbMat,
+        t: i / 6,                           // parametric position along beam [0=target, 1=caster]
+        speed: 0.3 + Math.random() * 0.25,  // how fast it travels per second
+        orbitPhase: Math.random() * Math.PI * 2,
+        orbitSpeed: 2.5 + Math.random() * 2,
+        orbitRadius: 0.25 + Math.random() * 0.2
       });
     }
 
-    // ── 5. Subtle glow around beam (wide, low-opacity) ──
-    const glowGeo = new THREE.CylinderGeometry(0.6, 0.6, dist, 8, 1, true);
-    const glowMat = new THREE.MeshBasicMaterial({
-      color,
+    // ── 3. Siphon wisps (small fast particles along the beam) ──
+    const WISP_COUNT = 60;
+    const wispPositions = new Float32Array(WISP_COUNT * 3);
+    const wispGeo = new THREE.BufferGeometry();
+    wispGeo.setAttribute('position', new THREE.BufferAttribute(wispPositions, 3));
+    const wispMat = new THREE.PointsMaterial({
+      color: warmColor,
+      map: glowTex,
+      size: 0.5,
       transparent: true,
-      opacity: 0.08,
-      side: THREE.DoubleSide,
+      opacity: 0.7,
       depthWrite: false,
-      blending: THREE.AdditiveBlending
+      blending: THREE.AdditiveBlending,
+      sizeAttenuation: true
     });
-    group.add(new THREE.Mesh(glowGeo, glowMat));
-
-    // Orient group to point from start to end
-    group.position.copy(mid);
-    group.lookAt(end);
-    group.rotateX(Math.PI / 2);
-
-    this.scene.add(group);
+    const wisps = new THREE.Points(wispGeo, wispMat);
+    this.scene.add(wisps);
+    const wispData = [];
+    for (let i = 0; i < WISP_COUNT; i++) {
+      wispData.push({
+        t: Math.random(),
+        speed: 0.8 + Math.random() * 0.6,
+        drift: Math.random() * Math.PI * 2,
+        driftRadius: 0.15 + Math.random() * 0.3
+      });
+    }
 
     this.activeEffects.push({
       type: 'beam',
-      beamGroup: group,
-      coreMat,
-      glowMat,
       tendrils,
-      spirals: null,
       orbs,
-      siphonParticles,
-      coreGeo,
-      from,
-      to,
+      wisps, wispGeo, wispMat, wispData,
+      glowTex,
+      from,       // live position reference (source unit)
+      to,         // live position reference (target unit)
       age: 0,
       maxAge: duration
     });
@@ -1557,86 +1515,89 @@ export class SpellEffects {
 
   updateBeam(effect, dt) {
     effect.age += dt;
-    const fade = Math.min(1, 1 - (effect.age - effect.maxAge + 0.3) / 0.3);
-    const pulse = 0.7 + Math.sin(effect.age * 8) * 0.3;
+    const time = effect.age;
+    const fade = Math.min(1, 1 - (time - effect.maxAge + 0.4) / 0.4);
+    const fadeIn = Math.min(1, time / 0.3);
+    const alpha = fadeIn * Math.max(0, fade);
+    const pulse = 0.75 + Math.sin(time * 6) * 0.25;
 
-    // ── Core beam: UV scroll + pulsing ──
-    if (effect.coreMat) {
-      effect.coreMat.opacity = 0.5 * pulse * Math.min(fade, 1);
-      if (effect.coreMat.map) {
-        effect.coreMat.map.offset.y -= dt * 2.0;
-      }
-    }
+    // ── Compute live beam axis from source to target ──
+    const srcY = (effect.from.y || 0) + 3.5;
+    const tgtY = (effect.to.y || 0) + 3.5;
+    const src = new THREE.Vector3(effect.from.x, srcY, effect.from.z);
+    const tgt = new THREE.Vector3(effect.to.x, tgtY, effect.to.z);
+    const dir = new THREE.Vector3().subVectors(tgt, src);
+    const dist = dir.length();
+    if (dist < 0.01) { effect._remove = true; return; }
+    dir.normalize();
 
-    // ── Outer glow: slow pulse ──
-    if (effect.glowMat) {
-      effect.glowMat.opacity = (0.06 + Math.sin(effect.age * 5) * 0.04) * Math.min(fade, 1);
-    }
+    // Perpendicular axes for wave displacement
+    const up = new THREE.Vector3(0, 1, 0);
+    const perp1 = new THREE.Vector3().crossVectors(dir, up).normalize();
+    if (perp1.length() < 0.5) perp1.set(1, 0, 0); // fallback if dir ≈ up
+    perp1.normalize();
+    const perp2 = new THREE.Vector3().crossVectors(dir, perp1).normalize();
 
-    // ── Tendrils: rotate slowly + UV scroll for flowing look ──
+    // ── 1. Update tendril chain positions (sinusoidal wave along beam) ──
     if (effect.tendrils) {
-      for (let i = 0; i < effect.tendrils.length; i++) {
-        const t = effect.tendrils[i];
-        // Slow rotation around beam axis for organic writhing
-        t.mesh.rotation.y += dt * (0.8 + i * 0.3);
-        t.mat.opacity = (i === 0 ? 0.75 : 0.4) * pulse * Math.min(fade, 1);
-        if (t.mat.map) {
-          t.mat.map.offset.y -= dt * (1.8 + i * 0.4);
-          t.mat.map.offset.x = Math.sin(effect.age * 2 + i) * 0.15;
+      for (const tendril of effect.tendrils) {
+        const posAttr = tendril.geo.getAttribute('position');
+        for (let i = 0; i < tendril.count; i++) {
+          const frac = i / (tendril.count - 1);
+          // Base position: lerp from target to source (energy flows target→caster)
+          const base = new THREE.Vector3().lerpVectors(tgt, src, frac);
+          // Sinusoidal wave perpendicular to beam, tapered at endpoints
+          const taper = Math.sin(frac * Math.PI);
+          const angle = frac * Math.PI * tendril.waveFreq * 2 + tendril.phaseOff + time * 3.0;
+          const waveX = Math.cos(angle) * tendril.waveAmp * taper;
+          const waveZ = Math.sin(angle) * tendril.waveAmp * taper;
+          base.addScaledVector(perp1, waveX);
+          base.addScaledVector(perp2, waveZ);
+          posAttr.setXYZ(i, base.x, base.y, base.z);
         }
+        posAttr.needsUpdate = true;
+        tendril.mat.opacity = (tendril === effect.tendrils[0] ? 0.85 : 0.5) * pulse * alpha;
       }
     }
 
-    // ── Soul orbs: travel along beam + orbit ──
+    // ── 2. Soul orbs: flow from target to caster along the beam ──
     if (effect.orbs) {
       for (const orb of effect.orbs) {
-        orb.mesh.position.y -= orb.speed * dt;
-        if (orb.mesh.position.y < -orb.dist * 0.5) {
-          orb.mesh.position.y = orb.dist * 0.5;
-        }
-        orb.phase += orb.orbitSpeed * dt;
-        orb.mesh.position.x = Math.cos(orb.phase) * orb.orbitRadius;
-        orb.mesh.position.z = Math.sin(orb.phase) * orb.orbitRadius;
-        const scale = 0.7 + Math.sin(effect.age * 10 + orb.phase) * 0.4;
+        orb.t += orb.speed * dt;
+        if (orb.t >= 1.0) orb.t -= 1.0; // loop back to target
+        // Position along beam
+        const pos = new THREE.Vector3().lerpVectors(tgt, src, orb.t);
+        // Spiral orbit around beam axis
+        orb.orbitPhase += orb.orbitSpeed * dt;
+        const taper = Math.sin(orb.t * Math.PI);
+        pos.addScaledVector(perp1, Math.cos(orb.orbitPhase) * orb.orbitRadius * taper);
+        pos.addScaledVector(perp2, Math.sin(orb.orbitPhase) * orb.orbitRadius * taper);
+        orb.mesh.position.copy(pos);
+        const scale = 0.7 + Math.sin(time * 8 + orb.orbitPhase) * 0.4;
         orb.mesh.scale.setScalar(scale);
-        orb.mat.opacity = (0.6 + Math.sin(effect.age * 8 + orb.phase) * 0.3) * Math.min(fade, 1);
+        orb.mat.opacity = (0.7 + Math.sin(time * 6 + orb.orbitPhase) * 0.3) * alpha;
       }
     }
 
-    // ── Siphon particles: fast flow toward caster ──
-    if (effect.siphonParticles) {
-      for (const sp of effect.siphonParticles) {
-        sp.mesh.position.y -= sp.speed * dt;
-        if (sp.mesh.position.y < -sp.dist * 0.5) {
-          sp.mesh.position.y = sp.dist * 0.5;
-          sp.mesh.position.x = (Math.random() - 0.5) * 0.6;
-          sp.mesh.position.z = (Math.random() - 0.5) * 0.6;
-        }
-        sp.drift += dt * 5;
-        sp.mesh.position.x += Math.sin(sp.drift) * dt * 0.4;
-        sp.mesh.position.z += Math.cos(sp.drift) * dt * 0.4;
-        sp.mat.opacity = (0.7 + Math.sin(effect.age * 12 + sp.drift) * 0.3) * Math.min(fade, 1);
+    // ── 3. Siphon wisps: fast flowing particles along beam ──
+    if (effect.wispData && effect.wispGeo) {
+      const posAttr = effect.wispGeo.getAttribute('position');
+      for (let i = 0; i < effect.wispData.length; i++) {
+        const w = effect.wispData[i];
+        w.t += w.speed * dt;
+        if (w.t >= 1.0) w.t -= 1.0;
+        const pos = new THREE.Vector3().lerpVectors(tgt, src, w.t);
+        w.drift += dt * 4;
+        const taper = Math.sin(w.t * Math.PI);
+        pos.addScaledVector(perp1, Math.cos(w.drift) * w.driftRadius * taper);
+        pos.addScaledVector(perp2, Math.sin(w.drift) * w.driftRadius * taper);
+        posAttr.setXYZ(i, pos.x, pos.y, pos.z);
       }
+      posAttr.needsUpdate = true;
+      effect.wispMat.opacity = 0.6 * pulse * alpha;
     }
 
-    // ── Update beam position if from/to are live references (for channels) ──
-    if (effect.beamGroup && effect.from && effect.to) {
-      const startY = (effect.from.y || 0) + 3.5;
-      const endY = (effect.to.y || 0) + 3.5;
-      const start = new THREE.Vector3(effect.from.x, startY, effect.from.z);
-      const end = new THREE.Vector3(effect.to.x, endY, effect.to.z);
-      const newDist = start.distanceTo(end);
-      const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
-      effect.beamGroup.position.copy(mid);
-      effect.beamGroup.lookAt(end);
-      effect.beamGroup.rotation.x += Math.PI / 2;
-      const distRatio = effect.coreGeo ? newDist / effect.coreGeo.parameters.height : 1;
-      if (Math.abs(distRatio - 1) > 0.05) {
-        effect.beamGroup.scale.y = distRatio;
-      }
-    }
-
-    if (effect.age >= effect.maxAge) {
+    if (time >= effect.maxAge) {
       effect._remove = true;
     }
   }
@@ -2879,6 +2840,29 @@ export class SpellEffects {
         if (child.geometry) child.geometry.dispose();
         if (child.material) child.material.dispose();
       });
+    }
+    // New particle-chain beam cleanup
+    if (effect.tendrils) {
+      for (const t of effect.tendrils) {
+        this.scene.remove(t.points);
+        t.geo.dispose();
+        t.mat.dispose();
+      }
+    }
+    if (effect.orbs) {
+      for (const o of effect.orbs) {
+        this.scene.remove(o.mesh);
+        o.mesh.geometry.dispose();
+        o.mat.dispose();
+      }
+    }
+    if (effect.wisps) {
+      this.scene.remove(effect.wisps);
+      effect.wispGeo.dispose();
+      effect.wispMat.dispose();
+    }
+    if (effect.glowTex) {
+      effect.glowTex.dispose();
     }
     if (effect.line) {
       this.scene.remove(effect.line);
