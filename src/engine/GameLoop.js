@@ -82,12 +82,21 @@ export class GameLoop {
       this.accumulator -= TICK_RATE;
 
       if (!this.match.active) {
-        this.stop();
-        return;
+        // Emit match end but keep rendering for death animation
+        if (!this._matchEnded) {
+          this._matchEnded = true;
+          this.match.eventBus.emit(EVENTS.MATCH_END, {
+            winner: this.match.winner?.id,
+            loser: this.match.loser?.id,
+            duration: this.match.getMatchDuration()
+          });
+        }
+        this.accumulator = 0;
+        break;
       }
     }
 
-    // Render at display refresh rate
+    // Render at display refresh rate (continues even after match ends)
     const alpha = this.accumulator / TICK_RATE; // Interpolation factor
     if (this.onRender) {
       this.onRender(alpha, this.match);
@@ -138,11 +147,15 @@ export class GameLoop {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
     }
-    this.match.eventBus.emit(EVENTS.MATCH_END, {
-      winner: this.match.winner?.id,
-      loser: this.match.loser?.id,
-      duration: this.match.getMatchDuration()
-    });
+    // Only emit if not already emitted by the loop
+    if (!this._matchEnded) {
+      this._matchEnded = true;
+      this.match.eventBus.emit(EVENTS.MATCH_END, {
+        winner: this.match.winner?.id,
+        loser: this.match.loser?.id,
+        duration: this.match.getMatchDuration()
+      });
+    }
   }
 
   /**

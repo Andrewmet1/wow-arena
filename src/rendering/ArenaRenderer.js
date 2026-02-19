@@ -90,6 +90,11 @@ const ARENA_TEXTURES = {
     t.colorSpace = THREE.SRGBColorSpace;
     return t;
   })(),
+  logo: (() => {
+    const t = _texLoader.load('/assets/art/game_logo.png');
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  })(),
 };
 
 /**
@@ -187,6 +192,17 @@ export class ArenaRenderer {
     this._gatesOpen = true;
     this._gateAnimating = true;
     this._gateAnimStart = performance.now() / 1000;
+  }
+
+  /**
+   * Reset gates to closed position for a new match.
+   */
+  resetGates() {
+    this._gatesOpen = false;
+    this._gateAnimating = false;
+    for (const gate of this.gates) {
+      gate.position.y = gate._closedY;
+    }
   }
 
   /**
@@ -367,34 +383,50 @@ export class ArenaRenderer {
   // ---------------------------------------------------------------------------
 
   _buildWalls() {
-    const wallColorA = 0x556070;
-    const wallColorB = 0x4a5565;
-
     const WALL_COUNT = 32;
     const WALL_HEIGHT = 5;
     const WALL_RADIUS = 41; // slightly outside the floor edge
     const WALL_WIDTH = (2 * Math.PI * WALL_RADIUS) / WALL_COUNT + 0.15; // slight overlap
     const WALL_DEPTH = 1.5;
 
+    // Shared geometries (1 each instead of 30+)
+    const wallGeo = new THREE.BoxGeometry(WALL_WIDTH, WALL_HEIGHT, WALL_DEPTH);
+    const baseTrimGeo = new THREE.BoxGeometry(WALL_WIDTH + 0.1, 0.4, WALL_DEPTH + 0.2);
+    const crenGeo = new THREE.BoxGeometry(WALL_WIDTH * 0.4, 1.0, WALL_DEPTH * 0.8);
+
+    // Shared materials (2 alternating wall + 1 trim + 1 cren instead of 30+)
+    const wallMatA = new THREE.MeshStandardMaterial({
+      color: 0x556070, map: ARENA_TEXTURES.wall,
+      normalMap: ARENA_TEXTURES.wall._normalMap,
+      normalScale: new THREE.Vector2(1.8, 1.8), roughness: 0.9, metalness: 0.1,
+    });
+    const wallMatB = new THREE.MeshStandardMaterial({
+      color: 0x4a5565, map: ARENA_TEXTURES.wall,
+      normalMap: ARENA_TEXTURES.wall._normalMap,
+      normalScale: new THREE.Vector2(1.8, 1.8), roughness: 0.9, metalness: 0.1,
+    });
+    const baseTrimMat = new THREE.MeshStandardMaterial({
+      color: 0x555568, map: ARENA_TEXTURES.wall, roughness: 0.95, metalness: 0.05,
+    });
+    const crenMat = new THREE.MeshStandardMaterial({
+      color: 0x6a7080, map: ARENA_TEXTURES.wall, roughness: 0.9, metalness: 0.1,
+    });
+
     // Torch positions (indices) — every 8th wall segment
     const torchIndices = new Set([0, 8, 16, 24]);
 
+    // Gate positions — wall segments that overlap the East (i=0) and West (i=16) gates
+    const gateIndices = new Set([0, 16]);
+
     for (let i = 0; i < WALL_COUNT; i++) {
+      // Skip wall segments that block the gate openings
+      if (gateIndices.has(i)) continue;
+
       const angle = (i / WALL_COUNT) * Math.PI * 2;
       const isAlt = i % 2 === 0;
 
-      const wallMaterial = new THREE.MeshStandardMaterial({
-        color: isAlt ? wallColorA : wallColorB,
-        map: ARENA_TEXTURES.wall,
-        normalMap: ARENA_TEXTURES.wall._normalMap,
-        normalScale: new THREE.Vector2(1.8, 1.8),
-        roughness: 0.9,
-        metalness: 0.1,
-      });
-
       // Main wall segment
-      const geometry = new THREE.BoxGeometry(WALL_WIDTH, WALL_HEIGHT, WALL_DEPTH);
-      const wall = new THREE.Mesh(geometry, wallMaterial);
+      const wall = new THREE.Mesh(wallGeo, isAlt ? wallMatA : wallMatB);
 
       wall.position.set(
         Math.cos(angle) * WALL_RADIUS,
@@ -409,14 +441,7 @@ export class ArenaRenderer {
       this.group.add(wall);
 
       // --- Wall base trim: darker strip along the bottom ---
-      const baseTrimGeom = new THREE.BoxGeometry(WALL_WIDTH + 0.1, 0.4, WALL_DEPTH + 0.2);
-      const baseTrimMat = new THREE.MeshStandardMaterial({
-        color: 0x555568,
-        map: ARENA_TEXTURES.wall,
-        roughness: 0.95,
-        metalness: 0.05,
-      });
-      const baseTrim = new THREE.Mesh(baseTrimGeom, baseTrimMat);
+      const baseTrim = new THREE.Mesh(baseTrimGeo, baseTrimMat);
       baseTrim.position.set(
         Math.cos(angle) * WALL_RADIUS,
         0.2,
@@ -429,14 +454,7 @@ export class ArenaRenderer {
 
       // --- Crenellations on top: alternating boxes ---
       if (i % 2 === 0) {
-        const crenGeom = new THREE.BoxGeometry(WALL_WIDTH * 0.4, 1.0, WALL_DEPTH * 0.8);
-        const crenMat = new THREE.MeshStandardMaterial({
-          color: 0x6a7080,
-          map: ARENA_TEXTURES.wall,
-          roughness: 0.9,
-          metalness: 0.1,
-        });
-        const cren = new THREE.Mesh(crenGeom, crenMat);
+        const cren = new THREE.Mesh(crenGeo, crenMat);
         cren.position.set(
           Math.cos(angle) * WALL_RADIUS,
           WALL_HEIGHT + 0.5,
@@ -1282,34 +1300,44 @@ export class ArenaRenderer {
   // ---------------------------------------------------------------------------
 
   _buildArenaEmblem() {
-    const ringConfigs = [
-      { innerR: 2.8, outerR: 3.2, color: 0x881122, emissive: 0xaa2244, intensity: 0.8 },
-      { innerR: 4.8, outerR: 5.2, color: 0x886622, emissive: 0xccaa44, intensity: 0.7 },
-      { innerR: 6.8, outerR: 7.1, color: 0x881122, emissive: 0xaa2244, intensity: 0.6 },
-    ];
+    // Central logo on the arena floor
+    const LOGO_SIZE = 12;
+    const logoMat = new THREE.MeshStandardMaterial({
+      map: ARENA_TEXTURES.logo,
+      transparent: true,
+      opacity: 0.9,
+      side: THREE.DoubleSide,
+      roughness: 0.7,
+      metalness: 0.1,
+      emissive: 0x442211,
+      emissiveIntensity: 0.3,
+    });
+    const logoGeom = new THREE.PlaneGeometry(LOGO_SIZE, LOGO_SIZE);
+    const logo = new THREE.Mesh(logoGeom, logoMat);
+    logo.position.y = 0.03;
+    logo.rotation.x = -Math.PI / 2; // lay flat
+    logo.name = 'ArenaEmblem_Logo';
+    this.group.add(logo);
 
-    for (let i = 0; i < ringConfigs.length; i++) {
-      const cfg = ringConfigs[i];
-      const emblemMaterial = new THREE.MeshStandardMaterial({
-        color: cfg.color,
-        emissive: cfg.emissive,
-        emissiveIntensity: cfg.intensity,
-        transparent: true,
-        opacity: 0.9,
-        side: THREE.DoubleSide,
-      });
-
-      const ringGeom = new THREE.RingGeometry(cfg.innerR, cfg.outerR, 64);
-      const ring = new THREE.Mesh(ringGeom, emblemMaterial);
-      ring.position.y = 0.02;
-      ring.rotation.x = -Math.PI / 2; // lay flat
-
-      // Alternate rotation directions: ring 0 CW, ring 1 CCW, ring 2 CW
-      ring.userData.rotationSpeed = (i % 2 === 0 ? 1 : -1) * (0.08 + i * 0.03);
-      ring.name = `ArenaEmblem_Ring${i}`;
-      this.emblemRings.push(ring);
-      this.group.add(ring);
-    }
+    // Outer decorative ring framing the logo
+    const ringMat = new THREE.MeshStandardMaterial({
+      color: 0x881122,
+      emissive: 0xaa2244,
+      emissiveIntensity: 0.6,
+      transparent: true,
+      opacity: 0.9,
+      side: THREE.DoubleSide,
+    });
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(LOGO_SIZE / 2 + 0.2, LOGO_SIZE / 2 + 0.5, 64),
+      ringMat
+    );
+    ring.position.y = 0.02;
+    ring.rotation.x = -Math.PI / 2;
+    ring.userData.rotationSpeed = 0.08;
+    ring.name = 'ArenaEmblem_Ring0';
+    this.emblemRings.push(ring);
+    this.group.add(ring);
   }
 
   // ---------------------------------------------------------------------------

@@ -484,7 +484,18 @@ export class HUD {
   justify-content: center;
 }
 .ability-slot.unusable {
-  opacity: 0.45;
+  opacity: 0.6;
+}
+.ability-slot.unusable .ability-icon {
+  filter: grayscale(0.8) brightness(0.5);
+}
+.ability-slot.unusable::after {
+  content: '';
+  position: absolute; inset: 0; z-index: 5;
+  background: repeating-linear-gradient(
+    -45deg, transparent, transparent 4px, rgba(255,0,0,0.08) 4px, rgba(255,0,0,0.08) 8px
+  );
+  pointer-events: none; border-radius: 4px;
 }
 .ability-slot.out-of-range {
   border-color: #8b0000;
@@ -563,10 +574,43 @@ export class HUD {
   border-radius: 4px;
 }
 .ability-slot.on-gcd {
-  border-color: #666 !important;
+  border-color: #c8a040 !important;
+  box-shadow: inset 0 0 4px rgba(200,160,40,0.3);
 }
 .ability-slot.on-gcd .ability-icon {
-  filter: brightness(0.6);
+  filter: brightness(0.7);
+}
+
+/* School lockout / silence overlay */
+.ability-lock-overlay {
+  position: absolute; inset: 0; z-index: 6;
+  display: none;
+  align-items: center; justify-content: center;
+  background: rgba(100,0,180,0.35);
+  border-radius: 4px; pointer-events: none;
+}
+.ability-slot.school-locked .ability-lock-overlay {
+  display: flex;
+}
+.ability-slot.school-locked {
+  border-color: #6622aa !important;
+  box-shadow: inset 0 0 6px rgba(100,0,180,0.5);
+}
+.ability-slot.school-locked .ability-icon {
+  filter: grayscale(0.6) brightness(0.4);
+}
+.lock-icon { font-size: 16px; opacity: 0.9; }
+
+/* CC banner above ability bar */
+.ability-bar-cc-banner {
+  position: absolute;
+  bottom: 86px;
+  left: 50%; transform: translateX(-50%);
+  font-size: 13px; font-weight: 900; letter-spacing: 3px;
+  text-shadow: 0 0 8px rgba(0,0,0,0.9), 0 0 16px currentColor;
+  animation: ccPulse 0.8s ease-in-out infinite;
+  pointer-events: none; display: none;
+  white-space: nowrap;
 }
 
 /* Ability press flash */
@@ -927,15 +971,19 @@ export class HUD {
 
       const failText = this._el('div', 'ability-fail-text', '');
 
+      const lockOverlay = this._el('div', 'ability-lock-overlay');
+      lockOverlay.innerHTML = '<span class="lock-icon">\u{1F512}</span>';
+
       slot.appendChild(icon);
       slot.appendChild(sweep);
       slot.appendChild(cdText);
       slot.appendChild(keybind);
       slot.appendChild(gcdOverlay);
       slot.appendChild(failText);
+      slot.appendChild(lockOverlay);
 
       this.abilityBar.appendChild(slot);
-      this.abilitySlots.push({ root: slot, icon, iconImg, sweep, cdText, keybind, gcdOverlay, failText });
+      this.abilitySlots.push({ root: slot, icon, iconImg, sweep, cdText, keybind, gcdOverlay, failText, lockOverlay });
 
       slot.style.pointerEvents = 'auto';
       const slotIndex = i;
@@ -949,6 +997,10 @@ export class HUD {
     this.root.appendChild(this.tooltip);
 
     this.root.appendChild(this.abilityBar);
+
+    // CC banner directly above the ability bar
+    this.abilityBarCCBanner = this._el('div', 'ability-bar-cc-banner');
+    this.root.appendChild(this.abilityBarCCBanner);
 
     // Swing timer bar (melee auto-attacks)
     this.swingTimerBar = this._el('div', 'swing-timer-bar');
@@ -988,6 +1040,26 @@ export class HUD {
     if (index === 9) return '0';
     if (index === 10) return '-';
     return '=';
+  }
+
+  /**
+   * Update keybind labels to reflect custom keybindings or controller glyphs.
+   * @param {string} mode - 'keyboard' or 'gamepad'
+   * @param {object} [customKeys] - slot index -> key string (keyboard mode)
+   */
+  updateKeybindLabels(mode, customKeys) {
+    const gpGlyphs = ['A', 'B', 'X', 'Y', 'LB', 'RB'];
+    for (let i = 0; i < this.abilitySlots.length && i < 6; i++) {
+      const slot = this.abilitySlots[i];
+      if (!slot?.keybind) continue;
+      if (mode === 'gamepad') {
+        slot.keybind.textContent = gpGlyphs[i] || '';
+      } else if (customKeys && customKeys[i]) {
+        slot.keybind.textContent = customKeys[i].toUpperCase();
+      } else {
+        slot.keybind.textContent = this._keybindLabel(i);
+      }
+    }
   }
 
   // --- Combat Text Container ---
@@ -1151,7 +1223,9 @@ export class HUD {
 
     // Portrait — prefer 3D rendered portrait, fall back to splash art
     if (unit.classId && frame._currentClassId !== unit.classId) {
-      const portraitUrl = this._classPortraits?.get(unit.classId) || `assets/art/${unit.classId}_splash.webp`;
+      const splashFallback = `/assets/art/${unit.classId}_splash.webp`;
+      const portraitUrl = this._classPortraits?.get(unit.classId) || splashFallback;
+      frame.portrait.onerror = () => { frame.portrait.src = splashFallback; };
       frame.portrait.src = portraitUrl;
       frame.portrait.alt = unit.name || '';
       frame._currentClassId = unit.classId;
@@ -1448,14 +1522,14 @@ export class HUD {
         slot.iconImg.style.opacity = '1';
       }
 
-      // GCD sweep overlay (conic-gradient like cooldown sweep)
+      // GCD sweep overlay (gold conic-gradient with bright leading edge)
       const onGCD = !!(ability.gcd && ability.gcd > 0);
       const wasOnGCD = slot.root.classList.contains('on-gcd');
       if (onGCD && !onCooldown) {
         const gcdFraction = Math.min(1, ability.gcd / 1.5);
         const gcdDegrees = gcdFraction * 360;
         slot.gcdOverlay.style.background =
-          `conic-gradient(rgba(255,255,255,0.35) ${gcdDegrees}deg, transparent ${gcdDegrees}deg)`;
+          `conic-gradient(rgba(200,160,40,0.45) ${Math.max(0, gcdDegrees - 3)}deg, rgba(255,215,0,0.85) ${gcdDegrees}deg, transparent ${gcdDegrees}deg)`;
         slot.gcdOverlay.style.opacity = '1';
         // Flash on GCD start
         if (!wasOnGCD) {
@@ -1469,9 +1543,13 @@ export class HUD {
         slot.root.classList.remove('on-gcd');
       }
 
+      // Silence / school lockout overlay
+      const isLocked = !!(ability.locked || ability.silenced || ability.schoolLocked);
+      slot.root.classList.toggle('school-locked', isLocked);
+
       // Usability
       const usable = ability.usable !== false && !onCooldown;
-      slot.root.classList.toggle('unusable', !usable);
+      slot.root.classList.toggle('unusable', !usable && !isLocked);
 
       // Range
       const inRange = ability.inRange !== false;
@@ -1690,8 +1768,15 @@ export class HUD {
       this.ccIndicator.textContent = cc.text;
       this.ccIndicator.style.color = cc.color;
       this.ccIndicator.style.display = 'block';
+      // CC banner on ability bar
+      if (this.abilityBarCCBanner) {
+        this.abilityBarCCBanner.textContent = cc.text;
+        this.abilityBarCCBanner.style.color = cc.color;
+        this.abilityBarCCBanner.style.display = 'block';
+      }
     } else {
       this.ccIndicator.style.display = 'none';
+      if (this.abilityBarCCBanner) this.abilityBarCCBanner.style.display = 'none';
     }
   }
 
@@ -1768,14 +1853,18 @@ export class HUD {
         const abilityId = abilityOrder[i];
         const ability = classDef.abilities.find(a => a.id === abilityId);
         if (ability) {
-          // Generate procedural icon image
+          // Try DALL-E generated icon first, fall back to procedural
           const school = ability.school || 'physical';
-          const iconDataUrl = getAbilityIcon(ability.id, school);
+          const generatedIconPath = `/assets/icons/${ability.id}.png`;
+          const proceduralFallback = getAbilityIcon(ability.id, school);
           // Clear text nodes without removing the <img> child element.
           // Using textContent = '' would destroy all children including iconImg.
           this._clearIconText(slot.icon, slot.iconImg);
-          slot.iconImg.src = iconDataUrl;
-          slot.iconImg.style.display = 'block';
+          // Attempt to load generated icon, fallback to procedural on error
+          const img = slot.iconImg;
+          img.onerror = () => { img.onerror = null; img.src = proceduralFallback; };
+          img.src = generatedIconPath;
+          img.style.display = 'block';
 
           // Set ability name as tooltip on the slot
           slot.root.title = ability.name;
@@ -1916,14 +2005,23 @@ export class HUD {
         }
       }
 
+      // Silence / school lockout detection
+      const isSilenced = unit.isSilenced && ability.school !== 'physical';
+      const isSchoolLocked = unit.spellSchools?.isLocked(ability.school, currentTick) || false;
+      const isLocked = isSilenced || isSchoolLocked;
+
       return {
         id: abilityId,
         name: ability.name,
+        school: ability.school,
         abbr: ability.name?.split(' ').map(w => w[0]).join('').slice(0, 4),
         cooldownRemaining: cdRemaining,
         cooldownTotal: cdTotal,
         gcd: gcdRemaining,
-        usable: canAfford && cdRemaining <= 0 && unit.canAct,
+        usable: canAfford && cdRemaining <= 0 && unit.canAct && !isLocked,
+        silenced: isSilenced,
+        schoolLocked: isSchoolLocked,
+        locked: isLocked,
         inRange: true, // Simplified
         highlight: false
       };

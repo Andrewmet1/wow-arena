@@ -1,7 +1,18 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { isModelCached, loadCharacter, loadWeapon, getClassScale } from './ModelLoader.js';
 import { autoRig, attachWeapon } from './AutoRigger.js';
-import { resolveModelPath, ASSET_MANIFEST } from './AssetManifest.js';
+import { resolveModelPath, ASSET_MANIFEST, getWeaponOffset, getClassAnimationMap, resolveAnimationPath } from './AssetManifest.js';
+import { getClassAnimations } from './AnimationFactory.js';
+import { rigWithMixamoSkeleton } from './SkeletonTransfer.js';
+
+// Shared GLTFLoader for animation clip loading
+const _meshyGltfLoader = new GLTFLoader();
+// Global cache: shared clip key → AnimationClip (one copy per unique animation)
+const _meshyClipCache = {};
+
+// Base state clip names to preload during character init (critical for gameplay)
+const MESHY_BASE_CLIPS = ['idle', 'run', 'death', 'hit', 'stun', 'dodge', 'jump'];
 
 /**
  * CharacterRenderer — Procedural character model renderer for a dark fantasy Ebon Crucible game.
@@ -2271,62 +2282,144 @@ export default class CharacterRenderer {
     this.characters.set(unitId, placeholder);
 
     // Async load + rig + attach (resolves from cache so effectively instant)
-    this._loadAndRigAsync(placeholder, unitId, normalizedId, lowerClassId);
+    placeholder.userData._loadPromise = this._loadAndRigAsync(placeholder, unitId, normalizedId, lowerClassId);
 
     return placeholder;
   }
 
   /**
-   * Async load, rig, and attach a Meshy model to an existing placeholder group.
+   * Async load, rig, and attach a model to an existing placeholder group.
+   * Tries skin-based base mesh first, falls back to legacy auto-rig, then procedural.
    * @private
    */
   async _loadAndRigAsync(placeholder, unitId, normalizedId, lowerClassId) {
     try {
+      // ── Load character model ──
       const charModel = await loadCharacter(lowerClassId);
-      const rigged = autoRig(charModel, lowerClassId);
 
-      // Scale based on manifest
-      const scale = getClassScale(lowerClassId) * 2.5;
-      rigged.scale.set(scale, scale, scale);
+      // Check if model is already rigged by Meshy (has SkinnedMesh with skeleton)
+      let hasPreRiggedSkeleton = false;
+      charModel.traverse(node => {
+        if (node.isSkinnedMesh && node.skeleton && node.skeleton.bones.length > 0) {
+          hasPreRiggedSkeleton = true;
+        }
+      });
 
-      // Add rigged model as child of placeholder
+      let rigged;
+      let scaleFactor = 1;
+
+      if (hasPreRiggedSkeleton) {
+        // ── Meshy Animated path: use model as-is with Meshy animation clips ──
+        // DON'T rename bones or adapt clips — Meshy animations target native bone names
+        rigged = charModel;
+        const worldScale = getClassScale(lowerClassId) * 2.5;
+        rigged.scale.setScalar(worldScale);
+      } else {
+        // ── Fallback: rig locally with SkeletonTransfer ──
+        const worldScale = getClassScale(lowerClassId) * 2.5;
+        const result = rigWithMixamoSkeleton(charModel, [], worldScale);
+        rigged = result.scene;
+        scaleFactor = result.scaleFactor;
+      }
+
       placeholder.add(rigged);
       placeholder.userData.riggedModel = rigged;
       placeholder.userData.isRigged = true;
-      placeholder.userData.bonesByName = rigged.userData.bonesByName;
-      placeholder.userData.skeleton = rigged.userData.skeleton;
+      placeholder.userData.usesBaseMesh = true;
+      placeholder.userData.usesMeshyAnimations = hasPreRiggedSkeleton;
+      placeholder.userData.classId = lowerClassId;
 
-      // Try to attach default weapon
-      try {
-        const manifest = ASSET_MANIFEST[lowerClassId];
-        if (manifest) {
-          const weaponModel = await loadWeapon(lowerClassId);
-          const hand = manifest.weaponHand || 'right';
-          attachWeapon(rigged, weaponModel, hand);
-        }
-      } catch {
-        // Weapon not available yet — that's OK
+      // Blob shadow — cheap circle on the ground (skinned meshes don't
+      // cast real shadows for performance, so this fakes it)
+      const blobShadow = new THREE.Mesh(
+        new THREE.CircleGeometry(1.2, 16),
+        new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }),
+      );
+      blobShadow.rotation.x = -Math.PI / 2;
+      blobShadow.position.y = 0.05;
+      blobShadow.name = 'blobShadow';
+      blobShadow.renderOrder = -1;
+      placeholder.add(blobShadow);
+
+      if (hasPreRiggedSkeleton) {
+        // ── Meshy animation path: load clips from animation GLBs ──
+        await this._loadMeshyAnimations(placeholder, rigged, lowerClassId);
+      } else {
+        // ── Legacy path: AnimationFactory clips ──
+        const allClips = getClassAnimations(lowerClassId);
+        this._processAnimationClips(allClips, scaleFactor);
+        this._setupAnimationMixer(placeholder, rigged, allClips);
       }
 
-      // Store emissives for hit-flash
+      // Attach weapon models to hand bones — only for classes without weapons baked into the mesh
+      try {
+        const manifest = ASSET_MANIFEST[lowerClassId];
+        if (manifest && !manifest.weaponsBakedIn) {
+          const weaponModel = await loadWeapon(lowerClassId);
+          const hand = manifest.weaponHand || 'right';
+          const offset = getWeaponOffset(lowerClassId);
+          console.log(`CharacterRenderer: attaching weapon for ${lowerClassId}, hand=${hand}, offset=`, offset);
+          this._attachWeaponToBaseMesh(rigged, weaponModel, hand, offset);
+          console.log(`CharacterRenderer: weapon attached successfully for ${lowerClassId}`);
+
+          // Attach off-hand shield if configured
+          if (manifest.offHandType === 'shield') {
+            let shieldModel;
+            const shieldOffset = getWeaponOffset(lowerClassId, 'shield');
+            try {
+              // Try loading Meshy-generated shield GLB first
+              shieldModel = await loadWeapon(lowerClassId, 'shield');
+              console.log(`CharacterRenderer: loaded Meshy shield for ${lowerClassId}`);
+            } catch {
+              // Fallback to procedural shield
+              shieldModel = this._createProceduralShield();
+              console.log(`CharacterRenderer: using procedural shield for ${lowerClassId}`);
+            }
+            const fallbackOffset = { position: [0.02, -0.02, 0], rotation: [0, 0, Math.PI / 2], scale: [0.6, 0.6, 0.6] };
+            this._attachWeaponToBaseMesh(rigged, shieldModel, 'left', shieldOffset.position ? shieldOffset : fallbackOffset);
+            console.log(`CharacterRenderer: off-hand shield attached for ${lowerClassId}`);
+          }
+        }
+      } catch (weaponErr) {
+        console.error(`CharacterRenderer: weapon attachment failed for ${lowerClassId}:`, weaponErr);
+      }
+
+      // Reduce excessive emissive glow on Meshy models (textures can have baked-in emissive)
+      if (hasPreRiggedSkeleton) {
+        rigged.traverse(child => {
+          if (child.isMesh && child.material) {
+            if (child.material.emissive) {
+              child.material.emissive.set(0x000000);
+            }
+            child.material.emissiveIntensity = 0;
+          }
+        });
+      }
+
+      // Store emissives for hit-flash (skip materials without emissive like blob shadow)
       placeholder.traverse((child) => {
-        if (child.isMesh) {
+        if (child.isMesh && child.material && child.material.emissive) {
           placeholder.userData._originalEmissives.set(child.uuid, {
-            emissive: child.material.emissive ? child.material.emissive.clone() : new THREE.Color(0x000000),
+            emissive: child.material.emissive.clone(),
             emissiveIntensity: child.material.emissiveIntensity || 0,
           });
         }
       });
 
-      console.log(`CharacterRenderer: loaded Meshy model for ${normalizedId} (${unitId})`);
+      // Log animation and vertex info for debugging
+      let totalVerts = 0;
+      placeholder.traverse(c => { if (c.isMesh || c.isSkinnedMesh) totalVerts += c.geometry.getAttribute('position')?.count || 0; });
+      const mixerActions = placeholder.userData.actions || {};
+      const clipNames = Object.keys(mixerActions).join(', ') || 'none yet';
+      const rigType = hasPreRiggedSkeleton ? 'Meshy-rigged' : 'SkeletonTransfer';
+      console.log(`CharacterRenderer: loaded ${rigType} model for ${normalizedId} (${unitId}) — ${totalVerts} verts, clips: [${clipNames}], mixer: ${!!placeholder.userData.mixer}`);
     } catch (err) {
-      console.warn(`CharacterRenderer: Meshy model failed for ${normalizedId}, using procedural`, err);
-      // Fall back to procedural — add procedural children to placeholder
+      console.warn(`CharacterRenderer: SkeletonTransfer failed for ${normalizedId}, using procedural`, err);
+      // Fall back to procedural
       const builder = CLASS_BUILDERS.get(normalizedId);
       if (builder) {
         const proceduralModel = builder();
         proceduralModel.scale.set(2.5, 2.5, 2.5);
-        // Move all children to placeholder
         while (proceduralModel.children.length > 0) {
           placeholder.add(proceduralModel.children[0]);
         }
@@ -2340,6 +2433,522 @@ export default class CharacterRenderer {
         });
       }
     }
+  }
+
+  /**
+   * Set up AnimationMixer and animation actions for a base mesh character.
+   * @private
+   */
+  _setupAnimationMixer(placeholder, scene, animations) {
+    const mixer = new THREE.AnimationMixer(scene);
+    const actions = {};
+
+    // Map animation clips by name
+    for (const clip of animations) {
+      const name = clip.name.toLowerCase();
+      actions[name] = mixer.clipAction(clip);
+    }
+
+    // Store on placeholder userData for updateCharacter to use
+    placeholder.userData.mixer = mixer;
+    placeholder.userData.actions = actions;
+    placeholder.userData._currentClip = null;
+    placeholder.userData._activeBaseClip = null;
+    placeholder.userData._lastMixerTime = 0;
+
+    // Start with idle if available
+    if (actions['idle']) {
+      actions['idle'].setLoop(THREE.LoopRepeat).play();
+      placeholder.userData._currentClip = 'idle';
+      placeholder.userData._activeBaseClip = 'idle';
+    }
+  }
+
+  /**
+   * Load Meshy animation GLBs for a pre-rigged character.
+   * Pre-loads base state clips (idle, run, death, etc.) during init.
+   * Ability clips are loaded on-demand when first triggered.
+   * @private
+   */
+  async _loadMeshyAnimations(placeholder, scene, classId) {
+    const mixer = new THREE.AnimationMixer(scene);
+    const actions = {};
+    const animMap = getClassAnimationMap(classId);
+
+    // Load base state clips in parallel from the shared animation library
+    const loadPromises = MESHY_BASE_CLIPS.map(name => {
+      const sharedKey = animMap[name]; // e.g. 'idle' → 'combat_stance' for wraith
+      if (!sharedKey) return Promise.resolve();
+      return this._loadSharedClipAsync(sharedKey).then(clip => {
+        if (clip) {
+          // Clone the clip so each mixer gets its own copy, but rename to the state name
+          const cloned = clip.clone();
+          cloned.name = name;
+          actions[name] = mixer.clipAction(cloned);
+        }
+      });
+    });
+    await Promise.all(loadPromises);
+
+    // Store mixer state
+    placeholder.userData.mixer = mixer;
+    placeholder.userData.actions = actions;
+    placeholder.userData._currentClip = null;
+    placeholder.userData._activeBaseClip = null;
+    placeholder.userData._lastMixerTime = 0;
+    placeholder.userData._loadingClips = new Set(); // tracks in-flight lazy loads
+
+    // Fallback: if no idle clip loaded, create a static rest-pose clip
+    // (model stands upright in its bind pose)
+    if (!actions['idle']) {
+      const staticClip = new THREE.AnimationClip('idle', 2.0, []);
+      actions['idle'] = mixer.clipAction(staticClip);
+      console.log(`[MeshyAnim] ${classId} using static rest-pose idle fallback`);
+    }
+
+    // Start idle
+    actions['idle'].setLoop(THREE.LoopRepeat).play();
+    placeholder.userData._currentClip = 'idle';
+    placeholder.userData._activeBaseClip = 'idle';
+
+    const clipNames = Object.keys(actions).join(', ');
+    console.log(`[MeshyAnim] ${classId} base clips loaded: [${clipNames}]`);
+  }
+
+  /**
+   * Load a shared animation clip from the shared library.
+   * Uses a global cache so the same clip is only downloaded once across all characters/classes.
+   * @private
+   * @param {string} sharedKey — key from SHARED_ANIMATIONS (e.g. 'idle', 'combat_stance')
+   * @returns {Promise<THREE.AnimationClip|null>}
+   */
+  async _loadSharedClipAsync(sharedKey) {
+    if (_meshyClipCache[sharedKey]) return _meshyClipCache[sharedKey];
+
+    const url = resolveAnimationPath(sharedKey);
+    if (!url) return null;
+
+    try {
+      const gltf = await new Promise((resolve, reject) => {
+        _meshyGltfLoader.load(url, resolve, undefined, reject);
+      });
+
+      if (gltf.animations.length === 0) return null;
+
+      const clip = gltf.animations[0];
+      clip.name = sharedKey;
+
+      // Dispose the loaded scene — we only need the animation clip data
+      gltf.scene.traverse(c => {
+        if (c.isMesh || c.isSkinnedMesh) {
+          c.geometry.dispose();
+          const mats = Array.isArray(c.material) ? c.material : [c.material];
+          for (const m of mats) {
+            if (!m) continue;
+            if (m.map) m.map.dispose();
+            if (m.normalMap) m.normalMap.dispose();
+            if (m.roughnessMap) m.roughnessMap.dispose();
+            if (m.metalnessMap) m.metalnessMap.dispose();
+            m.dispose();
+          }
+        }
+      });
+
+      _meshyClipCache[sharedKey] = clip;
+      return clip;
+    } catch {
+      // Animation file doesn't exist — not an error
+      return null;
+    }
+  }
+
+  /**
+   * Lazy-load a Meshy ability clip and register it with the character's mixer.
+   * Called from _updateMixerAnimation when an ability is triggered but its clip isn't loaded yet.
+   * @private
+   */
+  _lazyLoadMeshyClip(model, clipName) {
+    const loading = model.userData._loadingClips;
+    if (!loading || loading.has(clipName)) return; // already loading
+    loading.add(clipName);
+
+    const classId = model.userData.classId;
+    const animMap = getClassAnimationMap(classId);
+    const sharedKey = animMap[clipName];
+    if (!sharedKey) { loading.delete(clipName); return; }
+
+    this._loadSharedClipAsync(sharedKey).then(clip => {
+      loading.delete(clipName);
+      if (clip && model.userData.mixer) {
+        const cloned = clip.clone();
+        cloned.name = clipName;
+        model.userData.actions[clipName] = model.userData.mixer.clipAction(cloned);
+        console.log(`[MeshyAnim] Lazy-loaded ${classId}/${clipName} (shared: ${sharedKey})`);
+      }
+    });
+  }
+
+  /**
+   * Process animation clips before adding to mixer:
+   * - Strip position/scale tracks from base mesh clips (idle, walk, run, tpose)
+   *   because their absolute positions don't match our custom skeleton proportions
+   * - Scale AnimationFactory position track values by scaleFactor so death/roll
+   *   Hips drops match the scaled model height
+   * @private
+   */
+  _processAnimationClips(clips, scaleFactor) {
+    const BASE_CLIP_NAMES = new Set(['idle', 'walk', 'run', 'tpose']);
+
+    for (const clip of clips) {
+      const isBase = BASE_CLIP_NAMES.has(clip.name.toLowerCase());
+
+      clip.tracks = clip.tracks.filter(track => {
+        // Strip position and scale tracks from base mesh clips
+        if (isBase && (track.name.includes('.position') || track.name.includes('.scale'))) {
+          return false;
+        }
+
+        // Scale AnimationFactory position track values to match model height
+        if (!isBase && track.name.includes('.position')) {
+          for (let i = 0; i < track.values.length; i++) {
+            track.values[i] *= scaleFactor;
+          }
+        }
+
+        return true;
+      });
+    }
+  }
+
+  /**
+   * Prepare a pre-rigged Meshy model for use with our AnimationFactory.
+   * Renames Meshy bone names to mixamorig* convention, captures rest pose
+   * quaternions, scales to world size, and returns the scene ready for AnimationMixer.
+   * @private
+   */
+  _preparePreRiggedModel(charModel, lowerClassId) {
+    // Meshy rigging bone names → our mixamorig naming convention
+    // Note: Meshy's spine numbering is reversed from Mixamo:
+    //   Meshy: Hips → Spine02 → Spine01 → Spine → shoulders/neck
+    //   Mixamo: Hips → Spine → Spine1 → Spine2 → shoulders/neck
+    const MESHY_TO_MIXAMO = {
+      'Hips': 'mixamorigHips',
+      'Spine02': 'mixamorigSpine',    // Meshy Spine02 = lowest spine
+      'Spine01': 'mixamorigSpine1',   // Meshy Spine01 = mid spine
+      'Spine': 'mixamorigSpine2',     // Meshy Spine = highest spine
+      'neck': 'mixamorigNeck',
+      'Head': 'mixamorigHead',
+      'LeftShoulder': 'mixamorigLeftShoulder',
+      'LeftArm': 'mixamorigLeftArm',
+      'LeftForeArm': 'mixamorigLeftForeArm',
+      'LeftHand': 'mixamorigLeftHand',
+      'RightShoulder': 'mixamorigRightShoulder',
+      'RightArm': 'mixamorigRightArm',
+      'RightForeArm': 'mixamorigRightForeArm',
+      'RightHand': 'mixamorigRightHand',
+      'LeftUpLeg': 'mixamorigLeftUpLeg',
+      'LeftLeg': 'mixamorigLeftLeg',
+      'LeftFoot': 'mixamorigLeftFoot',
+      'LeftToeBase': 'mixamorigLeftToeBase',
+      'RightUpLeg': 'mixamorigRightUpLeg',
+      'RightLeg': 'mixamorigRightLeg',
+      'RightFoot': 'mixamorigRightFoot',
+      'RightToeBase': 'mixamorigRightToeBase',
+    };
+
+    // Capture rest quaternions BEFORE renaming (using original names)
+    // then store them under the new mixamorig names
+    const restQuaternions = {};
+    charModel.traverse(node => {
+      if (node.isBone) {
+        const newName = MESHY_TO_MIXAMO[node.name];
+        if (newName) {
+          restQuaternions[newName] = node.quaternion.clone();
+        }
+      }
+    });
+
+    // Rename all bones in the scene
+    charModel.traverse(node => {
+      if (node.isBone && MESHY_TO_MIXAMO[node.name]) {
+        node.name = MESHY_TO_MIXAMO[node.name];
+      }
+    });
+
+    // Scale the model to match our world units
+    const worldScale = getClassScale(lowerClassId) * 2.5;
+
+    // Measure the model's current height
+    const box = new THREE.Box3().setFromObject(charModel);
+    const currentHeight = box.max.y - box.min.y;
+    const targetHeight = worldScale;
+
+    if (currentHeight > 0) {
+      const scale = targetHeight / currentHeight;
+      charModel.scale.set(scale, scale, scale);
+      charModel.updateMatrixWorld(true);
+    }
+
+    // Ground the model (ensure feet are at y=0)
+    const grounded = new THREE.Box3().setFromObject(charModel);
+    if (grounded.min.y !== 0) {
+      charModel.position.y -= grounded.min.y;
+    }
+
+    // Store rest quaternions on the model for animation adaptation
+    charModel.userData._restQuaternions = restQuaternions;
+
+    return charModel;
+  }
+
+  /**
+   * Adapt AnimationFactory clips to work with a pre-rigged skeleton's rest pose.
+   * Our clips assume identity rest pose (all bones at [0,0,0,1]).
+   * For pre-rigged models, we pre-multiply each keyframe quaternion by the
+   * bone's rest quaternion so the small rotations compose ON TOP of the
+   * existing pose: finalQ = restQ * animDeltaQ
+   * @private
+   */
+  _adaptClipsToRestPose(clips, restQuaternions) {
+    const tempQ = new THREE.Quaternion();
+    for (const clip of clips) {
+      for (const track of clip.tracks) {
+        if (!(track instanceof THREE.QuaternionKeyframeTrack)) continue;
+        const boneName = track.name.replace('.quaternion', '');
+        const restQ = restQuaternions[boneName];
+        if (!restQ) continue;
+
+        for (let i = 0; i < track.values.length; i += 4) {
+          // animDelta is the small rotation our clip intended (relative to identity)
+          tempQ.set(track.values[i], track.values[i + 1], track.values[i + 2], track.values[i + 3]);
+          // Compose: finalQ = restQ * animDelta
+          tempQ.premultiply(restQ);
+          track.values[i] = tempQ.x;
+          track.values[i + 1] = tempQ.y;
+          track.values[i + 2] = tempQ.z;
+          track.values[i + 3] = tempQ.w;
+        }
+      }
+    }
+    return clips;
+  }
+
+  /**
+   * Attach a weapon model to the hand bones of a base mesh character.
+   * @private
+   */
+  _attachWeaponToBaseMesh(scene, weaponModel, hand, offset = {}) {
+    // Support both Mixamo bone names (legacy/base mesh) and Meshy bone names (auto-rigged)
+    const RIGHT_HAND_BONES = ['mixamorigRightHand', 'RightHand', 'rightHand', 'Right_Hand'];
+    const LEFT_HAND_BONES = ['mixamorigLeftHand', 'LeftHand', 'leftHand', 'Left_Hand'];
+
+    const primaryBones = (hand === 'left') ? LEFT_HAND_BONES : RIGHT_HAND_BONES;
+
+    let handBone = null;
+    for (const name of primaryBones) {
+      handBone = scene.getObjectByName(name);
+      if (handBone) break;
+    }
+
+    if (!handBone) {
+      console.warn('CharacterRenderer: hand bone not found, tried:', primaryBones.join(', '));
+      return;
+    }
+
+    // Detect Meshy Armature scale (centimeter units use 0.01 root scale).
+    // Weapons are in meter units and need to be scaled to match bone-local centimeter space.
+    let armatureScaleCompensation = 1;
+    const armature = scene.getObjectByName('Armature');
+    if (armature && armature.scale.x < 0.1) {
+      // Meshy models use cm internally (scale 0.01) — weapons in meters need 100x scale up
+      armatureScaleCompensation = 1 / armature.scale.x;
+      console.log('CharacterRenderer: Meshy armature detected, weapon scale compensation:', armatureScaleCompensation);
+    }
+
+    const applyWeaponToHand = (bone, model) => {
+      const wpn = model.clone(true);
+      // Apply offset config
+      if (offset.position) {
+        // Scale position offsets by armature compensation too
+        wpn.position.set(
+          offset.position[0] * armatureScaleCompensation,
+          offset.position[1] * armatureScaleCompensation,
+          offset.position[2] * armatureScaleCompensation
+        );
+      }
+      if (offset.rotation) {
+        wpn.rotation.set(offset.rotation[0], offset.rotation[1], offset.rotation[2]);
+      }
+      const baseScale = offset.scale || [1, 1, 1];
+      wpn.scale.set(
+        baseScale[0] * armatureScaleCompensation,
+        baseScale[1] * armatureScaleCompensation,
+        baseScale[2] * armatureScaleCompensation
+      );
+      bone.add(wpn);
+    };
+
+    applyWeaponToHand(handBone, weaponModel);
+
+    // For dual-wield, attach second weapon to left hand
+    if (hand === 'dual') {
+      let leftBone = null;
+      for (const name of LEFT_HAND_BONES) {
+        leftBone = scene.getObjectByName(name);
+        if (leftBone) break;
+      }
+      if (leftBone) {
+        applyWeaponToHand(leftBone, weaponModel);
+      }
+    }
+  }
+
+  /**
+   * Create a procedural kite shield model for off-hand attachment.
+   * Styled as a holy paladin's shield — silver with gold trim and sacred cross.
+   * @private
+   * @returns {THREE.Group}
+   */
+  _createProceduralShield() {
+    const group = new THREE.Group();
+    group.name = 'procedural_shield';
+
+    const w = 0.35;
+    const hTop = 0.2;
+    const hBot = 0.5;
+
+    // ── Shield outline shape (shared by body and rim) ──
+    function makeShieldShape() {
+      const s = new THREE.Shape();
+      s.moveTo(-w, hTop * 0.85);
+      s.quadraticCurveTo(-w, hTop, -w * 0.3, hTop);
+      s.lineTo(w * 0.3, hTop);
+      s.quadraticCurveTo(w, hTop, w, hTop * 0.85);
+      s.lineTo(w, 0);
+      s.quadraticCurveTo(w * 0.9, -hBot * 0.5, 0, -hBot);
+      s.quadraticCurveTo(-w * 0.9, -hBot * 0.5, -w, 0);
+      s.closePath();
+      return s;
+    }
+
+    // ── Materials ──
+    const bronzeMat = new THREE.MeshStandardMaterial({
+      color: 0x6b4c2a, metalness: 0.75, roughness: 0.35, side: THREE.DoubleSide,
+    });
+    const goldMat = new THREE.MeshStandardMaterial({
+      color: 0xc9a84c, metalness: 0.85, roughness: 0.2,
+      emissive: 0x443300, emissiveIntensity: 0.25,
+    });
+    const darkGoldMat = new THREE.MeshStandardMaterial({
+      color: 0x8a7030, metalness: 0.8, roughness: 0.25,
+      emissive: 0x332200, emissiveIntensity: 0.15,
+    });
+
+    // ── Shield body — dark bronze ──
+    const bodyGeo = new THREE.ExtrudeGeometry(makeShieldShape(), {
+      depth: 0.04, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 2,
+    });
+    bodyGeo.center();
+    group.add(new THREE.Mesh(bodyGeo, bronzeMat));
+
+    // ── Gold rim — slightly larger extruded outline ──
+    const rimWidth = 0.025;
+    const outerPts = makeShieldShape().getPoints(48);
+    const rimCurve = new THREE.CatmullRomCurve3(
+      outerPts.map(p => new THREE.Vector3(p.x, p.y, 0.025)), true
+    );
+    const rimGeo = new THREE.TubeGeometry(rimCurve, 64, rimWidth, 6, true);
+    group.add(new THREE.Mesh(rimGeo, goldMat));
+
+    // ── Inner border accent ──
+    const innerCurve = new THREE.CatmullRomCurve3(
+      outerPts.map(p => new THREE.Vector3(p.x * 0.82, p.y * 0.82, 0.03)), true
+    );
+    const innerRimGeo = new THREE.TubeGeometry(innerCurve, 48, 0.008, 4, true);
+    group.add(new THREE.Mesh(innerRimGeo, darkGoldMat));
+
+    const fz = 0.035; // front z for emblem elements
+
+    // ── Ornamental cross with flared ends (fleur-de-lis style) ──
+    // Vertical bar — wider at ends
+    const crossVGeo = new THREE.BufferGeometry();
+    const cvVerts = new Float32Array([
+      // Bottom flare
+      -0.035, -0.22, fz,   0.035, -0.22, fz,   0.02, -0.16, fz,
+      -0.035, -0.22, fz,   0.02, -0.16, fz,    -0.02, -0.16, fz,
+      // Shaft
+      -0.02, -0.16, fz,    0.02, -0.16, fz,    0.02,  0.16, fz,
+      -0.02, -0.16, fz,    0.02,  0.16, fz,    -0.02,  0.16, fz,
+      // Top flare
+      -0.02,  0.16, fz,    0.02,  0.16, fz,    0.035,  0.22, fz,
+      -0.02,  0.16, fz,    0.035, 0.22, fz,    -0.035, 0.22, fz,
+    ]);
+    crossVGeo.setAttribute('position', new THREE.BufferAttribute(cvVerts, 3));
+    crossVGeo.computeVertexNormals();
+    const crossV = new THREE.Mesh(crossVGeo, goldMat);
+    crossV.position.y = -0.03;
+    group.add(crossV);
+
+    // Horizontal bar — wider at ends
+    const crossHGeo = new THREE.BufferGeometry();
+    const chVerts = new Float32Array([
+      // Left flare
+      -0.16, -0.03, fz,   -0.12, -0.018, fz,   -0.12,  0.018, fz,
+      -0.16, -0.03, fz,   -0.12,  0.018, fz,   -0.16,  0.03, fz,
+      // Shaft
+      -0.12, -0.018, fz,   0.12, -0.018, fz,    0.12,  0.018, fz,
+      -0.12, -0.018, fz,   0.12,  0.018, fz,   -0.12,  0.018, fz,
+      // Right flare
+       0.12, -0.018, fz,   0.16, -0.03, fz,     0.16,  0.03, fz,
+       0.12, -0.018, fz,   0.16,  0.03, fz,     0.12,  0.018, fz,
+    ]);
+    crossHGeo.setAttribute('position', new THREE.BufferAttribute(chVerts, 3));
+    crossHGeo.computeVertexNormals();
+    const crossH = new THREE.Mesh(crossHGeo, goldMat);
+    crossH.position.y = 0.02;
+    group.add(crossH);
+
+    // ── Central boss medallion — layered rings ──
+    const bossOuter = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.055, 0.055, 0.015, 24),
+      goldMat,
+    );
+    bossOuter.rotation.x = Math.PI / 2;
+    bossOuter.position.set(0, -0.03, fz);
+    group.add(bossOuter);
+
+    const bossInner = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.035, 0.035, 0.02, 16),
+      darkGoldMat,
+    );
+    bossInner.rotation.x = Math.PI / 2;
+    bossInner.position.set(0, -0.03, fz + 0.003);
+    group.add(bossInner);
+
+    // Gem in center
+    const gem = new THREE.Mesh(
+      new THREE.SphereGeometry(0.015, 12, 8),
+      new THREE.MeshStandardMaterial({
+        color: 0xeedd88, emissive: 0xccaa44, emissiveIntensity: 0.6,
+        metalness: 0.3, roughness: 0.1,
+      }),
+    );
+    gem.position.set(0, -0.03, fz + 0.012);
+    group.add(gem);
+
+    // ── Corner fleur studs (4 ornamental accents between cross arms) ──
+    const studGeo = new THREE.OctahedronGeometry(0.018, 0);
+    const studPositions = [
+      [-0.08, 0.08], [0.08, 0.08], [-0.08, -0.12], [0.08, -0.12],
+    ];
+    for (const [sx, sy] of studPositions) {
+      const stud = new THREE.Mesh(studGeo, darkGoldMat);
+      stud.position.set(sx, sy, fz);
+      stud.rotation.z = Math.PI / 4;
+      group.add(stud);
+    }
+
+    return group;
   }
 
   /**
@@ -2372,6 +2981,20 @@ export default class CharacterRenderer {
     this.scene.add(model);
     this.characters.set(unitId, model);
     return model;
+  }
+
+  /**
+   * Wait for a character's model to finish loading and rigging.
+   * Returns immediately for procedural characters.
+   * @param {number|string} unitId
+   * @returns {Promise<void>}
+   */
+  async waitForCharacterLoad(unitId) {
+    const model = this.characters.get(unitId);
+    if (!model) return;
+    if (model.userData._loadPromise) {
+      await model.userData._loadPromise;
+    }
   }
 
   /**
@@ -2411,12 +3034,16 @@ export default class CharacterRenderer {
     const head = model.getObjectByName('head');
     const classId = model.userData.classId;
 
-    // Extended bones (Meshy rigged models)
+    // Extended bones (Meshy rigged models — 23-bone skeleton)
     const leftForearm = model.getObjectByName('leftForearm');
     const rightForearm = model.getObjectByName('rightForearm');
     const leftLowerLeg = model.getObjectByName('leftLowerLeg');
     const rightLowerLeg = model.getObjectByName('rightLowerLeg');
     const hips = model.getObjectByName('hips');
+    const spine = model.getObjectByName('spine');
+    const neck = model.getObjectByName('neck');
+    const leftShoulder = model.getObjectByName('leftShoulder');
+    const rightShoulder = model.getObjectByName('rightShoulder');
 
     // Breathing bob — smooth and organic
     const breathCycle = Math.sin(time * 2.2) * 0.04 + Math.sin(time * 1.3) * 0.02;
@@ -2437,11 +3064,27 @@ export default class CharacterRenderer {
       hips.rotation.y = Math.sin(time * 0.5) * 0.015;
     }
 
+    // Spine: subtle breathing flex
+    if (spine) {
+      spine.rotation.x = Math.sin(time * 2.2) * 0.02;
+      spine.rotation.z = -Math.sin(time * 0.8) * 0.015;
+    }
+
+    // Neck: counter-sway for natural head stabilization
+    if (neck) {
+      neck.rotation.y = Math.sin(time * 0.6) * 0.04;
+      neck.rotation.z = -Math.sin(time * 0.8) * 0.01;
+    }
+
     // Head: look around periodically
     if (head) {
       head.rotation.y = Math.sin(time * 0.7 + 0.5) * 0.08;
       head.rotation.x = Math.sin(time * 0.9) * 0.04 - 0.05;
     }
+
+    // Shoulder breathing motion
+    if (leftShoulder) leftShoulder.rotation.z = Math.sin(time * 2.2) * 0.015;
+    if (rightShoulder) rightShoulder.rotation.z = -Math.sin(time * 2.2) * 0.015;
 
     // Combat-ready arm poses based on class
     const isMelee = classId === CLASS_TYRANT || classId === CLASS_WRAITH || classId === CLASS_REVENANT;
@@ -2642,13 +3285,19 @@ export default class CharacterRenderer {
       if (rightArm) rightArm.rotation.x = s * 0.5;
     }
 
-    // ── Extended bone walk enhancements (rigged models) ──
+    // ── Extended bone walk enhancements (23-bone rigged models) ──
     {
       const leftForearm = model.getObjectByName('leftForearm');
       const rightForearm = model.getObjectByName('rightForearm');
       const leftLowerLeg = model.getObjectByName('leftLowerLeg');
       const rightLowerLeg = model.getObjectByName('rightLowerLeg');
+      const leftFoot = model.getObjectByName('leftFoot');
+      const rightFoot = model.getObjectByName('rightFoot');
       const hipsB = model.getObjectByName('hips');
+      const spineB = model.getObjectByName('spine');
+      const neckB = model.getObjectByName('neck');
+      const leftShoulder = model.getObjectByName('leftShoulder');
+      const rightShoulder = model.getObjectByName('rightShoulder');
       const freq = speed * (classId === CLASS_WRAITH ? 9 : classId === CLASS_TYRANT ? 5 : 6.5);
       const s = Math.sin(time * freq);
 
@@ -2656,9 +3305,26 @@ export default class CharacterRenderer {
       if (leftLowerLeg) leftLowerLeg.rotation.x = 0.15 + Math.max(0, s) * 0.35;
       if (rightLowerLeg) rightLowerLeg.rotation.x = 0.15 + Math.max(0, -s) * 0.35;
 
+      // Foot flex during stride
+      if (leftFoot) leftFoot.rotation.x = Math.max(0, s) * 0.15;
+      if (rightFoot) rightFoot.rotation.x = Math.max(0, -s) * 0.15;
+
       // Forearm swing (counter to upper arm)
       if (leftForearm) leftForearm.rotation.x = -0.2 + s * 0.15;
       if (rightForearm) rightForearm.rotation.x = -0.2 - s * 0.15;
+
+      // Shoulder pump during walk
+      if (leftShoulder) leftShoulder.rotation.x = -s * 0.06;
+      if (rightShoulder) rightShoulder.rotation.x = s * 0.06;
+
+      // Spine counter-twist (opposite to hips for natural gait)
+      if (spineB) {
+        spineB.rotation.y = -s * 0.04;
+        spineB.rotation.z = s * 0.02;
+      }
+
+      // Neck stabilization (counter upper body sway)
+      if (neckB) neckB.rotation.y = -s * 0.03;
 
       // Hip rotation during walk (counter-rotate with upper body)
       if (hipsB) {
@@ -3467,16 +4133,33 @@ export default class CharacterRenderer {
     if (leftLeg) leftLeg.rotation.x = p1 * 0.8 + p2 * 0.3;
     if (rightLeg) rightLeg.rotation.x = p1 * 0.6 + p2 * 0.4;
 
-    // Extended bones — forearms and lower legs go limp
+    // Extended bones — forearms and lower legs go limp, spine/neck/shoulders collapse
     const leftForearm = model.getObjectByName('leftForearm');
     const rightForearm = model.getObjectByName('rightForearm');
     const leftLowerLeg = model.getObjectByName('leftLowerLeg');
     const rightLowerLeg = model.getObjectByName('rightLowerLeg');
+    const spine = model.getObjectByName('spine');
+    const neck = model.getObjectByName('neck');
+    const leftShoulder = model.getObjectByName('leftShoulder');
+    const rightShoulder = model.getObjectByName('rightShoulder');
 
     if (leftForearm) leftForearm.rotation.x = -p2 * 0.8;
     if (rightForearm) rightForearm.rotation.x = -p2 * 0.6;
     if (leftLowerLeg) leftLowerLeg.rotation.x = p1 * 0.5 + p2 * 0.3;
     if (rightLowerLeg) rightLowerLeg.rotation.x = p1 * 0.4 + p2 * 0.4;
+
+    // Spine crumples
+    if (spine) spine.rotation.x = p1 * 0.3 + p2 * 0.2;
+
+    // Neck goes limp
+    if (neck) {
+      neck.rotation.x = p1 * 0.2 + p2 * 0.4;
+      neck.rotation.z = p2 * 0.2;
+    }
+
+    // Shoulders drop
+    if (leftShoulder) leftShoulder.rotation.z = p2 * 0.3;
+    if (rightShoulder) rightShoulder.rotation.z = -p2 * 0.3;
   }
 
   /**
@@ -3503,11 +4186,15 @@ export default class CharacterRenderer {
       head.rotation.z = Math.sin(time * 4) * 0.1; // head lolls
     }
 
-    // Extended bones — forearms hang limp
+    // Extended bones — forearms hang limp, spine/neck wobble
     const leftForearm = model.getObjectByName('leftForearm');
     const rightForearm = model.getObjectByName('rightForearm');
+    const spine = model.getObjectByName('spine');
+    const neck = model.getObjectByName('neck');
     if (leftForearm) leftForearm.rotation.x = -0.4;
     if (rightForearm) rightForearm.rotation.x = -0.4;
+    if (spine) spine.rotation.z = wobble * 0.4;
+    if (neck) { neck.rotation.z = -wobble * 0.3; neck.rotation.x = 0.1; }
   }
 
   /**
@@ -3585,10 +4272,10 @@ export default class CharacterRenderer {
   animateHit(model) {
     const originals = model.userData._originalEmissives;
 
-    // Red flash on all meshes
+    // Red flash on all meshes (skip MeshBasicMaterial — no emissive uniform)
     model.traverse((child) => {
-      if (child.isMesh && child.material) {
-        child.material.emissive = new THREE.Color(0xff0000);
+      if (child.isMesh && child.material && child.material.emissive) {
+        child.material.emissive.setHex(0xff0000);
         child.material.emissiveIntensity = 1.0;
       }
     });
@@ -3881,10 +4568,22 @@ export default class CharacterRenderer {
       );
     }
 
-    // Rotation (facing) — whirlwind overrides with rapid spin
+    // Rotation (facing)
+    if (unitState.rotation !== undefined) {
+      model.rotation.y = unitState.rotation;
+    }
+
+    // ── AnimationMixer path (pre-rigged base mesh) ──
+    if (model.userData.mixer) {
+      this._updateMixerAnimation(model, unitState, time);
+      return;
+    }
+
+    // ── Legacy procedural animation path (auto-rigged or primitive models) ──
+
+    // Whirlwind override
     if (unitState.whirlwind) {
-      model.rotation.y = time * 12; // ~2 full spins per second
-      // Slight body dip + arms out for whirlwind feel
+      model.rotation.y = time * 12;
       const body = model.getObjectByName('body');
       if (body) body.position.y = 0.95 + Math.sin(time * 24) * 0.03;
       const leftArm = model.getObjectByName('leftArm');
@@ -3892,9 +4591,7 @@ export default class CharacterRenderer {
       if (leftArm) { leftArm.rotation.z = -Math.PI * 0.45; leftArm.rotation.x = 0; }
       if (rightArm) { rightArm.rotation.z = Math.PI * 0.45; rightArm.rotation.x = 0; }
       this._animateNamedParts(model, time);
-      return; // skip normal animation state machine
-    } else if (unitState.rotation !== undefined) {
-      model.rotation.y = unitState.rotation;
+      return;
     }
 
     // Stealth
@@ -3960,7 +4657,6 @@ export default class CharacterRenderer {
         this._resetPose(model);
         const rollProg = unitState.rollProgress || 0;
 
-        // Full body tuck and forward roll
         const rollBody = model.getObjectByName('body');
         const rollHead = model.getObjectByName('head');
         const rollLA = model.getObjectByName('leftArm');
@@ -3968,19 +4664,13 @@ export default class CharacterRenderer {
         const rollLL = model.getObjectByName('leftLeg');
         const rollRL = model.getObjectByName('rightLeg');
 
-        // Body rotation — full forward somersault
         if (rollBody) {
-          rollBody.rotation.x = rollProg * Math.PI * 2; // full forward flip
-          rollBody.position.y = 0.5 + Math.sin(rollProg * Math.PI) * 0.5; // arc up then down
-          // Tuck the body during middle of roll
+          rollBody.rotation.x = rollProg * Math.PI * 2;
+          rollBody.position.y = 0.5 + Math.sin(rollProg * Math.PI) * 0.5;
           const tuck = Math.sin(rollProg * Math.PI);
-          rollBody.scale.y = 1.0 - tuck * 0.2; // compress vertically
+          rollBody.scale.y = 1.0 - tuck * 0.2;
         }
-
-        // Head tucked in
         if (rollHead) rollHead.rotation.x = -0.6 * Math.sin(rollProg * Math.PI);
-
-        // Arms pulled in tight during roll
         if (rollLA) {
           rollLA.rotation.x = -1.2 * Math.sin(rollProg * Math.PI);
           rollLA.rotation.z = 0.8 * Math.sin(rollProg * Math.PI);
@@ -3989,23 +4679,27 @@ export default class CharacterRenderer {
           rollRA.rotation.x = -1.2 * Math.sin(rollProg * Math.PI);
           rollRA.rotation.z = -0.8 * Math.sin(rollProg * Math.PI);
         }
-
-        // Legs tucked during roll
         if (rollLL) rollLL.rotation.x = -0.8 * Math.sin(rollProg * Math.PI);
         if (rollRL) rollRL.rotation.x = -0.8 * Math.sin(rollProg * Math.PI);
 
-        // Extended bones — forearms and lower legs tuck tighter
         const rollLF = model.getObjectByName('leftForearm');
         const rollRF = model.getObjectByName('rightForearm');
         const rollLLL = model.getObjectByName('leftLowerLeg');
         const rollRLL = model.getObjectByName('rightLowerLeg');
+        const rollSpine = model.getObjectByName('spine');
+        const rollNeck = model.getObjectByName('neck');
+        const rollLS = model.getObjectByName('leftShoulder');
+        const rollRS = model.getObjectByName('rightShoulder');
         const tuckAmt = Math.sin(rollProg * Math.PI);
         if (rollLF) rollLF.rotation.x = -1.0 * tuckAmt;
         if (rollRF) rollRF.rotation.x = -1.0 * tuckAmt;
         if (rollLLL) rollLLL.rotation.x = 1.2 * tuckAmt;
         if (rollRLL) rollRLL.rotation.x = 1.2 * tuckAmt;
+        if (rollSpine) rollSpine.rotation.x = 0.5 * tuckAmt;
+        if (rollNeck) rollNeck.rotation.x = -0.3 * tuckAmt;
+        if (rollLS) rollLS.rotation.z = 0.4 * tuckAmt;
+        if (rollRS) rollRS.rotation.z = -0.4 * tuckAmt;
 
-        // Recovery phase — stand up at end
         if (rollProg > 0.8) {
           const recoverT = (rollProg - 0.8) / 0.2;
           if (rollBody) {
@@ -4020,6 +4714,206 @@ export default class CharacterRenderer {
         this.animateIdle(model, time);
         break;
     }
+  }
+
+  /**
+   * AnimationMixer-based animation for pre-rigged base mesh characters.
+   * Maps game states to animation clips and handles crossfading.
+   * @private
+   */
+  _updateMixerAnimation(model, unitState, time) {
+    const mixer = model.userData.mixer;
+    const actions = model.userData.actions;
+
+    // One-time log to confirm mixer path is active
+    if (!model.userData._mixerLogDone) {
+      model.userData._mixerLogDone = true;
+      const actionNames = Object.keys(actions).join(', ');
+      console.log(`[AnimMixer] Unit ${model.userData.unitId} using mixer path — actions: [${actionNames}], state: ${unitState.state}`);
+    }
+
+    // Compute delta time
+    const lastTime = model.userData._lastMixerTime || time;
+    const dt = Math.min(time - lastTime, 0.1); // cap at 100ms to avoid jumps
+    model.userData._lastMixerTime = time;
+
+    // Stealth
+    if (unitState.stealthed !== undefined) {
+      this.animateStealth(model, unitState.stealthed);
+    }
+
+    // Full-body clips: Meshy animations are always full-body (all bones animated).
+    // AnimationFactory clips from base mesh only cover idle/walk/run/tpose fully.
+    const isMeshy = model.userData.usesMeshyAnimations;
+    const FULL_BODY = isMeshy ? null : new Set(['idle', 'walk', 'run', 'tpose']);
+
+    // Map game state to clip name
+    let targetClip = 'idle';
+    let loopMode = THREE.LoopRepeat;
+    let timeScale = 1.0;
+
+    switch (unitState.state) {
+      case 'idle':
+        targetClip = 'idle';
+        break;
+      case 'moving':
+      case 'walk':
+        if (actions['run'] && (unitState.speed || 1) > 1.5) {
+          targetClip = 'run';
+        } else {
+          targetClip = actions['walk'] ? 'walk' : 'run';
+        }
+        timeScale = Math.max(0.5, Math.min(2.0, unitState.speed || 1));
+        break;
+      case 'attacking':
+      case 'attack': {
+        const abilityId = unitState.attackAbilityId;
+        if (abilityId && actions[abilityId]) {
+          // Per-ability Meshy animation clip
+          targetClip = abilityId;
+        } else if (abilityId && model.userData.usesMeshyAnimations) {
+          // Clip not loaded yet — lazy load and use idle as fallback
+          this._lazyLoadMeshyClip(model, abilityId);
+          targetClip = 'idle';
+        } else {
+          targetClip = actions['attack'] ? 'attack' : 'idle';
+        }
+        loopMode = THREE.LoopOnce;
+        timeScale = 1.0;
+        break;
+      }
+      case 'casting':
+      case 'cast': {
+        const castAbilityId = unitState.castAbilityId;
+        if (castAbilityId && actions[castAbilityId]) {
+          targetClip = castAbilityId;
+        } else if (castAbilityId && model.userData.usesMeshyAnimations) {
+          this._lazyLoadMeshyClip(model, castAbilityId);
+          targetClip = 'idle';
+        } else {
+          targetClip = actions['cast'] ? 'cast' : 'idle';
+        }
+        loopMode = THREE.LoopRepeat;
+        timeScale = 1.0;
+        break;
+      }
+      case 'hit':
+        targetClip = actions['hit'] ? 'hit' : 'idle';
+        loopMode = THREE.LoopOnce;
+        timeScale = 1.5;
+        break;
+      case 'dead':
+      case 'death':
+        targetClip = actions['death'] ? 'death' : 'idle';
+        loopMode = THREE.LoopOnce;
+        break;
+      case 'stunned':
+        targetClip = actions['stun'] ? 'stun' : 'idle';
+        loopMode = THREE.LoopRepeat;
+        timeScale = 1.0;
+        break;
+      case 'feared':
+        targetClip = actions['fear'] ? 'fear' : (actions['stun'] ? 'stun' : 'idle');
+        loopMode = THREE.LoopRepeat;
+        timeScale = 1.0;
+        break;
+      case 'rooted':
+      case 'silenced':
+        targetClip = 'idle';
+        timeScale = 0.5;
+        break;
+      case 'rolling':
+        targetClip = actions['dodge'] ? 'dodge' : (actions['roll'] ? 'roll' : 'idle');
+        loopMode = THREE.LoopOnce;
+        timeScale = 1.0;
+        break;
+      default:
+        targetClip = 'idle';
+        break;
+    }
+
+    // Handle animation transitions with proper layering
+    const currentClip = model.userData._currentClip;
+    const activeBase = model.userData._activeBaseClip || 'idle';
+
+    if (targetClip !== currentClip && actions[targetClip]) {
+      const isFullBody = isMeshy || FULL_BODY.has(targetClip);
+
+      // Stop any currently playing overlay (partial-body) clips
+      if (!isMeshy) {
+        for (const [n, a] of Object.entries(actions)) {
+          if (!FULL_BODY.has(n) && a.isRunning()) {
+            a.fadeOut(0.15);
+          }
+        }
+      }
+
+      if (isFullBody) {
+        // Full-body clip: crossfade from current base
+        const oldBase = actions[activeBase];
+        const nextAction = actions[targetClip];
+        nextAction.setLoop(loopMode);
+        nextAction.timeScale = timeScale;
+
+        if (oldBase && oldBase.isRunning() && activeBase !== targetClip) {
+          oldBase.crossFadeTo(nextAction, 0.25, true);
+        }
+        nextAction.reset().play();
+        model.userData._activeBaseClip = targetClip;
+      } else {
+        // Partial-body clip: layer ON TOP of base (don't stop base)
+        const baseAction = actions[activeBase];
+        if (baseAction) {
+          baseAction.setEffectiveWeight(0.15);
+        }
+
+        const nextAction = actions[targetClip];
+        nextAction.setLoop(loopMode);
+        nextAction.timeScale = timeScale;
+        if (loopMode === THREE.LoopOnce) {
+          nextAction.clampWhenFinished = (targetClip === 'death');
+        }
+        nextAction.setEffectiveWeight(1.0);
+        nextAction.reset().fadeIn(0.15).play();
+      }
+
+      model.userData._currentClip = targetClip;
+    } else if (actions[targetClip]) {
+      actions[targetClip].timeScale = timeScale;
+    }
+
+    // Auto-return from finished one-shot clips back to idle
+    if (currentClip && currentClip !== 'death' && actions[currentClip]) {
+      const action = actions[currentClip];
+      if (action.loop === THREE.LoopOnce && !action.isRunning() && action.time >= action.getClip().duration * 0.95) {
+        if (isMeshy) {
+          // Meshy: crossfade back to idle
+          action.fadeOut(0.25);
+          const idleAction = actions['idle'];
+          if (idleAction) {
+            idleAction.reset().setEffectiveWeight(1.0).fadeIn(0.25).play();
+            model.userData._activeBaseClip = 'idle';
+          }
+          model.userData._currentClip = 'idle';
+        } else {
+          // Legacy: restore base clip weight
+          action.fadeOut(0.15);
+          const baseAction = actions[activeBase];
+          if (baseAction) {
+            baseAction.setEffectiveWeight(1.0);
+          }
+          model.userData._currentClip = activeBase;
+        }
+      }
+    }
+
+    // Whirlwind: override rotation for rapid spin
+    if (unitState.whirlwind) {
+      model.rotation.y = time * 12;
+    }
+
+    // Update the mixer
+    mixer.update(dt);
   }
 
   /**
@@ -4052,17 +4946,14 @@ export default class CharacterRenderer {
     if (leftLeg) leftLeg.rotation.set(0, 0, 0);
     if (rightLeg) rightLeg.rotation.set(0, 0, 0);
 
-    // Reset extended bones (rigged models)
-    const leftForearm = model.getObjectByName('leftForearm');
-    const rightForearm = model.getObjectByName('rightForearm');
-    const leftLowerLeg = model.getObjectByName('leftLowerLeg');
-    const rightLowerLeg = model.getObjectByName('rightLowerLeg');
-    const hips = model.getObjectByName('hips');
-    if (leftForearm) leftForearm.rotation.set(0, 0, 0);
-    if (rightForearm) rightForearm.rotation.set(0, 0, 0);
-    if (leftLowerLeg) leftLowerLeg.rotation.set(0, 0, 0);
-    if (rightLowerLeg) rightLowerLeg.rotation.set(0, 0, 0);
-    if (hips) hips.rotation.set(0, 0, 0);
+    // Reset all extended bones (23-bone skeleton)
+    const extBones = ['leftForearm','rightForearm','leftLowerLeg','rightLowerLeg',
+      'hips','spine','neck','leftShoulder','rightShoulder',
+      'leftHand','rightHand','leftFoot','rightFoot','leftToe','rightToe'];
+    for (const name of extBones) {
+      const bone = model.getObjectByName(name);
+      if (bone) bone.rotation.set(0, 0, 0);
+    }
 
     // Reset death fall rotation
     model.rotation.z = 0;
@@ -4099,109 +4990,16 @@ export default class CharacterRenderer {
    * @param {number} [size=256] — portrait resolution (square)
    * @returns {Map<string, string>} classId → dataURL
    */
-  static renderPortraits(size = 256) {
+  static renderPortraits() {
     const portraits = new Map();
-    const allClasses = [CLASS_TYRANT, CLASS_WRAITH, CLASS_INFERNAL, CLASS_HARBINGER, CLASS_REVENANT];
+    const allClasses = ['tyrant', 'wraith', 'infernal', 'harbinger', 'revenant'];
 
-    // Class-specific camera and lighting configs for dramatic portraits
-    const classConfigs = {
-      [CLASS_TYRANT]: {
-        camPos: [0.6, 2.4, 2.0],  camLookAt: [0, 1.6, 0],
-        keyColor: 0xffeedd, keyIntensity: 2.5, keyPos: [2, 3, 2],
-        fillColor: 0x883322, fillIntensity: 0.8, fillPos: [-2, 1, 1],
-        rimColor: 0xff4422, rimIntensity: 1.5, rimPos: [-1, 2, -2],
-        bgColor: 0x1a0808
-      },
-      [CLASS_WRAITH]: {
-        camPos: [0.5, 2.2, 1.8],  camLookAt: [0, 1.5, 0],
-        keyColor: 0xccccff, keyIntensity: 2.0, keyPos: [1.5, 3, 2],
-        fillColor: 0x442266, fillIntensity: 0.8, fillPos: [-2, 1, 0.5],
-        rimColor: 0x8844cc, rimIntensity: 1.8, rimPos: [-1, 2.5, -2],
-        bgColor: 0x0a0812
-      },
-      [CLASS_INFERNAL]: {
-        camPos: [0.4, 2.5, 2.0],  camLookAt: [0, 1.7, 0],
-        keyColor: 0xfff0dd, keyIntensity: 2.5, keyPos: [2, 3.5, 2],
-        fillColor: 0xff6600, fillIntensity: 0.6, fillPos: [-2, 1, 1],
-        rimColor: 0xff4400, rimIntensity: 2.0, rimPos: [0, 2, -2.5],
-        bgColor: 0x120808
-      },
-      [CLASS_HARBINGER]: {
-        camPos: [0.5, 2.3, 1.9],  camLookAt: [0, 1.6, 0],
-        keyColor: 0xddffdd, keyIntensity: 2.0, keyPos: [1.5, 3, 2],
-        fillColor: 0x225522, fillIntensity: 0.8, fillPos: [-2, 1, 0.5],
-        rimColor: 0x44ff44, rimIntensity: 1.5, rimPos: [-1, 2.5, -2],
-        bgColor: 0x061008
-      },
-      [CLASS_REVENANT]: {
-        camPos: [0.5, 2.4, 2.0],  camLookAt: [0, 1.6, 0],
-        keyColor: 0xffffee, keyIntensity: 2.5, keyPos: [2, 3, 2],
-        fillColor: 0xddaa44, fillIntensity: 0.8, fillPos: [-2, 1, 1],
-        rimColor: 0xffdd66, rimIntensity: 1.8, rimPos: [-1, 2, -2],
-        bgColor: 0x100e06
-      }
-    };
-
-    // Create offscreen renderer (preserveDrawingBuffer needed for toDataURL)
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
-    renderer.setSize(size, size);
-    renderer.setPixelRatio(1);
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
-
-    const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 50);
-
+    // Use splash art for portraits — these are high-quality DALL-E generated images
+    // that look far better than procedural primitive renders
     for (const classId of allClasses) {
-      const scene = new THREE.Scene();
-      const cfg = classConfigs[classId];
-      scene.background = new THREE.Color(cfg.bgColor);
-
-      // Use procedural model for portraits (reliable, sync)
-      const builder = CLASS_BUILDERS.get(classId);
-      if (!builder) continue;
-      const model = builder();
-      model.scale.set(2.5, 2.5, 2.5);
-      scene.add(model);
-
-      // Slight heroic body turn — facing slightly toward camera
-      model.rotation.y = -0.2;
-
-      // 3-point lighting: key, fill, rim
-      const key = new THREE.DirectionalLight(cfg.keyColor, cfg.keyIntensity);
-      key.position.set(...cfg.keyPos);
-      scene.add(key);
-
-      const fill = new THREE.DirectionalLight(cfg.fillColor, cfg.fillIntensity);
-      fill.position.set(...cfg.fillPos);
-      scene.add(fill);
-
-      const rim = new THREE.DirectionalLight(cfg.rimColor, cfg.rimIntensity);
-      rim.position.set(...cfg.rimPos);
-      scene.add(rim);
-
-      // Ambient for shadow fill
-      scene.add(new THREE.AmbientLight(0x222222, 0.4));
-
-      // Camera: heroic upward angle at upper body
-      camera.position.set(...cfg.camPos);
-      camera.lookAt(new THREE.Vector3(...cfg.camLookAt));
-      camera.updateProjectionMatrix();
-
-      renderer.render(scene, camera);
-
-      // Extract data URL
-      portraits.set(classId.toLowerCase(), renderer.domElement.toDataURL('image/png'));
-
-      // Dispose model
-      model.traverse(child => {
-        if (child.isMesh) {
-          child.geometry.dispose();
-          if (child.material.dispose) child.material.dispose();
-        }
-      });
+      portraits.set(classId, `/assets/art/${classId}_splash.webp`);
     }
 
-    renderer.dispose();
     return portraits;
   }
 }

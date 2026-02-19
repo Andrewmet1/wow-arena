@@ -77,7 +77,43 @@ const PROMPTS = [
     name: 'loadout_bg',
     size: '1792x1024',
     prompt: 'Dark fantasy armory loadout screen background, a mystical weapon rack room in a gothic castle with floating magical weapons and armor pieces surrounded by glowing runes, enchantment table in center with swirling purple energy, stone walls lined with weapon racks and spell scrolls, warm orange torch light mixed with cool blue magical glow, cinematic concept art, League of Legends client style atmosphere, ultra detailed, 4k, no text no letters no words'
+  },
+  {
+    name: 'arena_loading_bg',
+    size: '1792x1024',
+    prompt: 'Dark fantasy arena loading screen, overhead cinematic view of a gladiatorial pit arena with massive stone pillars casting long shadows, blazing torches along weathered stone walls, blood-stained stone floor with glowing arcane runes forming a ritual circle, dark stormy sky above with red lightning and volcanic glow on the horizon, heavy vignette darkening the edges, WoW arena loading screen style, cinematic wide shot, League of Legends concept art quality, ultra detailed, 4k, no text no letters no words'
   }
+];
+
+// Full-body standing reference images for Meshy Image-to-3D model generation.
+// These must show: full body head-to-toe, neutral standing pose, single character,
+// clear silhouette against simple background. NOT used for UI — only for 3D pipeline.
+const MODEL_REF_PROMPTS = [
+  {
+    name: 'tyrant_model_ref',
+    size: '1024x1792',
+    prompt: 'Full body character concept art of a dark fantasy armored warlord standing upright in a neutral pose, facing forward, massive male knight in heavy blood-red and black plate armor with horned great helm, wielding an enormous two-handed greatsword held at his side, red cape hanging behind, heavy spiked pauldrons and dark steel gauntlets, full body visible from head to boots, standing on flat ground, solid dark background, character turnaround reference sheet style, ultra detailed, 4k, no text no letters no words'
+  },
+  {
+    name: 'wraith_model_ref',
+    size: '1024x1792',
+    prompt: 'Full body character concept art of a dark fantasy rogue assassin standing upright in a neutral pose, facing forward, lean hooded figure in deep purple-indigo fitted leather armor, spectral bird-like mask with glowing violet eyes, holding two curved daggers at sides, tattered cloak hanging behind, silver buckle bracers, full body visible from hood to boots, standing on flat ground, solid dark background, character turnaround reference sheet style, ultra detailed, 4k, no text no letters no words'
+  },
+  {
+    name: 'infernal_model_ref',
+    size: '1024x1792',
+    prompt: 'Full body character concept art of a dark fantasy fire mage standing upright in a neutral pose, facing forward, robed skeletal figure with glowing orange eyes under dark hood, skull face, flowing dark robes with molten ember cracks and lava glow, holding an ornate fire staff with crystal top in one hand, full body visible from hood to feet, standing on flat ground, solid dark background, character turnaround reference sheet style, ultra detailed, 4k, no text no letters no words'
+  },
+  {
+    name: 'harbinger_model_ref',
+    size: '1024x1792',
+    prompt: 'Full body character concept art of a dark fantasy warlock necromancer standing upright in a neutral pose, facing forward, gaunt robed figure with large curved ram horns and skeletal face with green glowing eyes, tattered dark green and black robes, holding a glowing green grimoire book in one hand, bone ornaments and skull belt, full body visible from horns to boots, standing on flat ground, solid dark background, single character only, character turnaround reference sheet style, ultra detailed, 4k, no text no letters no words'
+  },
+  {
+    name: 'revenant_model_ref',
+    size: '1024x1792',
+    prompt: 'Single full body character concept art of a holy paladin knight standing upright in a neutral A-pose with arms slightly out to the sides, facing forward, noble armored figure in gleaming ivory-white and gold ornate plate armor, golden divine halo above head, white tabard with golden holy cross, empty hands with no weapons and no shield, full body clearly visible from head to boots, symmetrical pose, standing on flat ground, solid dark background, single character only, ultra detailed, 4k, no text no letters no words no multiple views no turnaround'
+  },
 ];
 
 const TEXTURE_PROMPTS = [
@@ -230,24 +266,40 @@ async function generateImage(promptConfig, outDir = OUT_DIR) {
 }
 
 async function main() {
+  const args = process.argv.slice(2);
+  const onlyModelRef = args.includes('--model-ref');
+  const onlyTextures = args.includes('--textures');
+
   console.log('Ebon Crucible Art Generator');
   console.log(`Output: ${OUT_DIR}\n`);
 
-  // Generate sequentially to avoid rate limits
-  for (const p of PROMPTS) {
-    await generateImage(p);
+  if (!onlyModelRef && !onlyTextures) {
+    // Generate splash art sequentially to avoid rate limits
+    for (const p of PROMPTS) {
+      await generateImage(p);
+    }
   }
 
-  // Generate texture assets
-  const textureDir = path.join(OUT_DIR, '..', 'textures');
-  if (!fs.existsSync(textureDir)) {
-    fs.mkdirSync(textureDir, { recursive: true });
+  if (!onlyTextures) {
+    // Generate model reference images (for Meshy Image-to-3D pipeline)
+    console.log('\n  Generating model reference images...\n');
+    for (const p of MODEL_REF_PROMPTS) {
+      await generateImage(p);
+    }
   }
 
-  console.log('\n  Generating texture assets...\n');
+  if (!onlyModelRef) {
+    // Generate texture assets
+    const textureDir = path.join(OUT_DIR, '..', 'textures');
+    if (!fs.existsSync(textureDir)) {
+      fs.mkdirSync(textureDir, { recursive: true });
+    }
 
-  for (const item of TEXTURE_PROMPTS) {
-    await generateImage(item, textureDir);
+    console.log('\n  Generating texture assets...\n');
+
+    for (const item of TEXTURE_PROMPTS) {
+      await generateImage(item, textureDir);
+    }
   }
 
   console.log('\nDone!');

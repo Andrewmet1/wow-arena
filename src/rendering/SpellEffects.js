@@ -21,6 +21,19 @@ SPELL_TEXTURES.nature = _loadSpellTex('nature');
 // Physical school reuses fire texture as a subtle fallback (tinted by material color)
 SPELL_TEXTURES.physical = SPELL_TEXTURES.fire;
 
+// ─── Shared unit-radius sphere geometry pool (avoids per-spawn GPU allocations) ─
+// dispose() overridden to no-op so cleanup code doesn't destroy shared buffers.
+function _makeSharedSphere(segs) {
+  const geo = new THREE.SphereGeometry(1, segs, segs);
+  geo.dispose = () => {}; // shared — never dispose
+  return geo;
+}
+const _sphereGeo4 = _makeSharedSphere(4);
+const _sphereGeo6 = _makeSharedSphere(6);
+const _sphereGeo8 = _makeSharedSphere(8);
+const _sphereGeo10 = _makeSharedSphere(10);
+const _sphereGeo12 = _makeSharedSphere(12);
+
 // ─── VFX-specific textures (DALL-E generated + procedural) ───────────────────
 function _loadVfxTex(name) {
   const tex = _spellTexLoader.load(`/assets/textures/tex_vfx_${name}.webp`);
@@ -256,14 +269,14 @@ export class SpellEffects {
     const trailSphereCount = 6;
     const trailSpheres = [];
     for (let t = 0; t < trailSphereCount; t++) {
-      const trailSize = size * (0.7 - t * 0.1);
-      const trailGeo = new THREE.SphereGeometry(Math.max(trailSize, 0.05), 12, 12);
+      const trailSize = Math.max(size * (0.7 - t * 0.1), 0.05);
       const trailMat = new THREE.MeshBasicMaterial({
         color,
         transparent: true,
         opacity: 0.6 - t * 0.09
       });
-      const trailMesh = new THREE.Mesh(trailGeo, trailMat);
+      const trailMesh = new THREE.Mesh(_sphereGeo12, trailMat);
+      trailMesh.scale.setScalar(trailSize);
       trailMesh.visible = false; // hidden until projectile has moved enough
       group.add(trailMesh);
       trailSpheres.push({
@@ -464,17 +477,17 @@ export class SpellEffects {
     const schoolTex = tex || VFX_TEXTURES[school] || SPELL_TEXTURES[school] || null;
     for (let i = 0; i < actualCount; i++) {
       const pSize = (0.08 + Math.random() * 0.2) * (size * 0.25);
-      const pGeo = new THREE.SphereGeometry(pSize, 10, 10);
       const pMat = new THREE.MeshBasicMaterial({
         color,
         transparent: true,
         opacity: 0.9,
         map: schoolTex
       });
-      const pMesh = new THREE.Mesh(pGeo, pMat);
+      const pMesh = new THREE.Mesh(_sphereGeo10, pMat);
       pMesh.position.set(0, position.y || 1.5, 0);
       // Elongate some particles randomly
-      if (i % 3 === 0) pMesh.scale.set(1, 0.5, 2.0);
+      if (i % 3 === 0) pMesh.scale.set(pSize, pSize * 0.5, pSize * 2.0);
+      else pMesh.scale.setScalar(pSize);
       impactGroup.add(pMesh);
 
       const angle = Math.random() * Math.PI * 2;
@@ -595,19 +608,19 @@ export class SpellEffects {
       const pSize = 0.06 + Math.random() * 0.18;
       // Mix droplets (spheres) and streaks (elongated)
       const isStreak = i % 4 === 0;
-      const pGeo = new THREE.SphereGeometry(pSize, 8, 8);
       const pMat = new THREE.MeshBasicMaterial({
         color: bloodColors[Math.floor(Math.random() * bloodColors.length)],
         transparent: true,
         opacity: 0.85 + Math.random() * 0.15
       });
-      const pMesh = new THREE.Mesh(pGeo, pMat);
+      const pMesh = new THREE.Mesh(_sphereGeo8, pMat);
       pMesh.position.set(
         (Math.random() - 0.5) * 0.3,
         (position.y || 1.5) + (Math.random() - 0.5) * 0.4,
         (Math.random() - 0.5) * 0.3
       );
-      if (isStreak) pMesh.scale.set(0.5, 0.5, 2.0);
+      if (isStreak) pMesh.scale.set(pSize * 0.5, pSize * 0.5, pSize * 2.0);
+      else pMesh.scale.setScalar(pSize);
       group.add(pMesh);
 
       const angle = Math.random() * Math.PI * 2;
@@ -696,14 +709,14 @@ export class SpellEffects {
     const deathParticles = [];
     for (let i = 0; i < burstCount; i++) {
       const pSize = 0.1 + Math.random() * 0.4;
-      const pGeo = new THREE.SphereGeometry(pSize, 6, 6);
       const shade = Math.random() > 0.5 ? 0x880000 : 0x444444;
       const pMat = new THREE.MeshBasicMaterial({
         color: shade,
         transparent: true,
         opacity: 0.95
       });
-      const pMesh = new THREE.Mesh(pGeo, pMat);
+      const pMesh = new THREE.Mesh(_sphereGeo6, pMat);
+      pMesh.scale.setScalar(pSize);
       pMesh.position.set(0, (position.y || 1.0), 0);
       group.add(pMesh);
 
@@ -901,13 +914,14 @@ export class SpellEffects {
     const risingCount = 5 + Math.floor(Math.random() * 2);
     const risingParticles = [];
     for (let i = 0; i < risingCount; i++) {
-      const pGeo = new THREE.SphereGeometry(0.08 + Math.random() * 0.07, 6, 6);
+      const pSize = 0.08 + Math.random() * 0.07;
       const pMat = new THREE.MeshBasicMaterial({
         color,
         transparent: true,
         opacity: 0.7
       });
-      const pMesh = new THREE.Mesh(pGeo, pMat);
+      const pMesh = new THREE.Mesh(_sphereGeo6, pMat);
+      pMesh.scale.setScalar(pSize);
       const angle = (i / risingCount) * Math.PI * 2;
       const dist = radius * 0.4 + Math.random() * radius * 0.5;
       pMesh.position.set(Math.cos(angle) * dist, 0.3, Math.sin(angle) * dist);
@@ -1732,14 +1746,14 @@ export class SpellEffects {
     const debris = [];
     for (let i = 0; i < debrisCount; i++) {
       const chunkSize = 0.1 + Math.random() * 0.25;
-      const geo = new THREE.SphereGeometry(chunkSize, 6, 6);
       const chunkColor = school === 'frost' ? 0x88ccff : school === 'holy' ? 0xffd700
         : school === 'fire' ? 0xff6633 : school === 'shadow' ? 0x6622aa : 0x665544;
       const mat = new THREE.MeshBasicMaterial({
         color: chunkColor, transparent: true, opacity: 0.9,
         map: schoolTex, blending: THREE.AdditiveBlending, depthWrite: false
       });
-      const chunk = new THREE.Mesh(geo, mat);
+      const chunk = new THREE.Mesh(_sphereGeo6, mat);
+      chunk.scale.setScalar(chunkSize);
       chunk.position.set(0, 0.3, 0);
       chunk.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
       group.add(chunk);
@@ -1869,9 +1883,9 @@ export class SpellEffects {
     const particles = [];
     for (let i = 0; i < particleCount; i++) {
       const pSize = 0.06 + Math.random() * 0.1;
-      const geo = new THREE.SphereGeometry(pSize, 6, 6);
       const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8 });
-      const p = new THREE.Mesh(geo, mat);
+      const p = new THREE.Mesh(_sphereGeo6, mat);
+      p.scale.setScalar(pSize);
       const angle = (i / particleCount) * Math.PI * 2;
       const dist = 0.5 + Math.random() * 1.5;
       p.position.set(Math.cos(angle) * dist, 0.3, Math.sin(angle) * dist);
@@ -1995,9 +2009,10 @@ export class SpellEffects {
     // Rising light motes
     const motes = [];
     for (let i = 0; i < 12; i++) {
-      const mGeo = new THREE.SphereGeometry(0.08 + Math.random() * 0.06, 6, 6);
+      const mSize = 0.08 + Math.random() * 0.06;
       const mMat = new THREE.MeshBasicMaterial({ color: 0xffffdd, transparent: true, opacity: 0.8 });
-      const m = new THREE.Mesh(mGeo, mMat);
+      const m = new THREE.Mesh(_sphereGeo6, mMat);
+      m.scale.setScalar(mSize);
       const a = Math.random() * Math.PI * 2;
       const d = Math.random() * radius;
       m.position.set(Math.cos(a) * d, Math.random() * height * 0.5, Math.sin(a) * d);
@@ -2065,10 +2080,11 @@ export class SpellEffects {
     // Embers flying upward
     const embers = [];
     for (let i = 0; i < 16; i++) {
-      const eGeo = new THREE.SphereGeometry(0.05 + Math.random() * 0.08, 4, 4);
+      const eSize = 0.05 + Math.random() * 0.08;
       const eColor = Math.random() > 0.5 ? 0xffaa22 : 0xff4400;
       const eMat = new THREE.MeshBasicMaterial({ color: eColor, transparent: true, opacity: 0.9 });
-      const ember = new THREE.Mesh(eGeo, eMat);
+      const ember = new THREE.Mesh(_sphereGeo4, eMat);
+      ember.scale.setScalar(eSize);
       const a = Math.random() * Math.PI * 2;
       const d = Math.random() * radius * 0.8;
       ember.position.set(Math.cos(a) * d, Math.random() * height * 0.3, Math.sin(a) * d);
@@ -2240,14 +2256,15 @@ export class SpellEffects {
     // Debris particles orbiting (textured spheres instead of plain boxes)
     const orbitParticles = [];
     for (let i = 0; i < 20; i++) {
-      const pGeo = new THREE.SphereGeometry(0.1 + Math.random() * 0.08, 6, 6);
+      const pSize = 0.1 + Math.random() * 0.08;
       const pColor = school === 'frost' ? 0x88ccff : school === 'holy' ? 0xffd700
         : school === 'shadow' ? 0x6622aa : school === 'fire' ? 0xff6633 : 0x998877;
       const pMat = new THREE.MeshBasicMaterial({
         color: pColor, transparent: true, opacity: 0.7,
         map: schoolTex, blending: THREE.AdditiveBlending, depthWrite: false
       });
-      const p = new THREE.Mesh(pGeo, pMat);
+      const p = new THREE.Mesh(_sphereGeo6, pMat);
+      p.scale.setScalar(pSize);
       const a = Math.random() * Math.PI * 2;
       const py = Math.random() * height;
       const pr = radius * (0.3 + Math.random() * 0.7);
@@ -2322,12 +2339,13 @@ export class SpellEffects {
     // Rising wisps (textured)
     const wisps = [];
     for (let i = 0; i < 8; i++) {
-      const wGeo = new THREE.SphereGeometry(0.06 + Math.random() * 0.04, 6, 6);
+      const wSize = 0.06 + Math.random() * 0.04;
       const wMat = new THREE.MeshBasicMaterial({
         color, transparent: true, opacity: 0.7,
         map: schoolTex, blending: THREE.AdditiveBlending, depthWrite: false
       });
-      const w = new THREE.Mesh(wGeo, wMat);
+      const w = new THREE.Mesh(_sphereGeo6, wMat);
+      w.scale.setScalar(wSize);
       const a = (i / 8) * Math.PI * 2;
       const d = radius * (0.4 + Math.random() * 0.5);
       w.position.set(Math.cos(a) * d, 0, Math.sin(a) * d);
@@ -2406,12 +2424,13 @@ export class SpellEffects {
     // Cold mist particles
     const mist = [];
     for (let i = 0; i < 10; i++) {
-      const mGeo = new THREE.SphereGeometry(0.2 + Math.random() * 0.3, 6, 6);
+      const mSize = 0.2 + Math.random() * 0.3;
       const mMat = new THREE.MeshBasicMaterial({ color: 0xccddff, transparent: true, opacity: 0.3 });
-      const m = new THREE.Mesh(mGeo, mMat);
+      const m = new THREE.Mesh(_sphereGeo6, mMat);
+      m.scale.setScalar(mSize);
       m.position.set((Math.random() - 0.5) * 4, 0.3 + Math.random() * 0.5, (Math.random() - 0.5) * 4);
       group.add(m);
-      mist.push({ mesh: m, drift: new THREE.Vector3((Math.random() - 0.5) * 0.5, 0.2, (Math.random() - 0.5) * 0.5) });
+      mist.push({ mesh: m, baseSize: mSize, drift: new THREE.Vector3((Math.random() - 0.5) * 0.5, 0.2, (Math.random() - 0.5) * 0.5) });
     }
 
     this.activeEffects.push({
@@ -2439,7 +2458,7 @@ export class SpellEffects {
       m.mesh.position.add(m.drift.clone().multiplyScalar(dt));
       m.mesh.material.opacity = 0.3 * life;
       const sc = 1 + effect.age * 0.3;
-      m.mesh.scale.setScalar(sc);
+      m.mesh.scale.setScalar(m.baseSize * sc);
     }
 
     if (effect.age >= effect.maxAge) effect._remove = true;
@@ -2477,9 +2496,9 @@ export class SpellEffects {
     const tendrils = [];
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2;
-      const tGeo = new THREE.SphereGeometry(0.12, 6, 6);
       const tMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.6 });
-      const t = new THREE.Mesh(tGeo, tMat);
+      const t = new THREE.Mesh(_sphereGeo6, tMat);
+      t.scale.setScalar(0.12);
       group.add(t);
       tendrils.push({ mesh: t, angle: a, r: 0 });
     }
@@ -2622,13 +2641,14 @@ export class SpellEffects {
       const pos = start.clone().lerp(end, t);
       pos.x += (Math.random() - 0.5) * 1.5;
       pos.z += (Math.random() - 0.5) * 1.5;
-      const pGeo = new THREE.SphereGeometry(0.1 + Math.random() * 0.2, 4, 4);
+      const pSize = 0.1 + Math.random() * 0.2;
       const pMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.6 });
-      const p = new THREE.Mesh(pGeo, pMat);
+      const p = new THREE.Mesh(_sphereGeo4, pMat);
+      p.scale.setScalar(pSize);
       p.position.copy(pos);
       group.add(p);
       trailParticles.push({
-        mesh: p, riseSpeed: 1 + Math.random() * 2, drift: (Math.random() - 0.5) * 1
+        mesh: p, baseSize: pSize, riseSpeed: 1 + Math.random() * 2, drift: (Math.random() - 0.5) * 1
       });
     }
 
@@ -2646,7 +2666,7 @@ export class SpellEffects {
       p.mesh.position.x += p.drift * dt;
       p.mesh.material.opacity = life * 0.6;
       const sc = 1 + effect.age * 2;
-      p.mesh.scale.setScalar(sc);
+      p.mesh.scale.setScalar(p.baseSize * sc);
     }
 
     if (effect.age >= effect.maxAge) effect._remove = true;
@@ -2667,9 +2687,9 @@ export class SpellEffects {
     for (let i = 0; i < 16; i++) {
       const a = (i / 16) * Math.PI * 2;
       const d = 3 + Math.random() * 2;
-      const pGeo = new THREE.SphereGeometry(0.08, 4, 4);
       const pMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8 });
-      const p = new THREE.Mesh(pGeo, pMat);
+      const p = new THREE.Mesh(_sphereGeo4, pMat);
+      p.scale.setScalar(0.08);
       p.position.set(Math.cos(a) * d, 1 + Math.random() * 2, Math.sin(a) * d);
       group.add(p);
       particles.push({ mesh: p, startX: Math.cos(a) * d, startZ: Math.sin(a) * d, startY: p.position.y });
@@ -2755,12 +2775,13 @@ export class SpellEffects {
     for (let i = 0; i < 12; i++) {
       const a = (i / 12) * Math.PI * 2;
       const d = radius * (0.5 + Math.random() * 0.4);
-      const wGeo = new THREE.SphereGeometry(0.1 + Math.random() * 0.08, 6, 6);
+      const wSize = 0.1 + Math.random() * 0.08;
       const wMat = new THREE.MeshBasicMaterial({
         color, transparent: true, opacity: 0.0,
         map: schoolTex, blending: THREE.AdditiveBlending, depthWrite: false
       });
-      const w = new THREE.Mesh(wGeo, wMat);
+      const w = new THREE.Mesh(_sphereGeo6, wMat);
+      w.scale.setScalar(wSize);
       w.position.set(Math.cos(a) * d, 0, Math.sin(a) * d);
       group.add(w);
       wisps.push({ mesh: w, angle: a, dist: d, phase: Math.random() * Math.PI * 2 });

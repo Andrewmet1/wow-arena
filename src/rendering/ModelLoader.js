@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { resolveModelPath, getAllModelPaths, ASSET_MANIFEST } from './AssetManifest.js';
 
 // Singleton loader instances
@@ -72,12 +73,21 @@ export async function loadModel(path) {
 }
 
 /**
- * Clone a cached model for instancing. Deep clones geometry and materials.
+ * Clone a cached model for instancing.
+ * Uses SkeletonUtils.clone() for models with SkinnedMesh (preserves bone refs),
+ * falls back to naive .clone(true) for simple models.
  * @param {THREE.Group} original
  * @returns {THREE.Group}
  */
 export function cloneModel(original) {
-  const clone = original.clone(true);
+  // Check if model has SkinnedMesh — must use SkeletonUtils.clone()
+  let hasSkinned = false;
+  original.traverse(node => {
+    if (node.isSkinnedMesh) hasSkinned = true;
+  });
+
+  const clone = hasSkinned ? SkeletonUtils.clone(original) : original.clone(true);
+
   // Deep-clone materials so instances can be tinted independently
   clone.traverse((child) => {
     if (child.isMesh) {

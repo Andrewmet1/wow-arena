@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
@@ -46,7 +45,7 @@ export class SceneManager {
     });
 
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(1); // Force 1x — skinned meshes are GPU-heavy
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 2.5;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -63,8 +62,8 @@ export class SceneManager {
     const moonlight = new THREE.DirectionalLight(0xeeeeff, 4.0);
     moonlight.position.set(20, 40, 10);
     moonlight.castShadow = true;
-    moonlight.shadow.mapSize.width = 2048;
-    moonlight.shadow.mapSize.height = 2048;
+    moonlight.shadow.mapSize.width = 1024;
+    moonlight.shadow.mapSize.height = 1024;
     moonlight.shadow.camera.near = 0.5;
     moonlight.shadow.camera.far = 80;
     moonlight.shadow.camera.left = -40;
@@ -99,28 +98,24 @@ export class SceneManager {
     this.scene.environment = envTexture;
     pmremGenerator.dispose();
 
-    // Post-processing pipeline
+    // Post-processing pipeline (SSAO disabled — too expensive for 200K+ vertex skinned meshes)
     const renderPass = new RenderPass(this.scene, this.camera);
 
-    // SSAO — screen-space ambient occlusion for depth
-    const ssaoPass = new SSAOPass(this.scene, this.camera, window.innerWidth, window.innerHeight);
-    ssaoPass.kernelRadius = 12;
-    ssaoPass.minDistance = 0.001;
-    ssaoPass.maxDistance = 0.15;
-    ssaoPass.output = SSAOPass.OUTPUT.Default;
-
-    // Selective bloom — only emissive elements above threshold glow
+    // Bloom at half resolution for performance
+    const halfRes = new THREE.Vector2(
+      Math.floor(window.innerWidth / 2),
+      Math.floor(window.innerHeight / 2)
+    );
     const bloomPass = new UnrealBloomPass(
-      new THREE.Vector2(window.innerWidth, window.innerHeight),
-      0.4,    // strength (subtle)
+      halfRes,
+      0.35,   // strength (subtle)
       0.3,    // radius
-      0.85    // threshold (high = only bright emissive things bloom)
+      0.9     // threshold (high = only bright emissive things bloom)
     );
     const outputPass = new OutputPass();
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(renderPass);
-    this.composer.addPass(ssaoPass);
     this.composer.addPass(bloomPass);
     this.composer.addPass(outputPass);
     this.useComposer = true;

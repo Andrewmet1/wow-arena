@@ -39,6 +39,107 @@
     font-size: 11px; color: #888; z-index: 10; font-family: monospace;
   }
   #info span { color: #f0c040; }
+
+  /* Assignment UI */
+  .ability-section-header {
+    font-size: 10px; color: #666; text-transform: uppercase;
+    letter-spacing: 1px; margin: 8px 0 3px; padding: 2px 0;
+    border-bottom: 1px solid #333;
+  }
+  .ability-row {
+    display: flex; align-items: center; gap: 4px;
+    padding: 3px 6px; border-radius: 3px; cursor: pointer;
+    font-size: 11px; margin: 1px 0; transition: all 0.15s;
+    border: 1px solid transparent;
+  }
+  .ability-row:hover { background: #2a2a3a; }
+  .ability-row.selected { background: #3a2a1a; border-color: #f0c040; }
+  .ability-row .play-btn {
+    background: none; border: none; color: #666; cursor: pointer;
+    font-size: 10px; padding: 1px 3px; border-radius: 2px; flex-shrink: 0;
+  }
+  .ability-row .play-btn:hover { color: #f0c040; background: #333; }
+  .ability-row .ability-name {
+    flex: 1; color: #bbb; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; font-size: 11px;
+  }
+  .ability-row .ability-arrow { color: #444; font-size: 9px; flex-shrink: 0; }
+  .ability-row .ability-assign {
+    color: #7a7; font-size: 10px; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; max-width: 85px; text-align: right;
+  }
+  .ability-row.selected .ability-assign { color: #f0c040; }
+  #ability-list {
+    max-height: 280px; overflow-y: auto;
+    scrollbar-width: thin; scrollbar-color: #444 #222;
+  }
+  #ability-list::-webkit-scrollbar { width: 5px; }
+  #ability-list::-webkit-scrollbar-track { background: #222; }
+  #ability-list::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+
+  .anim-pool {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 3px;
+    max-height: 180px; overflow-y: auto; margin: 4px 0;
+    scrollbar-width: thin; scrollbar-color: #444 #222;
+  }
+  .anim-pool::-webkit-scrollbar { width: 5px; }
+  .anim-pool::-webkit-scrollbar-track { background: #222; }
+  .anim-pool::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+  .pool-btn {
+    font-size: 10px !important; padding: 3px 5px !important;
+    text-align: left !important;
+  }
+  .pool-btn.assigned {
+    background: #2a3a2a !important; border-color: #4a8a4a !important; color: #8c8 !important;
+  }
+  .pool-btn.previewing {
+    background: #3a3a1a !important; border-color: #f0c040 !important;
+  }
+  .pool-btn.unavailable { opacity: 0.3; cursor: not-allowed; }
+  .pool-category-header {
+    font-size: 9px; color: #888; text-transform: uppercase;
+    letter-spacing: 1px; margin: 8px 0 3px; padding: 2px 0;
+    border-bottom: 1px solid #444; font-weight: bold;
+  }
+  .pool-category-header:first-child { margin-top: 0; }
+  .assign-actions { display: flex; gap: 4px; margin-top: 6px; }
+  .assign-actions .btn { flex: 1; font-size: 11px !important; }
+  .export-btn {
+    background: #1a3a1a !important;
+    border-color: #448844 !important; color: #88cc88 !important;
+  }
+  .export-btn:hover { background: #2a4a2a !important; }
+  .reset-btn {
+    background: #2a1a1a !important;
+    border-color: #884444 !important; color: #cc8888 !important;
+  }
+  .reset-btn:hover { background: #3a2a2a !important; }
+  .ability-row.flash { background: #2a4a2a; border-color: #4a8a4a; transition: none; }
+  .has-changes { color: #f0c040 !important; font-style: italic; }
+
+  /* Weapon section */
+  .weapon-status {
+    font-size: 11px; padding: 4px 6px; border-radius: 3px;
+    margin: 4px 0; background: #1a1a2a;
+  }
+  .weapon-status.attached { color: #8c8; }
+  .weapon-status.detached { color: #c88; }
+  .weapon-status.baked { color: #88c; }
+  .offset-grid {
+    display: grid; grid-template-columns: auto 1fr; gap: 2px 6px;
+    align-items: center; margin: 4px 0;
+  }
+  .offset-grid label { font-size: 10px; color: #888; text-align: right; }
+  .offset-grid input[type="range"] { width: 100%; accent-color: #f0c040; height: 14px; }
+  .offset-val { font-size: 9px; color: #666; text-align: right; min-width: 36px; }
+  .weapon-actions { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+  .weapon-actions .btn { flex: 1; font-size: 11px !important; min-width: 70px; }
+  .attach-btn { background: #1a2a3a !important; border-color: #4488aa !important; color: #88ccee !important; }
+  .attach-btn:hover { background: #2a3a4a !important; }
+  .detach-btn { background: #2a1a1a !important; border-color: #884444 !important; color: #cc8888 !important; }
+  .detach-btn:hover { background: #3a2a2a !important; }
+  .save-offset-btn { background: #1a3a1a !important; border-color: #448844 !important; color: #88cc88 !important; }
+  .save-offset-btn:hover { background: #2a4a2a !important; }
 </style>
 </head>
 <body>
@@ -52,9 +153,9 @@
 
   <h2>View Mode</h2>
   <div class="btn-row">
-    <button class="btn active" data-mode="raw" onclick="setViewMode('raw')">Raw Model</button>
-    <button class="btn" data-mode="rigged" onclick="setViewMode('rigged')">Auto-Rigged</button>
-    <button class="btn" data-mode="procedural" onclick="setViewMode('procedural')">Procedural</button>
+    <button class="btn" data-mode="raw" onclick="setViewMode('raw')">Raw</button>
+    <button class="btn" data-mode="rigged" onclick="setViewMode('rigged')">Rigged</button>
+    <button class="btn active" data-mode="animated" onclick="setViewMode('animated')">Animated</button>
   </div>
 
   <h2>Display</h2>
@@ -79,16 +180,88 @@
     <input type="checkbox" id="toggle-grid" checked onchange="toggleGrid(this.checked)">
   </div>
 
-  <h2>Animation Test</h2>
-  <div class="btn-row">
-    <button class="btn" onclick="playAnim('idle')">Idle</button>
+  <h2 id="anim-header">Animation</h2>
+  <div class="btn-row" id="anim-buttons">
+    <button class="btn active" onclick="playAnim('idle')">Idle</button>
     <button class="btn" onclick="playAnim('walk')">Walk</button>
+    <button class="btn" onclick="playAnim('attack')">Attack</button>
+    <button class="btn" onclick="playAnim('cast')">Cast</button>
     <button class="btn" onclick="playAnim('roll')">Roll</button>
     <button class="btn" onclick="playAnim('hit')">Hit</button>
     <button class="btn" onclick="playAnim('death')">Death</button>
     <button class="btn" onclick="playAnim('stun')">Stun</button>
     <button class="btn" onclick="playAnim('fear')">Fear</button>
-    <button class="btn" onclick="playAnim('none')">T-Pose</button>
+  </div>
+  <div id="meshy-anim-section" style="display: none;">
+    <div id="ability-list"></div>
+    <h2 style="margin-top: 8px;">Animation Pool</h2>
+    <div id="anim-pool" class="anim-pool"></div>
+    <div id="meshy-anim-status" style="font-size: 11px; color: #666; margin-top: 4px;"></div>
+    <div class="assign-actions">
+      <button class="btn export-btn" onclick="saveToFile()">Save to File</button>
+      <button class="btn reset-btn" onclick="resetMappings()">Reset Class</button>
+    </div>
+  </div>
+
+  <h2>Weapons</h2>
+  <div id="weapon-section">
+    <div class="toggle-row">
+      <label>Weapons Baked In</label>
+      <input type="checkbox" id="toggle-baked" onchange="toggleBakedIn(this.checked)">
+    </div>
+    <div id="weapon-status" class="weapon-status detached">No weapon attached</div>
+    <div class="weapon-actions">
+      <button class="btn attach-btn" onclick="attachWeapon()">Attach</button>
+      <button class="btn detach-btn" onclick="detachWeapon()">Detach</button>
+    </div>
+    <div class="toggle-row" style="margin-top: 6px;">
+      <label>Editing</label>
+      <select id="weapon-type-select" onchange="switchWeaponType(this.value)" style="background:#2a2a3a;border:1px solid #444;color:#ddd;padding:3px 6px;border-radius:3px;font-size:11px;flex:1;">
+      </select>
+    </div>
+    <div id="weapon-offsets" style="display: none;">
+      <h2 style="margin-top: 8px;">Weapon Offset</h2>
+      <div class="offset-grid">
+        <label>Pos X</label>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <input type="range" min="-0.5" max="0.5" step="0.005" value="0" id="wpn-px" oninput="updateWeaponOffset()">
+          <span class="offset-val" id="wpn-px-val">0</span>
+        </div>
+        <label>Pos Y</label>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <input type="range" min="-0.5" max="0.5" step="0.005" value="0" id="wpn-py" oninput="updateWeaponOffset()">
+          <span class="offset-val" id="wpn-py-val">0</span>
+        </div>
+        <label>Pos Z</label>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <input type="range" min="-0.5" max="0.5" step="0.005" value="0" id="wpn-pz" oninput="updateWeaponOffset()">
+          <span class="offset-val" id="wpn-pz-val">0</span>
+        </div>
+        <label>Rot X</label>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <input type="range" min="-3.14159" max="3.14159" step="0.05" value="0" id="wpn-rx" oninput="updateWeaponOffset()">
+          <span class="offset-val" id="wpn-rx-val">0</span>
+        </div>
+        <label>Rot Y</label>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <input type="range" min="-3.14159" max="3.14159" step="0.05" value="0" id="wpn-ry" oninput="updateWeaponOffset()">
+          <span class="offset-val" id="wpn-ry-val">0</span>
+        </div>
+        <label>Rot Z</label>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <input type="range" min="-3.14159" max="3.14159" step="0.05" value="0" id="wpn-rz" oninput="updateWeaponOffset()">
+          <span class="offset-val" id="wpn-rz-val">0</span>
+        </div>
+        <label>Scale</label>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <input type="range" min="0.1" max="5" step="0.05" value="1" id="wpn-sc" oninput="updateWeaponOffset()">
+          <span class="offset-val" id="wpn-sc-val">1</span>
+        </div>
+      </div>
+      <div class="weapon-actions">
+        <button class="btn save-offset-btn" onclick="saveWeaponOffset()">Save Offset</button>
+      </div>
+    </div>
   </div>
 
   <h2>Scale</h2>
@@ -127,6 +300,9 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { rigWithMixamoSkeleton } from '/src/rendering/SkeletonTransfer.js';
+import { getClassAnimations } from '/src/rendering/AnimationFactory.js';
+import { CLASS_ANIMATIONS, SHARED_ANIMATIONS, resolveAnimationPath, ASSET_MANIFEST, getWeaponOffset, resolveModelPath } from '/src/rendering/AssetManifest.js';
 
 // ── State ──
 let scene, camera, renderer, controls, clock;
@@ -135,12 +311,20 @@ let skeletonHelper = null;
 let bboxHelper = null;
 let gridHelper = null;
 let autoRotate = true;
-let currentAnim = 'idle';
 let currentClass = 'tyrant';
-let viewMode = 'raw';
+let viewMode = 'animated';
 let modelScale = 2.5;
 let camHeight = 3;
 let camDist = 8;
+
+// AnimationMixer state
+let mixer = null;
+let mixerActions = {};
+let currentAction = null;
+let activeBaseAction = null;
+
+// Meshy animation clip cache: { "tyrant/idle": AnimationClip, ... }
+const meshyClipCache = {};
 
 const CLASSES = ['tyrant', 'wraith', 'infernal', 'harbinger', 'revenant'];
 const CLASS_COLORS = {
@@ -148,7 +332,51 @@ const CLASS_COLORS = {
   harbinger: '#44ff44', revenant: '#ffdd66'
 };
 
-const loader = new GLTFLoader();
+// Base state animations shared across all classes
+const BASE_MESHY_ANIMS = ['idle', 'run', 'death', 'hit', 'dodge', 'stun', 'jump'];
+
+// Per-class ability animation names
+const CLASS_ABILITY_ANIMS = {
+  tyrant: [
+    'ravaging_cleave', 'bloodrage_strike', 'brutal_slam', 'iron_cyclone',
+    'shatter_guard', 'warbringer_rush', 'crippling_strike', 'crushing_descent',
+    'iron_resolve', 'warborn_rally', 'skull_crack', 'thunder_spike',
+  ],
+  wraith: [
+    'viper_lash', 'throat_opener', 'grim_flurry', 'nerve_strike',
+    'serrated_wound', 'blackjack', 'veil_of_night', 'shade_shift',
+    'phantasm_dodge', 'umbral_shroud', 'blood_tincture', 'throat_jab',
+    'frenzy_edge', 'shadowmeld',
+  ],
+  infernal: [
+    'inferno_bolt', 'cataclysm_flare', 'searing_pulse', 'glacial_lance',
+    'permafrost_burst', 'phase_shift', 'pyroclasm', 'crystalline_ward',
+    'cauterize', 'arcane_bulwark', 'spell_fracture', 'scaldwind',
+    'ember_brand', 'scorched_earth', 'ring_of_frost',
+  ],
+  harbinger: [
+    'hex_blight', 'creeping_torment', 'volatile_hex', 'siphon_essence',
+    'hex_rupture', 'dread_howl', 'wraith_bolt', 'nether_slam',
+    'blood_tithe', 'warded_flesh', 'rift_anchor', 'hex_silence',
+    'soul_ignite', 'shadowfury', 'abyssal_ground',
+  ],
+  revenant: [
+    'hallowed_strike', 'divine_reckoning', 'radiant_verdict', 'sanctified_gale',
+    'ember_wake', 'gavel_of_light', 'binding_prayer', 'aegis_of_dawn',
+    'sovereign_mend', 'holy_restoration', 'unchained_grace', 'sanctified_rebuff',
+    'valiant_charge',
+  ],
+};
+
+// Get full animation list for a class
+function getKnownAnims(classId) {
+  return [...BASE_MESHY_ANIMS, ...(CLASS_ABILITY_ANIMS[classId] || [])];
+}
+
+// Looping clips crossfade between each other. One-shots play once and return to idle.
+const LOOPING_CLIPS = new Set(['idle', 'walk', 'run', 'stun', 'fear']);
+
+const gltfLoader = new GLTFLoader();
 
 // ── Init ──
 function init() {
@@ -165,7 +393,6 @@ function init() {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x1a1a2e);
 
-  // Env map
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
   pmrem.dispose();
@@ -201,7 +428,6 @@ function init() {
   ground.receiveShadow = true;
   scene.add(ground);
 
-  // Grid
   gridHelper = new THREE.GridHelper(20, 20, 0x444466, 0x333344);
   gridHelper.position.y = 0.01;
   scene.add(gridHelper);
@@ -224,164 +450,1040 @@ function init() {
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
 
+  updateAnimSections();
   loadModel('tyrant');
   animate();
+}
+
+// ── Animation Assignment UI ──
+let selectedAbility = null;
+let localMappings = {};
+let availableSharedKeys = new Set();
+
+const STORAGE_KEY = 'ebon_crucible_anim_mappings';
+
+function loadSavedMappings() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      localMappings = JSON.parse(saved);
+      console.log('[AnimUI] Loaded saved mappings from localStorage');
+    }
+  } catch (e) {
+    console.warn('[AnimUI] Failed to load saved mappings:', e);
+  }
+}
+
+function saveMappings() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(localMappings));
+  } catch (e) {
+    console.warn('[AnimUI] Failed to save mappings:', e);
+  }
+}
+
+// Load saved mappings immediately
+loadSavedMappings();
+
+// Scan which shared animation GLB files exist on disk
+async function scanAvailableSharedAnims() {
+  const available = new Set();
+  const checks = Object.keys(SHARED_ANIMATIONS).map(async (key) => {
+    if (SHARED_ANIMATIONS[key] === '__procedural__') { available.add(key); return; }
+    const url = resolveAnimationPath(key);
+    if (!url) return;
+    try {
+      const res = await fetch(url, { method: 'HEAD' });
+      if (res.ok) available.add(key);
+    } catch {}
+  });
+  await Promise.all(checks);
+  return available;
+}
+
+function buildAssignmentUI(classId, available) {
+  availableSharedKeys = available;
+  if (!localMappings[classId]) {
+    localMappings[classId] = { ...(CLASS_ANIMATIONS[classId] || {}) };
+  }
+  const mapping = localMappings[classId];
+  selectedAbility = null;
+
+  // Build ability list
+  const listEl = document.getElementById('ability-list');
+  listEl.innerHTML = '';
+
+  // Base states
+  const baseHeader = document.createElement('div');
+  baseHeader.className = 'ability-section-header';
+  baseHeader.textContent = 'Base States';
+  listEl.appendChild(baseHeader);
+  for (const name of BASE_MESHY_ANIMS) {
+    listEl.appendChild(createAbilityRow(name, mapping[name]));
+  }
+
+  // Class abilities
+  const abilities = CLASS_ABILITY_ANIMS[classId] || [];
+  if (abilities.length) {
+    const abilityHeader = document.createElement('div');
+    abilityHeader.className = 'ability-section-header';
+    abilityHeader.textContent = 'Abilities';
+    listEl.appendChild(abilityHeader);
+    for (const name of abilities) {
+      listEl.appendChild(createAbilityRow(name, mapping[name]));
+    }
+  }
+
+  // Build shared animation pool, grouped by category
+  const ANIM_CATEGORIES = {
+    'Idle / Stance': ['rest_pose', 'idle', 'idle_02', 'idle_03', 'combat_stance', 'alert', 'axe_stance'],
+    'Run / Move': ['run', 'run_03', 'run_fast', 'lean_forward_sprint', 'walk_fight_forward', 'walk_fight_back', 'walk_backward', 'injured_walk', 'sneaky_walk', 'standard_forward_charge', 'run_and_shoot'],
+    'Melee Attacks': ['attack', 'left_slash', 'reaping_swing', 'rightward_spin', 'sword_judgment', 'heavy_hammer_swing', 'kung_fu_punch', 'counterstrike', 'double_blade_spin', 'double_combo_attack', 'triple_combo_attack', 'punch_combo', 'weapon_combo', 'right_hand_sword_slash', 'charged_upward_slash', 'axe_spin_attack', 'charged_slash'],
+    'Kicks / Unarmed': ['simple_kick', 'spartan_kick', 'roundhouse_kick', 'elbow_strike', 'leg_sweep'],
+    'Spell Casts': ['charged_spell_cast', 'mage_spell_cast', 'mage_spell_cast_3', 'mage_spell_cast_5', 'mage_spell_cast_8', 'charged_ground_slam', 'skill_01', 'skill_02', 'skill_03'],
+    'Defense / Parry': ['block', 'sword_parry', 'two_handed_parry', 'shield_push', 'sword_shout', 'chest_pound_taunt'],
+    'Dodge / Acrobatic': ['stand_dodge', 'roll_dodge', 'dodge_and_counter', 'quick_step_spin_dodge', 'backflip', 'basic_jump'],
+    'Hit / Death': ['hit_reaction', 'hit_reaction_1', 'behit_flyup', 'electrocution_reaction', 'knock_down', 'electrocuted_fall', 'angry_ground_stomp', 'dead', 'dying_backwards', 'shot_and_fall_forward', 'shot_and_slow_fall_backward'],
+  };
+  // Collect any keys not in a category
+  const categorized = new Set(Object.values(ANIM_CATEGORIES).flat());
+  const uncategorized = Object.keys(SHARED_ANIMATIONS).filter(k => !categorized.has(k));
+  if (uncategorized.length) ANIM_CATEGORIES['Other'] = uncategorized;
+
+  const poolEl = document.getElementById('anim-pool');
+  poolEl.innerHTML = '';
+  for (const [category, keys] of Object.entries(ANIM_CATEGORIES)) {
+    const header = document.createElement('div');
+    header.className = 'pool-category-header';
+    header.textContent = category;
+    poolEl.appendChild(header);
+    for (const key of keys) {
+      if (!SHARED_ANIMATIONS[key]) continue;
+      const btn = document.createElement('button');
+      btn.className = 'btn pool-btn';
+      btn.textContent = key.replace(/_/g, ' ');
+      btn.dataset.shared = key;
+      if (!available.has(key)) {
+        btn.classList.add('unavailable');
+        btn.title = 'GLB not found on disk';
+      } else {
+        btn.onclick = () => poolAnimClick(key);
+      }
+      poolEl.appendChild(btn);
+    }
+  }
+
+  updatePoolHighlights();
+  const statusEl = document.getElementById('meshy-anim-status');
+  statusEl.textContent = `${available.size}/${Object.keys(SHARED_ANIMATIONS).length} shared clips available — select an ability then click a pool animation to assign`;
+}
+
+function createAbilityRow(name, assignedKey) {
+  const row = document.createElement('div');
+  row.className = 'ability-row';
+  row.dataset.ability = name;
+
+  const playBtn = document.createElement('button');
+  playBtn.className = 'play-btn';
+  playBtn.innerHTML = '&#9654;';
+  playBtn.title = 'Preview';
+  playBtn.onclick = (e) => { e.stopPropagation(); previewAbility(name); };
+
+  const nameSpan = document.createElement('span');
+  nameSpan.className = 'ability-name';
+  nameSpan.textContent = name.replace(/_/g, ' ');
+
+  const arrow = document.createElement('span');
+  arrow.className = 'ability-arrow';
+  arrow.innerHTML = '&rarr;';
+
+  const assignSpan = document.createElement('span');
+  assignSpan.className = 'ability-assign';
+  assignSpan.textContent = assignedKey || '(none)';
+
+  row.append(playBtn, nameSpan, arrow, assignSpan);
+  row.onclick = () => selectAbility(name);
+  return row;
+}
+
+function selectAbility(name) {
+  selectedAbility = name;
+  document.querySelectorAll('.ability-row').forEach(r => {
+    r.classList.toggle('selected', r.dataset.ability === name);
+  });
+  updatePoolHighlights();
+  previewAbility(name);
+}
+
+function updatePoolHighlights() {
+  const mapping = localMappings[currentClass] || {};
+  const assignedKey = selectedAbility ? mapping[selectedAbility] : null;
+  document.querySelectorAll('.pool-btn').forEach(btn => {
+    btn.classList.toggle('assigned', btn.dataset.shared === assignedKey);
+    btn.classList.remove('previewing');
+  });
+}
+
+function previewAbility(name) {
+  const mapping = localMappings[currentClass] || {};
+  const sharedKey = mapping[name];
+  if (sharedKey) previewSharedAnim(sharedKey);
+}
+
+async function loadSharedClip(sharedKey) {
+  if (meshyClipCache[sharedKey]) return meshyClipCache[sharedKey].clone();
+
+  // Procedural rest pose: 1-second empty clip (character stays in bind pose)
+  if (SHARED_ANIMATIONS[sharedKey] === '__procedural__') {
+    const clip = new THREE.AnimationClip(sharedKey, 1.0, []);
+    meshyClipCache[sharedKey] = clip;
+    return clip.clone();
+  }
+
+  const url = resolveAnimationPath(sharedKey);
+  if (!url) return null;
+
+  const statusEl = document.getElementById('meshy-anim-status');
+  statusEl.textContent = `Loading ${sharedKey}...`;
+
+  const gltf = await new Promise((resolve, reject) => {
+    gltfLoader.load(url, resolve, undefined, reject);
+  });
+
+  let clip = null;
+  if (gltf.animations.length > 0) {
+    clip = gltf.animations[0];
+    clip.name = sharedKey;
+  }
+
+  // Dispose loaded geometry — we only need the clip
+  gltf.scene.traverse(c => {
+    if (c.isMesh || c.isSkinnedMesh) {
+      c.geometry.dispose();
+      const mats = Array.isArray(c.material) ? c.material : [c.material];
+      for (const m of mats) {
+        if (!m) continue;
+        if (m.map) m.map.dispose();
+        if (m.normalMap) m.normalMap.dispose();
+        if (m.roughnessMap) m.roughnessMap.dispose();
+        if (m.metalnessMap) m.metalnessMap.dispose();
+        m.dispose();
+      }
+    }
+  });
+
+  if (clip) meshyClipCache[sharedKey] = clip;
+  return clip ? clip.clone() : null;
+}
+
+async function previewSharedAnim(sharedKey) {
+  if (!mixer) return;
+
+  // Highlight in pool
+  document.querySelectorAll('.pool-btn').forEach(btn => {
+    btn.classList.toggle('previewing', btn.dataset.shared === sharedKey);
+  });
+
+  try {
+    const clip = await loadSharedClip(sharedKey);
+    if (!clip) {
+      document.getElementById('meshy-anim-status').textContent = `No clip in ${sharedKey}`;
+      return;
+    }
+    clip.name = sharedKey;
+
+    const action = mixer.clipAction(clip);
+    const LOOPING_SHARED = new Set(['idle', 'run', 'combat_stance', 'lean_forward_sprint', 'run_and_shoot', 'block']);
+    const DEATH_SHARED = new Set(['dead', 'dying_backwards', 'shot_and_fall_forward', 'shot_and_slow_fall_backward']);
+    const isLooping = LOOPING_SHARED.has(sharedKey);
+    const isDeath = DEATH_SHARED.has(sharedKey);
+
+    if (currentAction) currentAction.fadeOut(0.3);
+
+    action.reset();
+    action.setLoop(isLooping ? THREE.LoopRepeat : THREE.LoopOnce);
+    action.clampWhenFinished = isDeath;
+    action.setEffectiveWeight(1);
+    action.fadeIn(0.3);
+    action.play();
+
+    if (isLooping) activeBaseAction = action;
+    currentAction = action;
+
+    document.getElementById('meshy-anim-status').textContent = `Playing: ${sharedKey}`;
+  } catch (err) {
+    console.error(`Failed to preview ${sharedKey}:`, err);
+    document.getElementById('meshy-anim-status').textContent = `Error: ${err.message}`;
+  }
+}
+
+function poolAnimClick(sharedKey) {
+  // If an ability is selected, assign this animation to it
+  if (selectedAbility) {
+    if (!localMappings[currentClass]) {
+      localMappings[currentClass] = { ...(CLASS_ANIMATIONS[currentClass] || {}) };
+    }
+    localMappings[currentClass][selectedAbility] = sharedKey;
+    saveMappings();
+
+    // Update the ability row display
+    const row = document.querySelector(`.ability-row[data-ability="${selectedAbility}"]`);
+    if (row) {
+      row.querySelector('.ability-assign').textContent = sharedKey;
+      // Flash green to confirm assignment
+      row.classList.add('flash');
+      setTimeout(() => row.classList.remove('flash'), 400);
+    }
+
+    updatePoolHighlights();
+    updateChangeIndicator();
+    document.getElementById('meshy-anim-status').textContent = `Saved: "${selectedAbility}" -> ${sharedKey}`;
+  }
+
+  // Preview the animation
+  previewSharedAnim(sharedKey);
+}
+
+function updateChangeIndicator() {
+  const defaults = CLASS_ANIMATIONS[currentClass] || {};
+  const current = localMappings[currentClass] || {};
+  const changed = Object.keys(current).some(k => current[k] !== defaults[k]);
+  const statusEl = document.getElementById('meshy-anim-status');
+  if (changed && !statusEl.textContent.includes('Saved')) {
+    statusEl.classList.toggle('has-changes', changed);
+  }
+}
+
+window.saveToFile = async function() {
+  const mapping = localMappings[currentClass] || CLASS_ANIMATIONS[currentClass] || {};
+  const statusEl = document.getElementById('meshy-anim-status');
+  statusEl.textContent = `Saving ${currentClass}...`;
+
+  try {
+    const res = await fetch('/api/save-anim-mappings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ classId: currentClass, mapping }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      statusEl.textContent = `Saved ${currentClass} to AssetManifest.js`;
+    } else {
+      statusEl.textContent = `Save failed: ${data.error}`;
+    }
+  } catch (err) {
+    statusEl.textContent = `Save failed: ${err.message}`;
+  }
+};
+
+window.resetMappings = function() {
+  delete localMappings[currentClass];
+  saveMappings();
+  buildAssignmentUI(currentClass, availableSharedKeys);
+  document.getElementById('meshy-anim-status').textContent = `Reset ${currentClass} to defaults`;
+};
+
+// ── Weapon Attachment System ──
+let attachedWeapons = []; // Array of { node, bone, type } for cleanup
+let editingWeaponType = null; // which weapon type the sliders control
+const weaponGlbCache = {};
+
+// Per-class weapon config from AssetManifest
+function getClassWeaponConfig(classId) {
+  const manifest = ASSET_MANIFEST[classId];
+  if (!manifest) return null;
+  return {
+    weapons: manifest.weapons || {},
+    defaultWeapon: manifest.defaultWeapon,
+    weaponHand: manifest.weaponHand || 'right',
+    weaponsBakedIn: manifest.weaponsBakedIn || false,
+    offHandType: manifest.offHandType || null,
+    weaponOffset: manifest.weaponOffset || {},
+  };
+}
+
+function updateWeaponUI(classId) {
+  const config = getClassWeaponConfig(classId);
+  if (!config) return;
+
+  const bakedCheckbox = document.getElementById('toggle-baked');
+  bakedCheckbox.checked = config.weaponsBakedIn;
+
+  const statusEl = document.getElementById('weapon-status');
+  if (config.weaponsBakedIn) {
+    statusEl.className = 'weapon-status baked';
+    statusEl.textContent = 'Weapons baked into model mesh';
+  } else if (attachedWeapons.length > 0) {
+    statusEl.className = 'weapon-status attached';
+    statusEl.textContent = `${attachedWeapons.length} weapon(s) attached`;
+  } else {
+    statusEl.className = 'weapon-status detached';
+    statusEl.textContent = `No weapon attached`;
+  }
+
+  // Populate weapon type dropdown
+  const select = document.getElementById('weapon-type-select');
+  select.innerHTML = '';
+  const weaponTypes = Object.keys(config.weapons);
+  // Also include shield if offHandType is shield
+  if (config.offHandType === 'shield' && !weaponTypes.includes('shield')) {
+    weaponTypes.push('shield');
+  }
+  for (const wt of weaponTypes) {
+    const opt = document.createElement('option');
+    opt.value = wt;
+    opt.textContent = wt;
+    select.appendChild(opt);
+  }
+  // Default to the first weapon type
+  editingWeaponType = config.defaultWeapon || weaponTypes[0];
+  select.value = editingWeaponType;
+
+  loadSlidersForWeaponType(classId, editingWeaponType);
+}
+
+function loadSlidersForWeaponType(classId, weaponType) {
+  const config = getClassWeaponConfig(classId);
+  if (!config) return;
+  const offset = config.weaponOffset[weaponType] || {};
+  const pos = offset.position || [0, 0, 0];
+  const rot = offset.rotation || [0, 0, 0];
+  const sc = offset.scale || [1, 1, 1];
+
+  document.getElementById('wpn-px').value = pos[0]; document.getElementById('wpn-px-val').textContent = pos[0].toFixed(3);
+  document.getElementById('wpn-py').value = pos[1]; document.getElementById('wpn-py-val').textContent = pos[1].toFixed(3);
+  document.getElementById('wpn-pz').value = pos[2]; document.getElementById('wpn-pz-val').textContent = pos[2].toFixed(3);
+  document.getElementById('wpn-rx').value = rot[0]; document.getElementById('wpn-rx-val').textContent = rot[0].toFixed(2);
+  document.getElementById('wpn-ry').value = rot[1]; document.getElementById('wpn-ry-val').textContent = rot[1].toFixed(2);
+  document.getElementById('wpn-rz').value = rot[2]; document.getElementById('wpn-rz-val').textContent = rot[2].toFixed(2);
+  document.getElementById('wpn-sc').value = sc[0]; document.getElementById('wpn-sc-val').textContent = sc[0].toFixed(2);
+}
+
+window.switchWeaponType = function(wt) {
+  editingWeaponType = wt;
+  loadSlidersForWeaponType(currentClass, wt);
+};
+
+async function loadWeaponGlb(classId) {
+  const config = getClassWeaponConfig(classId);
+  if (!config || !config.defaultWeapon) return null;
+
+  const weaponFile = config.weapons[config.defaultWeapon];
+  if (!weaponFile) return null;
+
+  const url = `/assets/models/${weaponFile}`;
+  if (weaponGlbCache[url]) return weaponGlbCache[url].clone(true);
+
+  try {
+    const gltf = await new Promise((resolve, reject) => {
+      gltfLoader.load(url, resolve, undefined, reject);
+    });
+    gltf.scene.traverse(c => {
+      if (c.isMesh) {
+        c.castShadow = true;
+        c.receiveShadow = true;
+      }
+    });
+    weaponGlbCache[url] = gltf.scene;
+    return gltf.scene.clone(true);
+  } catch (err) {
+    console.error(`Failed to load weapon: ${url}`, err);
+    return null;
+  }
+}
+
+function findHandBone(model, hand) {
+  const RIGHT_BONES = ['mixamorigRightHand', 'RightHand', 'rightHand', 'Right_Hand'];
+  const LEFT_BONES = ['mixamorigLeftHand', 'LeftHand', 'leftHand', 'Left_Hand'];
+  const names = (hand === 'left') ? LEFT_BONES : RIGHT_BONES;
+  for (const name of names) {
+    const bone = model.getObjectByName(name);
+    if (bone) return bone;
+  }
+  return null;
+}
+
+function doAttachWeapon(model, weaponScene, hand, offset) {
+  // Detect Meshy armature scale compensation (cm vs m)
+  let armatureScale = 1;
+  const armature = model.getObjectByName('Armature');
+  if (armature && armature.scale.x < 0.1) {
+    armatureScale = 1 / armature.scale.x;
+  }
+
+  const bone = findHandBone(model, hand);
+  if (!bone) {
+    console.warn('Hand bone not found for hand:', hand);
+    return null;
+  }
+
+  const wpn = weaponScene.clone(true);
+  const pos = offset.position || [0, 0, 0];
+  const rot = offset.rotation || [0, 0, 0];
+  const sc = offset.scale || [1, 1, 1];
+
+  wpn.position.set(pos[0] * armatureScale, pos[1] * armatureScale, pos[2] * armatureScale);
+  wpn.rotation.set(rot[0], rot[1], rot[2]);
+  wpn.scale.set(sc[0] * armatureScale, sc[1] * armatureScale, sc[2] * armatureScale);
+  wpn.name = 'viewer_weapon';
+
+  bone.add(wpn);
+  return { node: wpn, bone };
+}
+
+function createProceduralShield() {
+  const group = new THREE.Group();
+  group.name = 'viewer_shield';
+
+  const w = 0.35, hTop = 0.2, hBot = 0.5;
+
+  function makeShieldShape() {
+    const s = new THREE.Shape();
+    s.moveTo(-w, hTop * 0.85);
+    s.quadraticCurveTo(-w, hTop, -w * 0.3, hTop);
+    s.lineTo(w * 0.3, hTop);
+    s.quadraticCurveTo(w, hTop, w, hTop * 0.85);
+    s.lineTo(w, 0);
+    s.quadraticCurveTo(w * 0.9, -hBot * 0.5, 0, -hBot);
+    s.quadraticCurveTo(-w * 0.9, -hBot * 0.5, -w, 0);
+    s.closePath();
+    return s;
+  }
+
+  const bronzeMat = new THREE.MeshStandardMaterial({
+    color: 0x6b4c2a, metalness: 0.75, roughness: 0.35, side: THREE.DoubleSide,
+  });
+  const goldMat = new THREE.MeshStandardMaterial({
+    color: 0xc9a84c, metalness: 0.85, roughness: 0.2,
+    emissive: 0x443300, emissiveIntensity: 0.25,
+  });
+  const darkGoldMat = new THREE.MeshStandardMaterial({
+    color: 0x8a7030, metalness: 0.8, roughness: 0.25,
+    emissive: 0x332200, emissiveIntensity: 0.15,
+  });
+
+  // Shield body — dark bronze
+  const bodyGeo = new THREE.ExtrudeGeometry(makeShieldShape(), {
+    depth: 0.04, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 2,
+  });
+  bodyGeo.center();
+  group.add(new THREE.Mesh(bodyGeo, bronzeMat));
+
+  // Gold rim tube
+  const outerPts = makeShieldShape().getPoints(48);
+  const rimCurve = new THREE.CatmullRomCurve3(
+    outerPts.map(p => new THREE.Vector3(p.x, p.y, 0.025)), true
+  );
+  group.add(new THREE.Mesh(new THREE.TubeGeometry(rimCurve, 64, 0.025, 6, true), goldMat));
+
+  // Inner border accent
+  const innerCurve = new THREE.CatmullRomCurve3(
+    outerPts.map(p => new THREE.Vector3(p.x * 0.82, p.y * 0.82, 0.03)), true
+  );
+  group.add(new THREE.Mesh(new THREE.TubeGeometry(innerCurve, 48, 0.008, 4, true), darkGoldMat));
+
+  const fz = 0.035;
+
+  // Ornamental cross — vertical bar with flared ends
+  const cvVerts = new Float32Array([
+    -0.035,-0.22,fz, 0.035,-0.22,fz, 0.02,-0.16,fz,
+    -0.035,-0.22,fz, 0.02,-0.16,fz, -0.02,-0.16,fz,
+    -0.02,-0.16,fz, 0.02,-0.16,fz, 0.02,0.16,fz,
+    -0.02,-0.16,fz, 0.02,0.16,fz, -0.02,0.16,fz,
+    -0.02,0.16,fz, 0.02,0.16,fz, 0.035,0.22,fz,
+    -0.02,0.16,fz, 0.035,0.22,fz, -0.035,0.22,fz,
+  ]);
+  const crossVGeo = new THREE.BufferGeometry();
+  crossVGeo.setAttribute('position', new THREE.BufferAttribute(cvVerts, 3));
+  crossVGeo.computeVertexNormals();
+  const crossV = new THREE.Mesh(crossVGeo, goldMat);
+  crossV.position.y = -0.03;
+  group.add(crossV);
+
+  // Horizontal bar with flared ends
+  const chVerts = new Float32Array([
+    -0.16,-0.03,fz, -0.12,-0.018,fz, -0.12,0.018,fz,
+    -0.16,-0.03,fz, -0.12,0.018,fz, -0.16,0.03,fz,
+    -0.12,-0.018,fz, 0.12,-0.018,fz, 0.12,0.018,fz,
+    -0.12,-0.018,fz, 0.12,0.018,fz, -0.12,0.018,fz,
+    0.12,-0.018,fz, 0.16,-0.03,fz, 0.16,0.03,fz,
+    0.12,-0.018,fz, 0.16,0.03,fz, 0.12,0.018,fz,
+  ]);
+  const crossHGeo = new THREE.BufferGeometry();
+  crossHGeo.setAttribute('position', new THREE.BufferAttribute(chVerts, 3));
+  crossHGeo.computeVertexNormals();
+  const crossH = new THREE.Mesh(crossHGeo, goldMat);
+  crossH.position.y = 0.02;
+  group.add(crossH);
+
+  // Central boss medallion
+  const bossOuter = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.015, 24), goldMat);
+  bossOuter.rotation.x = Math.PI / 2;
+  bossOuter.position.set(0, -0.03, fz);
+  group.add(bossOuter);
+
+  const bossInner = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.02, 16), darkGoldMat);
+  bossInner.rotation.x = Math.PI / 2;
+  bossInner.position.set(0, -0.03, fz + 0.003);
+  group.add(bossInner);
+
+  // Center gem
+  const gem = new THREE.Mesh(
+    new THREE.SphereGeometry(0.015, 12, 8),
+    new THREE.MeshStandardMaterial({ color: 0xeedd88, emissive: 0xccaa44, emissiveIntensity: 0.6, metalness: 0.3, roughness: 0.1 })
+  );
+  gem.position.set(0, -0.03, fz + 0.012);
+  group.add(gem);
+
+  // Corner fleur studs
+  const studGeo = new THREE.OctahedronGeometry(0.018, 0);
+  for (const [sx, sy] of [[-0.08,0.08],[0.08,0.08],[-0.08,-0.12],[0.08,-0.12]]) {
+    const stud = new THREE.Mesh(studGeo, darkGoldMat);
+    stud.position.set(sx, sy, fz);
+    stud.rotation.z = Math.PI / 4;
+    group.add(stud);
+  }
+
+  return group;
+}
+
+window.attachWeapon = async function() {
+  if (!currentModel) return;
+  detachWeapon();
+
+  const config = getClassWeaponConfig(currentClass);
+  if (!config) return;
+
+  const statusEl = document.getElementById('weapon-status');
+  statusEl.className = 'weapon-status detached';
+  statusEl.textContent = 'Loading weapons...';
+
+  // Attach main weapon
+  const weaponScene = await loadWeaponGlb(currentClass);
+  if (weaponScene) {
+    const mainType = config.defaultWeapon;
+    const mainOffset = config.weaponOffset[mainType] || {};
+    const hand = config.weaponHand === 'dual' ? 'right' : config.weaponHand;
+
+    const result = doAttachWeapon(currentModel, weaponScene, hand, mainOffset);
+    if (result) { result.type = mainType; attachedWeapons.push(result); }
+
+    // Dual-wield: attach to left hand too
+    if (config.weaponHand === 'dual') {
+      const result2 = doAttachWeapon(currentModel, weaponScene, 'left', mainOffset);
+      if (result2) { result2.type = mainType; attachedWeapons.push(result2); }
+    }
+  } else {
+    statusEl.textContent = 'No weapon GLB found';
+  }
+
+  // Attach off-hand shield
+  if (config.offHandType === 'shield') {
+    let shield = null;
+    const shieldFile = config.weapons.shield;
+    if (shieldFile) {
+      try {
+        const url = `/assets/models/${shieldFile}`;
+        if (!weaponGlbCache[url]) {
+          const gltf = await new Promise((resolve, reject) => {
+            gltfLoader.load(url, resolve, undefined, reject);
+          });
+          gltf.scene.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
+          weaponGlbCache[url] = gltf.scene;
+        }
+        shield = weaponGlbCache[url].clone(true);
+        shield.name = 'viewer_shield';
+      } catch (err) {
+        console.warn('[Weapon] Meshy shield not found, using procedural:', err.message);
+      }
+    }
+    if (!shield) shield = createProceduralShield();
+    const shieldOffset = config.weaponOffset.shield || { position: [0.02, -0.02, 0], rotation: [0, 0, Math.PI / 2], scale: [0.6, 0.6, 0.6] };
+    const result3 = doAttachWeapon(currentModel, shield, 'left', shieldOffset);
+    if (result3) { result3.type = 'shield'; attachedWeapons.push(result3); }
+  }
+
+  document.getElementById('weapon-offsets').style.display = 'block';
+  updateWeaponUI(currentClass);
+};
+
+window.detachWeapon = function() {
+  for (const { node, bone } of attachedWeapons) {
+    bone.remove(node);
+    node.traverse(c => {
+      if (c.isMesh) {
+        c.geometry.dispose();
+        const mats = Array.isArray(c.material) ? c.material : [c.material];
+        mats.forEach(m => { if (m) m.dispose(); });
+      }
+    });
+  }
+  attachedWeapons = [];
+  document.getElementById('weapon-offsets').style.display = 'none';
+  updateWeaponUI(currentClass);
+};
+
+function getCurrentSliderOffset() {
+  return {
+    position: [
+      parseFloat(document.getElementById('wpn-px').value),
+      parseFloat(document.getElementById('wpn-py').value),
+      parseFloat(document.getElementById('wpn-pz').value),
+    ],
+    rotation: [
+      parseFloat(document.getElementById('wpn-rx').value),
+      parseFloat(document.getElementById('wpn-ry').value),
+      parseFloat(document.getElementById('wpn-rz').value),
+    ],
+    scale: [
+      parseFloat(document.getElementById('wpn-sc').value),
+      parseFloat(document.getElementById('wpn-sc').value),
+      parseFloat(document.getElementById('wpn-sc').value),
+    ],
+  };
+}
+
+window.updateWeaponOffset = function() {
+  // Update display values
+  ['px','py','pz'].forEach(id => {
+    document.getElementById(`wpn-${id}-val`).textContent = parseFloat(document.getElementById(`wpn-${id}`).value).toFixed(3);
+  });
+  ['rx','ry','rz'].forEach(id => {
+    document.getElementById(`wpn-${id}-val`).textContent = parseFloat(document.getElementById(`wpn-${id}`).value).toFixed(2);
+  });
+  document.getElementById('wpn-sc-val').textContent = parseFloat(document.getElementById('wpn-sc').value).toFixed(2);
+
+  if (attachedWeapons.length === 0 || !editingWeaponType) return;
+  const offset = getCurrentSliderOffset();
+
+  // Detect armature scale
+  let armatureScale = 1;
+  if (currentModel) {
+    const armature = currentModel.getObjectByName('Armature');
+    if (armature && armature.scale.x < 0.1) {
+      armatureScale = 1 / armature.scale.x;
+    }
+  }
+
+  // Update only the weapon matching editingWeaponType
+  for (const entry of attachedWeapons) {
+    if (entry.type !== editingWeaponType) continue;
+    entry.node.position.set(
+      offset.position[0] * armatureScale,
+      offset.position[1] * armatureScale,
+      offset.position[2] * armatureScale
+    );
+    entry.node.rotation.set(offset.rotation[0], offset.rotation[1], offset.rotation[2]);
+    entry.node.scale.set(
+      offset.scale[0] * armatureScale,
+      offset.scale[1] * armatureScale,
+      offset.scale[2] * armatureScale
+    );
+  }
+};
+
+window.toggleBakedIn = function(checked) {
+  // This updates the weaponsBakedIn flag — saved via the save endpoint
+  const statusEl = document.getElementById('weapon-status');
+  if (checked) {
+    detachWeapon();
+    statusEl.className = 'weapon-status baked';
+    statusEl.textContent = 'Weapons baked into model mesh (no separate attachment)';
+  } else {
+    statusEl.className = 'weapon-status detached';
+    statusEl.textContent = 'Weapons not baked — use Attach to add weapon models';
+  }
+};
+
+window.saveWeaponOffset = async function() {
+  const offset = getCurrentSliderOffset();
+  const config = getClassWeaponConfig(currentClass);
+  if (!config || !editingWeaponType) return;
+
+  const bakedIn = document.getElementById('toggle-baked').checked;
+  const statusEl = document.getElementById('weapon-status');
+  statusEl.textContent = `Saving ${editingWeaponType} offset...`;
+
+  try {
+    const res = await fetch('/api/save-weapon-offset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        classId: currentClass,
+        weaponType: editingWeaponType,
+        offset,
+        weaponsBakedIn: bakedIn,
+      }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      // Update in-memory manifest so mode switches use new values immediately
+      const manifest = ASSET_MANIFEST[currentClass];
+      if (manifest) {
+        if (!manifest.weaponOffset) manifest.weaponOffset = {};
+        manifest.weaponOffset[editingWeaponType] = { ...offset };
+        manifest.weaponsBakedIn = bakedIn;
+      }
+      statusEl.className = 'weapon-status attached';
+      statusEl.textContent = `Saved ${editingWeaponType} offset for ${currentClass}`;
+    } else {
+      statusEl.textContent = `Save failed: ${data.error}`;
+    }
+  } catch (err) {
+    statusEl.textContent = `Save failed: ${err.message}`;
+  }
+};
+
+// ── UI Section Visibility ──
+function updateAnimSections() {
+  const factorySection = document.getElementById('anim-buttons');
+  const meshySection = document.getElementById('meshy-anim-section');
+  const header = document.getElementById('anim-header');
+
+  if (viewMode === 'animated') {
+    factorySection.style.display = 'none';
+    meshySection.style.display = 'block';
+    header.textContent = 'Meshy Animations';
+  } else if (viewMode === 'rigged') {
+    factorySection.style.display = 'flex';
+    meshySection.style.display = 'none';
+    header.textContent = 'Animation';
+  } else {
+    factorySection.style.display = 'none';
+    meshySection.style.display = 'none';
+    header.textContent = 'Animation';
+  }
 }
 
 // ── Model Loading ──
 async function loadModel(classId) {
   clearModel();
   currentClass = classId;
+  updateAnimSections();
   updateInfo('Loading...');
 
   try {
-    if (viewMode === 'raw' || viewMode === 'rigged') {
-      const charPath = `/assets/models/char_${classId}.glb`;
-      const gltf = await new Promise((resolve, reject) => {
-        loader.load(charPath, resolve, undefined, reject);
-      });
+    const charPath = `/assets/models/char_${classId}.glb`;
+    const gltf = await new Promise((resolve, reject) => {
+      gltfLoader.load(charPath, resolve, undefined, reject);
+    });
 
+    // Ensure PBR materials
+    gltf.scene.traverse(child => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        if (child.material.map) child.material.map.colorSpace = THREE.SRGBColorSpace;
+      }
+    });
+
+    if (viewMode === 'animated') {
+      // Meshy Animated mode: load rigged model + Meshy animation GLBs
       currentModel = gltf.scene;
       currentModel.scale.setScalar(modelScale);
+      scene.add(currentModel);
 
-      // Ensure PBR materials
-      currentModel.traverse(child => {
-        if (child.isMesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-          if (child.material.map) child.material.map.colorSpace = THREE.SRGBColorSpace;
+      // Set up an empty mixer on the rigged model
+      mixer = new THREE.AnimationMixer(currentModel);
+      mixerActions = {};
+      currentAction = null;
+      activeBaseAction = null;
+
+      // Auto-return from one-shot clips
+      mixer.addEventListener('finished', (e) => {
+        const action = e.action;
+        if (activeBaseAction && activeBaseAction !== action) {
+          action.fadeOut(0.3);
+          activeBaseAction.reset().setEffectiveWeight(1).fadeIn(0.3).play();
+          currentAction = activeBaseAction;
         }
       });
 
-      if (viewMode === 'rigged') {
-        // Dynamic import of AutoRigger
-        const { autoRig } = await import('/src/rendering/AutoRigger.js');
-        const rigged = autoRig(currentModel, classId);
-        rigged.scale.setScalar(modelScale);
-        currentModel = rigged;
+      // Scan which shared animation files exist and build assignment UI
+      const available = await scanAvailableSharedAnims();
+      buildAssignmentUI(classId, available);
+
+      // Auto-play idle if available
+      const idleKey = (localMappings[classId] || CLASS_ANIMATIONS[classId] || {}).idle;
+      if (idleKey && available.has(idleKey)) {
+        await previewSharedAnim(idleKey);
       }
 
+      showStats(classId, currentModel);
+
+    } else if (viewMode === 'rigged') {
+      // Legacy rigged mode: SkeletonTransfer + AnimationFactory
+      const combatClips = getClassAnimations(classId);
+      updateInfo('Rigging with SkeletonTransfer...');
+      const result = rigWithMixamoSkeleton(gltf.scene, combatClips, modelScale);
+      currentModel = result.scene;
       scene.add(currentModel);
+      setupMixer(currentModel, result.animations);
+      showStats(classId, currentModel);
 
-      // Compute stats
-      let verts = 0, tris = 0, meshCount = 0;
-      currentModel.traverse(c => {
-        if (c.isMesh) {
-          meshCount++;
-          verts += c.geometry.getAttribute('position')?.count || 0;
-          const idx = c.geometry.getIndex();
-          tris += idx ? idx.count / 3 : (c.geometry.getAttribute('position')?.count || 0) / 3;
-        }
-      });
-
-      // Get bounding box info
-      const box = new THREE.Box3().setFromObject(currentModel);
-      const sz = new THREE.Vector3();
-      box.getSize(sz);
-
-      updateInfo(`<span>${classId.toUpperCase()}</span> [${viewMode}] | ` +
-        `${meshCount} meshes | ${(verts/1000).toFixed(1)}K verts | ${(tris/1000).toFixed(1)}K tris | ` +
-        `Size: ${sz.x.toFixed(1)} x ${sz.y.toFixed(1)} x ${sz.z.toFixed(1)}`);
-
-    } else if (viewMode === 'procedural') {
-      // Load procedural model from CharacterRenderer
-      const module = await import('/src/rendering/CharacterRenderer.js');
-      const CharacterRenderer = module.default;
-      const tempScene = new THREE.Scene();
-      const cr = new CharacterRenderer(tempScene);
-      cr.useMeshyModels = false;
-      const model = cr.createCharacter('viewer', classId.toUpperCase());
-      tempScene.remove(model);
-      currentModel = model;
+    } else {
+      // Raw mode: just show the model as-is
+      currentModel = gltf.scene;
+      currentModel.scale.setScalar(modelScale);
       scene.add(currentModel);
-
-      updateInfo(`<span>${classId.toUpperCase()}</span> [procedural] | Primitive-based model`);
+      showStats(classId, currentModel);
     }
+
+    // Update weapon UI for this class
+    updateWeaponUI(classId);
+
+    // Auto-attach weapons if not baked in
+    const wpnConfig = getClassWeaponConfig(classId);
+    if (wpnConfig && !wpnConfig.weaponsBakedIn) {
+      await window.attachWeapon();
+    }
+
   } catch (err) {
     console.error('Load failed:', err);
     updateInfo(`<span style="color:red">ERROR</span>: ${err.message}`);
   }
 }
 
+// ── AnimationMixer setup ──
+function setupMixer(model, clips) {
+  mixer = new THREE.AnimationMixer(model);
+  mixerActions = {};
+
+  for (const clip of clips) {
+    const name = clip.name.toLowerCase();
+    if (!mixerActions[name]) {
+      mixerActions[name] = mixer.clipAction(clip);
+    }
+  }
+
+  console.log('[Anim] Mixer clips:', Object.keys(mixerActions).join(', '));
+
+  // Start idle
+  if (mixerActions['idle']) {
+    const idle = mixerActions['idle'];
+    idle.setLoop(THREE.LoopRepeat);
+    idle.play();
+    activeBaseAction = idle;
+    currentAction = idle;
+  }
+
+  // Auto-return from one-shot clips
+  mixer.addEventListener('finished', (e) => {
+    const action = e.action;
+    for (const [name, a] of Object.entries(mixerActions)) {
+      if (a === action && !LOOPING_CLIPS.has(name)) {
+        if (activeBaseAction && activeBaseAction !== action) {
+          action.fadeOut(0.3);
+          activeBaseAction.reset().setEffectiveWeight(1).fadeIn(0.3).play();
+          currentAction = activeBaseAction;
+        }
+        break;
+      }
+    }
+  });
+}
+
+// ── Play animation clip ──
+function playMixerClip(name) {
+  if (!mixer || !mixerActions[name]) {
+    console.warn(`[Anim] No clip: "${name}"`);
+    return;
+  }
+
+  const newAction = mixerActions[name];
+  const isLooping = LOOPING_CLIPS.has(name);
+  const isDeath = name === 'death';
+
+  if (newAction === currentAction) return;
+
+  if (currentAction) {
+    currentAction.fadeOut(0.25);
+  }
+
+  newAction.reset();
+  newAction.setLoop(isLooping ? THREE.LoopRepeat : THREE.LoopOnce);
+  newAction.clampWhenFinished = isDeath;
+  newAction.setEffectiveWeight(1);
+  newAction.fadeIn(0.25);
+  newAction.play();
+
+  if (isLooping) {
+    activeBaseAction = newAction;
+  }
+  currentAction = newAction;
+}
+
+// ── Stats display ──
+function showStats(classId, model) {
+  let verts = 0, tris = 0, meshCount = 0;
+  model.traverse(c => {
+    if (c.isMesh || c.isSkinnedMesh) {
+      meshCount++;
+      verts += c.geometry.getAttribute('position')?.count || 0;
+      const idx = c.geometry.getIndex();
+      tris += idx ? idx.count / 3 : (c.geometry.getAttribute('position')?.count || 0) / 3;
+    }
+  });
+  let boneCount = 0;
+  model.traverse(c => { if (c.isBone) boneCount++; });
+
+  const box = new THREE.Box3().setFromObject(model);
+  const sz = new THREE.Vector3();
+  box.getSize(sz);
+
+  const clipCount = Object.keys(mixerActions).length;
+  const modeLabel = viewMode === 'animated' ? 'Meshy Animated' : viewMode === 'rigged' ? 'SkeletonTransfer' : 'Raw';
+  updateInfo(`<span>${classId.toUpperCase()}</span> [${modeLabel}] | ` +
+    `${meshCount} meshes | ${(verts/1000).toFixed(1)}K verts | ${(tris/1000).toFixed(1)}K tris | ` +
+    `${boneCount} bones | ${clipCount} clips | ` +
+    `Size: ${sz.x.toFixed(1)} x ${sz.y.toFixed(1)} x ${sz.z.toFixed(1)}`);
+}
+
+// ── Cleanup ──
 function clearModel() {
+  // Detach any weapons
+  attachedWeapons = [];
   if (skeletonHelper) { scene.remove(skeletonHelper); skeletonHelper = null; }
   if (bboxHelper) { scene.remove(bboxHelper); bboxHelper = null; }
+  if (mixer) {
+    mixer.stopAllAction();
+    mixer.uncacheRoot(mixer.getRoot());
+    mixer = null;
+    mixerActions = {};
+    currentAction = null;
+    activeBaseAction = null;
+  }
   if (currentModel) {
     scene.remove(currentModel);
     currentModel.traverse(c => {
-      if (c.isMesh) {
+      if (c.isMesh || c.isSkinnedMesh) {
         c.geometry.dispose();
-        if (Array.isArray(c.material)) c.material.forEach(m => m.dispose());
-        else if (c.material) c.material.dispose();
+        const mats = Array.isArray(c.material) ? c.material : [c.material];
+        for (const m of mats) {
+          if (!m) continue;
+          if (m.map) m.map.dispose();
+          if (m.normalMap) m.normalMap.dispose();
+          if (m.roughnessMap) m.roughnessMap.dispose();
+          if (m.metalnessMap) m.metalnessMap.dispose();
+          m.dispose();
+        }
       }
     });
     currentModel = null;
   }
 }
 
-// ── Animation ──
+// ── Render loop ──
 function animate() {
   requestAnimationFrame(animate);
   const dt = clock.getDelta();
-  const time = clock.getElapsedTime();
 
   if (autoRotate && currentModel) {
     currentModel.rotation.y += dt * 0.5;
   }
 
-  // Simple procedural animations for rigged/procedural models
-  if (currentModel && currentAnim !== 'none') {
-    const body = currentModel.getObjectByName('body');
-    const head = currentModel.getObjectByName('head');
-    const leftArm = currentModel.getObjectByName('leftArm');
-    const rightArm = currentModel.getObjectByName('rightArm');
-    const leftLeg = currentModel.getObjectByName('leftLeg');
-    const rightLeg = currentModel.getObjectByName('rightLeg');
-
-    if (currentAnim === 'idle' && body) {
-      body.position.y = 1.0 + Math.sin(time * 2.2) * 0.04;
-      body.rotation.z = Math.sin(time * 0.8) * 0.03;
-      if (head) head.rotation.y = Math.sin(time * 0.7) * 0.08;
-      if (leftArm) leftArm.rotation.z = 0.15 + Math.sin(time * 1.5) * 0.08;
-      if (rightArm) rightArm.rotation.z = -0.15 - Math.sin(time * 1.5) * 0.08;
-    } else if (currentAnim === 'walk' && body) {
-      const s = Math.sin(time * 7);
-      body.position.y = 1.0 + Math.abs(s) * 0.1;
-      body.rotation.x = 0.1;
-      body.rotation.z = s * 0.06;
-      if (leftLeg) leftLeg.rotation.x = s * 0.8;
-      if (rightLeg) rightLeg.rotation.x = -s * 0.8;
-      if (leftArm) leftArm.rotation.x = -s * 0.4;
-      if (rightArm) rightArm.rotation.x = s * 0.4;
-    } else if (currentAnim === 'roll' && body) {
-      const p = (time * 2) % 1;
-      body.rotation.x = p * Math.PI * 2;
-      body.position.y = 0.5 + Math.sin(p * Math.PI) * 0.5;
-      if (leftArm) { leftArm.rotation.x = -1.2 * Math.sin(p * Math.PI); leftArm.rotation.z = 0.8 * Math.sin(p * Math.PI); }
-      if (rightArm) { rightArm.rotation.x = -1.2 * Math.sin(p * Math.PI); rightArm.rotation.z = -0.8 * Math.sin(p * Math.PI); }
-    } else if (currentAnim === 'hit' && body) {
-      const flash = Math.sin(time * 20) > 0 ? 1 : 0;
-      body.rotation.x = -0.15 * flash;
-      if (leftArm) leftArm.rotation.z = 0.4 * flash;
-      if (rightArm) rightArm.rotation.z = -0.4 * flash;
-    } else if (currentAnim === 'death' && body) {
-      const p = Math.min((time * 0.5) % 3, 1);
-      body.position.y = 1.0 - p * 0.7;
-      body.rotation.x = p * 1.2;
-      currentModel.rotation.z = p * (Math.PI / 2.2);
-    } else if (currentAnim === 'stun' && body) {
-      body.rotation.x = 0.3;
-      body.position.y = 0.85;
-      body.rotation.z = Math.sin(time * 3) * 0.05;
-      if (head) head.rotation.z = Math.sin(time * 4) * 0.1;
-    } else if (currentAnim === 'fear' && body) {
-      body.rotation.z = Math.sin(time * 12) * 0.15;
-      body.position.y = 1.0 + Math.abs(Math.sin(time * 8)) * 0.08;
-      if (leftArm) leftArm.rotation.x = Math.sin(time * 14) * 0.5;
-      if (rightArm) rightArm.rotation.x = Math.cos(time * 14) * 0.5;
-      if (leftLeg) leftLeg.rotation.x = Math.sin(time * 10) * 0.6;
-      if (rightLeg) rightLeg.rotation.x = Math.cos(time * 10) * 0.6;
-    }
+  if (mixer) {
+    mixer.update(dt);
   }
 
   if (skeletonHelper) skeletonHelper.update();
@@ -389,13 +1491,17 @@ function animate() {
   renderer.render(scene, camera);
 }
 
-// ── Controls API (called from HTML) ──
+// ── Controls API ──
 window.selectClass = function(cls) {
   document.querySelectorAll('#class-buttons .btn').forEach(b => {
     b.classList.toggle('active', b.dataset.class === cls);
     b.style.borderColor = b.dataset.class === cls ? CLASS_COLORS[cls] : '';
   });
-  currentAnim = 'idle';
+  // Reset animation button highlights
+  document.querySelectorAll('#anim-buttons .btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.toLowerCase() === 'idle');
+  });
+  selectedAbility = null;
   loadModel(cls);
 };
 
@@ -404,13 +1510,14 @@ window.setViewMode = function(mode) {
   document.querySelectorAll('[data-mode]').forEach(b => {
     b.classList.toggle('active', b.dataset.mode === mode);
   });
+  updateAnimSections();
   loadModel(currentClass);
 };
 
 window.toggleWireframe = function(on) {
   if (!currentModel) return;
   currentModel.traverse(c => {
-    if (c.isMesh) {
+    if (c.isMesh || c.isSkinnedMesh) {
       if (Array.isArray(c.material)) c.material.forEach(m => m.wireframe = on);
       else c.material.wireframe = on;
     }
@@ -441,26 +1548,20 @@ window.toggleGrid = function(on) {
 };
 
 window.playAnim = function(anim) {
-  currentAnim = anim;
-  // Reset model rotation for clean animation start
-  if (currentModel && anim !== 'death') {
-    // Reset bones
-    ['body', 'head', 'leftArm', 'rightArm', 'leftLeg', 'rightLeg'].forEach(name => {
-      const obj = currentModel.getObjectByName(name);
-      if (obj) { obj.rotation.set(0, 0, 0); if (name === 'body') obj.position.y = 1.0; }
-    });
-    currentModel.rotation.z = 0;
-  }
-  document.querySelectorAll('[onclick^="playAnim"]').forEach(b => {
-    b.classList.toggle('active', b.textContent.toLowerCase().includes(anim) ||
-      (anim === 'none' && b.textContent === 'T-Pose'));
+  document.querySelectorAll('#anim-buttons .btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.toLowerCase() === anim);
   });
+
+  if (mixer) {
+    playMixerClip(anim);
+  }
 };
 
 window.setScale = function(val) {
   modelScale = parseFloat(val);
   document.getElementById('scale-val').textContent = val;
-  if (currentModel) currentModel.scale.setScalar(modelScale);
+  // Reload model with new scale (SkeletonTransfer bakes scale into vertices)
+  loadModel(currentClass);
 };
 
 window.setCamHeight = function(val) {
@@ -472,13 +1573,13 @@ window.setCamHeight = function(val) {
 window.setCamDist = function(val) {
   camDist = parseFloat(val);
   document.getElementById('cam-dist-val').textContent = val;
+  camera.position.z = camDist;
 };
 
 function updateInfo(html) {
   document.getElementById('info').innerHTML = html;
 }
 
-// Go
 init();
 </script>
 </body>

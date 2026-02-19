@@ -22,6 +22,7 @@ import { AudioManager } from './audio/AudioManager.js';
 import { DODGE_ROLL_DURATION, DODGE_ROLL_COOLDOWN, DODGE_ROLL_SNARE, DODGE_ROLL_SNARE_RANGE, DODGE_ROLL_SNARE_DURATION } from './constants.js';
 import { Aura } from './engine/Aura.js';
 import { preloadAll as preloadModels } from './rendering/ModelLoader.js';
+import { SettingsManager } from './settings/SettingsManager.js';
 
 // ---------------------------------------------------------------------------
 // Error overlay — shows runtime errors visually
@@ -70,6 +71,9 @@ class Game {
 
     // Audio
     this.audio = new AudioManager();
+
+    // Settings (keybindings, gamepad, etc.)
+    this.settingsManager = new SettingsManager();
 
     // Jump states map: unitId -> { startTime, duration, done }
     this._jumpStates = new Map();
@@ -121,6 +125,24 @@ class Game {
       this.arenaRenderer.build();
       this.updateLoadingBar(50);
 
+      // Preload loading screen images — await so they're cached before match
+      const preloadImg = (src) => new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+        img.src = src;
+      });
+      const [loadingBg] = await Promise.all([
+        preloadImg('/assets/art/arena_loading_bg.webp'),
+        // Also preload class splash images for matchup cards
+        preloadImg('/assets/art/tyrant_splash.webp'),
+        preloadImg('/assets/art/wraith_splash.webp'),
+        preloadImg('/assets/art/infernal_splash.webp'),
+        preloadImg('/assets/art/harbinger_splash.webp'),
+        preloadImg('/assets/art/revenant_splash.webp'),
+      ]);
+      this._loadingBgImg = loadingBg;
+
       this.characterRenderer = new CharacterRenderer(this.sceneManager.getScene());
 
       // Preload Meshy 3D models (non-blocking — falls back to procedural if not available)
@@ -132,8 +154,8 @@ class Game {
         this.characterRenderer.useMeshyModels = modelsLoaded > 0;
       }
 
-      // Render 3D class portraits for HUD unit frames
-      this._classPortraits = CharacterRenderer.renderPortraits(256);
+      // Class portraits for HUD unit frames (splash art)
+      this._classPortraits = CharacterRenderer.renderPortraits();
 
       this.cameraController = new CameraController(this.sceneManager.getCamera());
       this.cameraController.attachEvents(canvas);
@@ -285,6 +307,12 @@ class Game {
       this._toggleSettingsPanel();
     });
     document.body.appendChild(btn);
+
+    // Gamepad Start button also toggles settings
+    window.addEventListener('gamepad-settings', () => {
+      this.audio.playSFX('button_click');
+      this._toggleSettingsPanel();
+    });
   }
 
   _toggleSettingsPanel() {
@@ -296,42 +324,67 @@ class Game {
     panel.style.cssText = `
       position: fixed; top: 70px; right: 8px; z-index: 10000;
       background: rgba(10,10,20,0.95); border: 1px solid #2a2a3a;
-      border-radius: 6px; padding: 16px 20px; width: 220px;
+      border-radius: 6px; padding: 16px 20px; width: 260px;
+      max-height: calc(100vh - 90px); overflow-y: auto;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #e0d8c8;
       pointer-events: auto;
     `;
 
     const title = document.createElement('div');
     title.textContent = 'SETTINGS';
-    title.style.cssText = 'font-size: 11px; letter-spacing: 3px; color: #c8a860; margin-bottom: 14px; font-weight: bold;';
+    title.style.cssText = 'font-size: 11px; letter-spacing: 3px; color: #c8a860; margin-bottom: 10px; font-weight: bold;';
     panel.appendChild(title);
 
-    // Music volume slider
-    panel.appendChild(this._createVolumeSlider('Music', this.audio.getMusicVolume(), (v) => {
-      this.audio.setMusicVolume(v);
-    }));
+    // Tab bar
+    const tabBar = document.createElement('div');
+    tabBar.style.cssText = 'display: flex; gap: 0; margin-bottom: 14px; border-bottom: 1px solid #2a2a3a;';
+    const tabs = ['Audio', 'Controls'];
+    const tabContents = [];
+    const tabBtns = [];
 
-    // SFX volume slider
-    panel.appendChild(this._createVolumeSlider('Sound FX', this.audio.getSFXVolume(), (v) => {
-      this.audio.setSFXVolume(v);
-    }));
+    for (const tabName of tabs) {
+      const tabBtn = document.createElement('button');
+      tabBtn.textContent = tabName;
+      tabBtn.style.cssText = `
+        flex: 1; padding: 6px 0; background: none; border: none; border-bottom: 2px solid transparent;
+        color: #666; font-size: 11px; letter-spacing: 1px; cursor: pointer;
+        font-family: inherit; transition: all 0.2s;
+      `;
+      tabBtn.addEventListener('click', () => this._switchSettingsTab(tabBtns, tabContents, tabs.indexOf(tabName)));
+      tabBar.appendChild(tabBtn);
+      tabBtns.push(tabBtn);
+    }
+    panel.appendChild(tabBar);
 
-    // Mute checkbox
+    // Audio tab content
+    const audioTab = document.createElement('div');
+    audioTab.appendChild(this._createVolumeSlider('Music', this.audio.getMusicVolume(), (v) => this.audio.setMusicVolume(v)));
+    audioTab.appendChild(this._createVolumeSlider('Sound FX', this.audio.getSFXVolume(), (v) => this.audio.setSFXVolume(v)));
     const muteRow = document.createElement('div');
     muteRow.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-top: 10px; cursor: pointer;';
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.checked = this.audio.isMuted();
     checkbox.style.cssText = 'cursor: pointer; accent-color: #8b0000;';
-    checkbox.addEventListener('change', () => {
-      this.audio.toggleMute();
-    });
+    checkbox.addEventListener('change', () => this.audio.toggleMute());
     const muteLabel = document.createElement('span');
     muteLabel.textContent = 'Mute All';
     muteLabel.style.cssText = 'font-size: 11px; color: #888; letter-spacing: 1px;';
     muteRow.appendChild(checkbox);
     muteRow.appendChild(muteLabel);
-    panel.appendChild(muteRow);
+    audioTab.appendChild(muteRow);
+    panel.appendChild(audioTab);
+    tabContents.push(audioTab);
+
+    // Controls tab content
+    const controlsTab = document.createElement('div');
+    controlsTab.style.display = 'none';
+    this._buildControlsTab(controlsTab);
+    panel.appendChild(controlsTab);
+    tabContents.push(controlsTab);
+
+    // Default to Audio tab
+    this._switchSettingsTab(tabBtns, tabContents, 0);
 
     document.body.appendChild(panel);
 
@@ -343,6 +396,379 @@ class Game {
       }
     };
     setTimeout(() => document.addEventListener('click', closeHandler), 10);
+  }
+
+  _switchSettingsTab(tabBtns, tabContents, activeIndex) {
+    for (let i = 0; i < tabBtns.length; i++) {
+      const active = i === activeIndex;
+      tabBtns[i].style.color = active ? '#c8a860' : '#666';
+      tabBtns[i].style.borderBottomColor = active ? '#c8a860' : 'transparent';
+      tabContents[i].style.display = active ? 'block' : 'none';
+    }
+  }
+
+  _buildControlsTab(container) {
+    // Keybind section header
+    const header = document.createElement('div');
+    header.textContent = 'KEYBINDS';
+    header.style.cssText = 'font-size: 10px; letter-spacing: 2px; color: #888; margin-bottom: 8px;';
+    container.appendChild(header);
+
+    const keybindRows = [];
+    const defaultKeys = ['1', '2', '3', '4', '5', '6'];
+
+    for (let i = 0; i < 6; i++) {
+      const row = document.createElement('div');
+      row.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-bottom: 6px;';
+
+      const label = document.createElement('span');
+      label.textContent = `Slot ${i + 1}`;
+      label.style.cssText = 'font-size: 11px; color: #aaa; width: 48px;';
+
+      const keyBtn = document.createElement('button');
+      const currentKey = this.settingsManager.getKeybinding(i) || defaultKeys[i];
+      keyBtn.textContent = currentKey.toUpperCase();
+      keyBtn.style.cssText = `
+        flex: 1; padding: 4px 8px; background: rgba(30,30,40,0.8); border: 1px solid #3a3a4a;
+        color: #e0d8c8; font-size: 12px; font-family: monospace; cursor: pointer;
+        border-radius: 3px; text-align: center; transition: all 0.15s;
+      `;
+
+      const slotIndex = i;
+      keyBtn.addEventListener('click', () => {
+        keyBtn.textContent = '...';
+        keyBtn.style.borderColor = '#c8a860';
+        keyBtn.style.color = '#c8a860';
+        const handler = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+          // Don't allow binding to reserved keys
+          if (['escape', 'tab', 'shift', 'control', 'alt', 'meta'].includes(key.toLowerCase())) {
+            keyBtn.textContent = currentKey.toUpperCase();
+            keyBtn.style.borderColor = '#3a3a4a';
+            keyBtn.style.color = '#e0d8c8';
+            document.removeEventListener('keydown', handler, true);
+            return;
+          }
+          this.settingsManager.setKeybinding(slotIndex, key);
+          keyBtn.textContent = key.toUpperCase();
+          keyBtn.style.borderColor = '#3a3a4a';
+          keyBtn.style.color = '#e0d8c8';
+          document.removeEventListener('keydown', handler, true);
+          // Update all rows (in case of key swaps)
+          this._refreshKeybindRows(keybindRows, defaultKeys);
+          // Re-apply keybindings to InputManager
+          this._applyKeybindSettings();
+        };
+        document.addEventListener('keydown', handler, true);
+      });
+
+      row.appendChild(label);
+      row.appendChild(keyBtn);
+      container.appendChild(row);
+      keybindRows.push({ btn: keyBtn, slot: i });
+    }
+
+    // Controls section header
+    const ctrlHeader = document.createElement('div');
+    ctrlHeader.textContent = 'CONTROLS';
+    ctrlHeader.style.cssText = 'font-size: 10px; letter-spacing: 2px; color: #888; margin-top: 14px; margin-bottom: 8px;';
+    container.appendChild(ctrlHeader);
+
+    const controlRows = [];
+    const controlDefs = [
+      { action: 'moveForward', label: 'Move Forward' },
+      { action: 'moveBackward', label: 'Move Back' },
+      { action: 'moveLeft', label: 'Move Left' },
+      { action: 'moveRight', label: 'Move Right' },
+      { action: 'jump', label: 'Jump' },
+      { action: 'dodge', label: 'Dodge' },
+      { action: 'tabTarget', label: 'Tab Target' },
+    ];
+
+    for (const def of controlDefs) {
+      const row = document.createElement('div');
+      row.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-bottom: 6px;';
+
+      const label = document.createElement('span');
+      label.textContent = def.label;
+      label.style.cssText = 'font-size: 11px; color: #aaa; width: 80px;';
+
+      const keyBtn = document.createElement('button');
+      const currentKey = this.settingsManager.getControl(def.action);
+      keyBtn.textContent = this._formatKeyLabel(currentKey);
+      keyBtn.style.cssText = `
+        flex: 1; padding: 4px 8px; background: rgba(30,30,40,0.8); border: 1px solid #3a3a4a;
+        color: #e0d8c8; font-size: 12px; font-family: monospace; cursor: pointer;
+        border-radius: 3px; text-align: center; transition: all 0.15s;
+      `;
+
+      const actionName = def.action;
+      keyBtn.addEventListener('click', () => {
+        keyBtn.textContent = '...';
+        keyBtn.style.borderColor = '#c8a860';
+        keyBtn.style.color = '#c8a860';
+        const handler = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const key = e.key === ' ' ? ' ' : (e.key.length === 1 ? e.key.toLowerCase() : e.key.toLowerCase());
+          // Don't allow Escape (used to close menus)
+          if (key === 'escape') {
+            keyBtn.textContent = this._formatKeyLabel(this.settingsManager.getControl(actionName));
+            keyBtn.style.borderColor = '#3a3a4a';
+            keyBtn.style.color = '#e0d8c8';
+            document.removeEventListener('keydown', handler, true);
+            return;
+          }
+          this.settingsManager.setControl(actionName, key);
+          keyBtn.textContent = this._formatKeyLabel(key);
+          keyBtn.style.borderColor = '#3a3a4a';
+          keyBtn.style.color = '#e0d8c8';
+          document.removeEventListener('keydown', handler, true);
+          // Refresh all control rows (in case of key swaps)
+          this._refreshControlRows(controlRows);
+          // Re-apply to InputManager
+          this._applyControlSettings();
+        };
+        document.addEventListener('keydown', handler, true);
+      });
+
+      row.appendChild(label);
+      row.appendChild(keyBtn);
+      container.appendChild(row);
+      controlRows.push({ btn: keyBtn, action: def.action });
+    }
+
+    // Camera mode toggle (keyboard/mouse)
+    container.appendChild(this._createCameraModeToggle('Camera (KB/Mouse)', 'camera.keyboardMode'));
+
+    // Reset keybinds button
+    const resetBtn = document.createElement('button');
+    resetBtn.textContent = 'Reset to Defaults';
+    resetBtn.style.cssText = `
+      margin-top: 10px; width: 100%; padding: 6px; background: rgba(80,20,20,0.5);
+      border: 1px solid #5a2a2a; color: #cc8888; font-size: 10px; letter-spacing: 1px;
+      cursor: pointer; border-radius: 3px; font-family: inherit; transition: all 0.15s;
+    `;
+    resetBtn.addEventListener('mouseenter', () => { resetBtn.style.background = 'rgba(120,30,30,0.6)'; });
+    resetBtn.addEventListener('mouseleave', () => { resetBtn.style.background = 'rgba(80,20,20,0.5)'; });
+    resetBtn.addEventListener('click', () => {
+      this.settingsManager.resetKeybindings();
+      this._refreshKeybindRows(keybindRows, defaultKeys);
+      this._refreshControlRows(controlRows);
+      this._applyKeybindSettings();
+      this._applyControlSettings();
+    });
+    container.appendChild(resetBtn);
+
+    // Controller section
+    const gpHeader = document.createElement('div');
+    gpHeader.textContent = 'CONTROLLER';
+    gpHeader.style.cssText = 'font-size: 10px; letter-spacing: 2px; color: #888; margin-top: 16px; margin-bottom: 8px;';
+    container.appendChild(gpHeader);
+
+    const gpStatus = document.createElement('div');
+    gpStatus.style.cssText = 'font-size: 11px; color: #666; margin-bottom: 8px;';
+    gpStatus.textContent = this.inputManager?.gamepadConnected ? 'Controller connected' : 'No controller detected';
+    container.appendChild(gpStatus);
+
+    // Camera sensitivity slider
+    container.appendChild(this._createVolumeSlider('Camera Sensitivity',
+      this.settingsManager.get('gamepad.cameraSensitivity'),
+      (v) => this.settingsManager.set('gamepad.cameraSensitivity', v * 3) // 0-3 range
+    ));
+
+    // Deadzone slider
+    container.appendChild(this._createVolumeSlider('Stick Deadzone',
+      this.settingsManager.get('gamepad.deadzone') / 0.4, // normalize to 0-1 for slider
+      (v) => this.settingsManager.set('gamepad.deadzone', v * 0.4) // 0-0.4 range
+    ));
+
+    // Camera mode toggle (controller)
+    container.appendChild(this._createCameraModeToggle('Camera (Controller)', 'camera.controllerMode'));
+
+    // Button mapping sub-header
+    const btnHeader = document.createElement('div');
+    btnHeader.textContent = 'BUTTON MAPPING';
+    btnHeader.style.cssText = 'font-size: 10px; letter-spacing: 2px; color: #888; margin-top: 12px; margin-bottom: 8px;';
+    container.appendChild(btnHeader);
+
+    const gpButtonDefs = [
+      { index: 0, label: 'A' },
+      { index: 1, label: 'B' },
+      { index: 2, label: 'X' },
+      { index: 3, label: 'Y' },
+      { index: 4, label: 'LB' },
+      { index: 5, label: 'RB' },
+      { index: 6, label: 'LT' },
+      { index: 7, label: 'RT' },
+      { index: 9, label: 'Start' },
+      { index: 12, label: 'D-Up' },
+      { index: 13, label: 'D-Down' },
+      { index: 14, label: 'D-Left' },
+      { index: 15, label: 'D-Right' },
+    ];
+
+    const gpActions = [
+      { value: '', label: 'None' },
+      { value: 'ability_1', label: 'Ability 1' },
+      { value: 'ability_2', label: 'Ability 2' },
+      { value: 'ability_3', label: 'Ability 3' },
+      { value: 'ability_4', label: 'Ability 4' },
+      { value: 'ability_5', label: 'Ability 5' },
+      { value: 'ability_6', label: 'Ability 6' },
+      { value: 'target', label: 'Target' },
+      { value: 'tab_target', label: 'Tab Target' },
+      { value: 'dodge', label: 'Dodge' },
+      { value: 'settings', label: 'Settings' },
+    ];
+
+    const currentMapping = this.settingsManager.getGamepadMapping();
+
+    for (const def of gpButtonDefs) {
+      const row = document.createElement('div');
+      row.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-bottom: 5px;';
+
+      const label = document.createElement('span');
+      label.textContent = def.label;
+      label.style.cssText = 'font-size: 11px; color: #aaa; width: 52px; text-align: right;';
+
+      const select = document.createElement('select');
+      select.style.cssText = `
+        flex: 1; padding: 3px 6px; background: rgba(30,30,40,0.8); border: 1px solid #3a3a4a;
+        color: #e0d8c8; font-size: 11px; font-family: monospace; cursor: pointer;
+        border-radius: 3px; outline: none;
+      `;
+
+      for (const act of gpActions) {
+        const opt = document.createElement('option');
+        opt.value = act.value;
+        opt.textContent = act.label;
+        opt.style.cssText = 'background: #1a1a24; color: #e0d8c8;';
+        if ((currentMapping[def.index] || '') === act.value) opt.selected = true;
+        select.appendChild(opt);
+      }
+
+      const btnIndex = def.index;
+      select.addEventListener('change', () => {
+        this.settingsManager.setGamepadButton(btnIndex, select.value || null);
+      });
+
+      row.appendChild(label);
+      row.appendChild(select);
+      container.appendChild(row);
+    }
+
+    // Reset gamepad button
+    const gpResetBtn = document.createElement('button');
+    gpResetBtn.textContent = 'Reset Controller';
+    gpResetBtn.style.cssText = `
+      margin-top: 10px; width: 100%; padding: 6px; background: rgba(80,20,20,0.5);
+      border: 1px solid #5a2a2a; color: #cc8888; font-size: 10px; letter-spacing: 1px;
+      cursor: pointer; border-radius: 3px; font-family: inherit; transition: all 0.15s;
+    `;
+    gpResetBtn.addEventListener('mouseenter', () => { gpResetBtn.style.background = 'rgba(120,30,30,0.6)'; });
+    gpResetBtn.addEventListener('mouseleave', () => { gpResetBtn.style.background = 'rgba(80,20,20,0.5)'; });
+    gpResetBtn.addEventListener('click', () => {
+      this.settingsManager.resetGamepad();
+      // Rebuild the controls tab to refresh dropdowns
+      container.innerHTML = '';
+      this._buildControlsTab(container);
+    });
+    container.appendChild(gpResetBtn);
+  }
+
+  _refreshKeybindRows(rows, defaultKeys) {
+    for (const { btn, slot } of rows) {
+      const key = this.settingsManager.getKeybinding(slot) || defaultKeys[slot];
+      btn.textContent = key.toUpperCase();
+    }
+  }
+
+  _refreshControlRows(rows) {
+    for (const { btn, action } of rows) {
+      const key = this.settingsManager.getControl(action);
+      btn.textContent = this._formatKeyLabel(key);
+    }
+  }
+
+  _formatKeyLabel(key) {
+    if (!key) return '?';
+    if (key === ' ') return 'SPACE';
+    if (key === 'tab') return 'TAB';
+    if (key === 'shift') return 'SHIFT';
+    if (key === 'control') return 'CTRL';
+    if (key === 'alt') return 'ALT';
+    return key.toUpperCase();
+  }
+
+  _createCameraModeToggle(label, settingPath) {
+    const row = document.createElement('div');
+    row.style.cssText = 'display: flex; align-items: center; gap: 8px; margin: 10px 0;';
+
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = label;
+    nameSpan.style.cssText = 'font-size: 11px; color: #aaa; width: 110px;';
+
+    const btnGroup = document.createElement('div');
+    btnGroup.style.cssText = 'display: flex; flex: 1; border: 1px solid #3a3a4a; border-radius: 3px; overflow: hidden;';
+
+    const currentMode = this.settingsManager.get(settingPath) || 'classic';
+    const modes = [
+      { value: 'classic', label: 'Classic' },
+      { value: 'action', label: 'Action' },
+    ];
+
+    const buttons = [];
+    for (const mode of modes) {
+      const btn = document.createElement('button');
+      btn.textContent = mode.label;
+      btn.dataset.value = mode.value;
+      const isActive = currentMode === mode.value;
+      btn.style.cssText = `
+        flex: 1; padding: 4px 0; border: none; font-size: 11px; font-family: inherit;
+        cursor: pointer; transition: all 0.15s;
+        background: ${isActive ? 'rgba(139,0,0,0.5)' : 'rgba(30,30,40,0.8)'};
+        color: ${isActive ? '#c8a860' : '#888'};
+      `;
+      btn.addEventListener('click', () => {
+        this.settingsManager.set(settingPath, mode.value);
+        for (const b of buttons) {
+          const active = b.dataset.value === mode.value;
+          b.style.background = active ? 'rgba(139,0,0,0.5)' : 'rgba(30,30,40,0.8)';
+          b.style.color = active ? '#c8a860' : '#888';
+        }
+      });
+      btnGroup.appendChild(btn);
+      buttons.push(btn);
+    }
+
+    row.appendChild(nameSpan);
+    row.appendChild(btnGroup);
+    return row;
+  }
+
+  _applyKeybindSettings() {
+    if (!this.inputManager || !this._abilityOrder) return;
+    // Re-set keybindings with custom keys from settings
+    this.inputManager.keybindings.clear();
+    for (let i = 0; i < Math.min(this._abilityOrder.length, 6); i++) {
+      const key = this.settingsManager.getKeybinding(i);
+      this.inputManager.keybindings.set(key, this._abilityOrder[i]);
+    }
+    // Update HUD labels
+    if (this.hud) {
+      const keys = {};
+      for (let i = 0; i < 6; i++) keys[i] = this.settingsManager.getKeybinding(i);
+      this.hud.updateKeybindLabels('keyboard', keys);
+      this._lastInputMode = 'keyboard';
+    }
+  }
+
+  _applyControlSettings() {
+    if (!this.inputManager) return;
+    this.inputManager.setControls(this.settingsManager.getAllControls());
   }
 
   _createVolumeSlider(label, value, onChange) {
@@ -1688,7 +2114,7 @@ class Game {
     startBtn.addEventListener('click', () => {
       if (selectedLoadout.length === 6) {
         this._selectedLoadout = [...selectedLoadout];
-        document.getElementById('loading-screen').style.display = 'none';
+        // Don't hide — _showLoadingScreen() will repurpose this element
         this.startMatch();
       }
     });
@@ -1984,7 +2410,8 @@ class Game {
     updateCountIndicator();
   }
 
-  startMatch() {
+  async startMatch() {
+    if (this.arenaRenderer) this.arenaRenderer.resetGates();
     this.audio.playMusic('battle');
     this.audio.playSFX('match_start');
     const rng = new SeededRandom(Date.now());
@@ -2024,9 +2451,38 @@ class Game {
       this.matchState.arenaModifiers.push(mod);
     }
 
-    // 3D characters
+    // ── WoW-style loading screen ──
+    this._showLoadingScreen();
+    this._updateLoadProgress(5);
+
+    // Guarantee the loading screen is visible for at least 5s
+    // Critical for PvP: ensures both players fully load assets + establish connectivity
+    const minDisplayTime = new Promise(resolve => setTimeout(resolve, 5000));
+
+    // Yield to browser so it paints the loading screen before heavy work
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+    // 3D characters — kick off both in parallel
     this.characterRenderer.createCharacter(0, this.playerClassId);
+    this._updateLoadProgress(10);
     this.characterRenderer.createCharacter(1, this.enemyClassId);
+    this._updateLoadProgress(15);
+
+    // Wait for models to finish loading + rigging before gameplay
+    try {
+      const p0 = this.characterRenderer.waitForCharacterLoad(0).then(() => {
+        this._updateLoadProgress(45);
+      });
+      const p1 = this.characterRenderer.waitForCharacterLoad(1).then(() => {
+        this._updateLoadProgress(70);
+      });
+      await Promise.all([p0, p1]);
+    } catch (err) {
+      console.warn('[Game] Model loading failed, using procedural fallback:', err.message);
+      this._updateLoadProgress(70);
+    }
+
+    this._updateLoadProgress(75);
 
     // Target indicator ring
     this._createTargetRing();
@@ -2038,6 +2494,10 @@ class Game {
     const abilityOrder = playerClass.getAbilityOrder(this._selectedLoadout || null);
     this._abilityOrder = abilityOrder;
     this.inputManager.setKeybindings(abilityOrder);
+    this._applyKeybindSettings(); // Override with custom keybindings from settings
+    this._applyControlSettings(); // Apply custom movement/action bindings
+
+    this._updateLoadProgress(80);
 
     // Controllers
     const playerController = new PlayerController(0, this.inputManager, this.cameraController);
@@ -2066,6 +2526,8 @@ class Game {
       if (eventScheduler.activeEvent?.expired) eventScheduler.activeEvent = null;
       originalTick();
     };
+
+    this._updateLoadProgress(85);
 
     // Wire events to visuals
     this.wireEvents(eventBus);
@@ -2100,7 +2562,16 @@ class Game {
       originalGameTick();
     };
 
+    this._updateLoadProgress(95);
+
     console.log(`[Game] Match: ${this.playerClassId} vs ${this.enemyClassId}`);
+
+    // Ensure loading screen stays visible for at least 2s (minDisplayTime),
+    // then hold at 100% briefly before fading out to countdown
+    await minDisplayTime;
+    this._updateLoadProgress(100);
+    await new Promise(resolve => setTimeout(resolve, 400));
+    await this._hideLoadingScreen();
 
     // --- 10-second countdown before match begins ---
     this._startCountdown(10);
@@ -2197,6 +2668,7 @@ class Game {
 
     // Track ability use for per-ability animations
     this._lastAbilityAnim = new Map(); // unitId -> { tick, abilityId }
+    this._lastHitTick = new Map(); // unitId -> tick when last took damage
 
     // Play SFX for instant-cast abilities + spawn visuals
     eventBus.on(EVENTS.ABILITY_CAST_SUCCESS, (data) => {
@@ -2688,6 +3160,9 @@ class Game {
       const target = match.getUnit(data.targetId);
       if (!target) return;
 
+      // Track last hit tick for hit reaction animation
+      this._lastHitTick.set(data.targetId, match.tick);
+
       const dmgRatio = data.amount / 10000; // 0-1+ scale
       const school = data.school || 'physical';
 
@@ -2804,10 +3279,11 @@ class Game {
     eventBus.on(EVENTS.MATCH_END, (data) => {
       if (this._cleaningUp) return;
       this.audio.playSFX('death');
+      // 2s delay so the death animation can play before the result screen
       this._matchEndTimeout = setTimeout(() => {
         if (this._cleaningUp) return;
         this.showMatchEnd(data);
-      }, 500);
+      }, 2000);
     });
 
     // --- Ground zone VFX ---
@@ -2928,12 +3404,18 @@ class Game {
     if (state !== 'dead' && state !== 'stunned' && state !== 'feared' && state !== 'casting' && state !== 'rolling') {
       let bestProgress = -1;
 
-      // Auto-attack swing
+      // Auto-attack swing — 24 tick (~0.4s) animation window
+      // Only show swing if target is in melee range (prevents swinging while running)
       if (unit.autoAttackEnabled && unit.swingTimer > 0) {
-        const ticksSinceSwing = currentTick - (unit.nextSwingTick - unit.swingTimer);
-        const swingAnimDuration = Math.min(unit.swingTimer, 9);
-        if (ticksSinceSwing >= 0 && ticksSinceSwing < swingAnimDuration) {
-          bestProgress = ticksSinceSwing / swingAnimDuration;
+        const opponent = this.matchState?.getOpponent(unit.id);
+        const inRange = opponent && opponent.isAlive && unit.isInMeleeRange(opponent);
+        if (inRange) {
+          const swingTick = unit.nextSwingTick - unit.swingTimer; // tick when swing landed
+          const ticksSinceSwing = currentTick - swingTick;
+          const swingAnimDuration = 24;
+          if (ticksSinceSwing >= 0 && ticksSinceSwing < swingAnimDuration) {
+            bestProgress = ticksSinceSwing / swingAnimDuration;
+          }
         }
       }
 
@@ -2941,7 +3423,7 @@ class Game {
       const lastAnim = this._lastAbilityAnim?.get(unit.id);
       if (lastAnim != null) {
         const ticksSinceAbility = currentTick - lastAnim.tick;
-        const abilityAnimDuration = 8; // 0.8s — ability use window
+        const abilityAnimDuration = 18; // ~0.3s ability use window
         if (ticksSinceAbility >= 0 && ticksSinceAbility < abilityAnimDuration) {
           const p = ticksSinceAbility / abilityAnimDuration;
           if (p < bestProgress || bestProgress < 0) {
@@ -2954,6 +3436,18 @@ class Game {
       if (bestProgress >= 0) {
         state = 'attacking';
         attackProgress = bestProgress;
+      }
+    }
+
+    // Hit reaction: brief flinch when taking damage (only while idle or moving)
+    if (state === 'idle' || state === 'moving') {
+      const lastHit = this._lastHitTick?.get(unit.id);
+      if (lastHit != null) {
+        const ticksSinceHit = currentTick - lastHit;
+        const hitAnimDuration = 12; // ~0.2s flinch
+        if (ticksSinceHit >= 0 && ticksSinceHit < hitAnimDuration) {
+          state = 'hit';
+        }
       }
     }
 
@@ -3090,6 +3584,38 @@ class Game {
         this.cameraController.setTarget(player.position);
       }
       this.cameraController.setFacing(player.facing);
+
+      // Gamepad — try to detect + poll every frame
+      if (!this.inputManager.gamepadConnected) {
+        // Actively try to find a gamepad each frame (Safari needs this)
+        const gps = navigator.getGamepads();
+        for (let gi = 0; gi < gps.length; gi++) {
+          if (gps[gi] && gps[gi].connected) {
+            this.inputManager.gamepadConnected = true;
+            this.inputManager.gamepadIndex = gps[gi].index;
+            break;
+          }
+        }
+      }
+      if (this.inputManager.gamepadConnected) {
+        const gpMapping = this.settingsManager.getGamepadMapping();
+        const deadzone = this.settingsManager.get('gamepad.deadzone');
+        const stick = this.inputManager.pollGamepad(gpMapping, deadzone);
+        if (stick.x !== 0 || stick.y !== 0) {
+          const sensitivity = this.settingsManager.get('gamepad.cameraSensitivity');
+          this.cameraController.applyGamepadRotation(stick.x, stick.y, sensitivity);
+        }
+      }
+
+      // Action camera auto-follow — based on input mode + setting
+      const camMode = this.inputManager.inputMode === 'gamepad'
+        ? this.settingsManager.get('camera.controllerMode')
+        : this.settingsManager.get('camera.keyboardMode');
+      this.cameraController.autoFollow = (camMode === 'action');
+      const isMoving = this.inputManager.moveForward || this.inputManager.moveBackward
+        || this.inputManager.moveLeft || this.inputManager.moveRight;
+      this.cameraController.setTargetMoving(isMoving, player.facing);
+
       this.cameraController.update(deltaTime);
     }
 
@@ -3115,6 +3641,18 @@ class Game {
       this.hud.updateCCStatus(playerData);
       const adaptedAbilities = HUD.adaptAbilities(playerUnit, this._abilityOrder, match.tick);
       this.hud.updateAbilityBar({ abilities: adaptedAbilities }, match.tick);
+      // Update keybind labels when input mode changes
+      const mode = this.inputManager.inputMode;
+      if (this._lastInputMode !== mode) {
+        this._lastInputMode = mode;
+        if (mode === 'gamepad') {
+          this.hud.updateKeybindLabels('gamepad');
+        } else {
+          const keys = {};
+          for (let j = 0; j < 6; j++) keys[j] = this.settingsManager.getKeybinding(j);
+          this.hud.updateKeybindLabels('keyboard', keys);
+        }
+      }
       const playerCast = HUD.adaptCastBar(playerUnit, match.tick);
       this.hud.updateCastBar({ casting: playerCast }, match.tick, 'player');
       // Dodge roll cooldown indicator
@@ -3582,6 +4120,322 @@ class Game {
   updateLoadingBar(percent) {
     const bar = document.getElementById('loading-bar');
     if (bar) bar.style.width = percent + '%';
+  }
+
+  _showLoadingScreen() {
+    const CLASS_COLORS = {
+      tyrant: '#8b0000', wraith: '#4a0080', infernal: '#ff4400',
+      harbinger: '#2d1a4e', revenant: '#c8a860',
+    };
+    const ARENA_NAMES = [
+      "Blade's Edge Arena", 'The Crucible Pit', 'Ruins of Lordaeron',
+      'The Ring of Valor', 'Ashen Colosseum', 'Blackrock Arena',
+    ];
+    const TIPS = [
+      'Interrupt enemy heals to secure the kill',
+      'Save your defensive cooldowns for burst windows',
+      'Line of sight behind pillars to avoid incoming damage',
+      'Control the center of the arena for positioning advantage',
+      'Crowd control chains can lock down an opponent for a kill',
+      'Watch for enemy cooldowns before committing to a kill attempt',
+      'Movement is key — never stand still during combat',
+      'Use the arena pillars to break enemy spell casts',
+      'Coordinate burst damage with crowd control for maximum pressure',
+      'Keep track of enemy trinket and defensive ability cooldowns',
+      'Positioning behind a pillar forces melee enemies to close distance',
+      'Opening with crowd control gives you early tempo advantage',
+      'Trading cooldowns efficiently is the key to winning long matches',
+      'Fear effects break on damage — coordinate your burst carefully',
+      'Kiting around pillars is the mage\'s best friend',
+      'Don\'t tunnel vision — watch for enemy repositioning',
+    ];
+
+    const screen = document.getElementById('loading-screen');
+    if (!screen) return;
+    screen.innerHTML = '';
+    screen.style.cssText = `
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 1000; overflow: hidden;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #e0d8c8; background: #050208;
+    `;
+
+    // ── Inject CSS animations ──
+    const css = document.createElement('style');
+    css.id = 'loadscreen-css';
+    css.textContent = `
+      @keyframes loadBgPan {
+        0% { transform: scale(1.08) translate(0, 0); }
+        100% { transform: scale(1.08) translate(-1%, -0.5%); }
+      }
+      @keyframes loadTitlePulse {
+        0%, 100% { text-shadow: 0 0 20px rgba(200,168,96,0.4), 0 2px 8px rgba(0,0,0,0.8); }
+        50% { text-shadow: 0 0 40px rgba(200,168,96,0.7), 0 0 80px rgba(139,0,0,0.3), 0 2px 8px rgba(0,0,0,0.8); }
+      }
+      @keyframes loadBarShimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+      }
+      @keyframes loadBarGlow {
+        0%, 100% { box-shadow: 0 0 6px rgba(200,168,96,0.3), inset 0 0 3px rgba(200,168,96,0.1); }
+        50% { box-shadow: 0 0 14px rgba(200,168,96,0.6), 0 0 30px rgba(139,0,0,0.2), inset 0 0 3px rgba(200,168,96,0.2); }
+      }
+      @keyframes loadVsGlow {
+        0%, 100% { text-shadow: 0 0 12px rgba(255,68,0,0.5); }
+        50% { text-shadow: 0 0 24px rgba(255,68,0,0.8), 0 0 48px rgba(139,0,0,0.4); }
+      }
+      @keyframes loadTipFade {
+        0% { opacity: 0; transform: translateY(5px); }
+        10% { opacity: 1; transform: translateY(0); }
+        85% { opacity: 1; transform: translateY(0); }
+        100% { opacity: 0; transform: translateY(-5px); }
+      }
+      @keyframes loadCardSlideLeft {
+        from { opacity: 0; transform: translateX(-40px); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+      @keyframes loadCardSlideRight {
+        from { opacity: 0; transform: translateX(40px); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+    `;
+    document.head.appendChild(css);
+
+    // ── Background image layer (uses preloaded img element — instant) ──
+    const bg = document.createElement('div');
+    bg.style.cssText = `
+      position: absolute; top: -5%; left: -5%; width: 110%; height: 110%;
+      overflow: hidden;
+      filter: brightness(0.3) saturate(1.3);
+      animation: loadBgPan 20s ease-in-out infinite alternate;
+    `;
+    if (this._loadingBgImg) {
+      const bgImg = this._loadingBgImg.cloneNode();
+      bgImg.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
+      bg.appendChild(bgImg);
+    } else {
+      bg.style.background = "url('/assets/art/arena_loading_bg.webp') center/cover no-repeat";
+    }
+    screen.appendChild(bg);
+
+    // ── Dark vignette overlay ──
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: radial-gradient(ellipse at center, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.6) 60%, rgba(5,2,8,0.95) 100%);
+    `;
+    screen.appendChild(overlay);
+
+    // ── Ember particles ──
+    this._spawnScreenParticles(screen, 20, 'rgba(200,100,40,0.7)');
+
+    // ── Content wrapper ──
+    const content = document.createElement('div');
+    content.style.cssText = `
+      position: relative; z-index: 2; display: flex; flex-direction: column;
+      align-items: center; text-align: center; width: 100%; max-width: 800px;
+      padding: 0 20px;
+    `;
+    screen.appendChild(content);
+
+    // ── Title: THE EBON CRUCIBLE ──
+    const title = document.createElement('div');
+    title.textContent = 'THE EBON CRUCIBLE';
+    title.style.cssText = `
+      font-family: "Cinzel", serif; font-size: 38px; font-weight: 700;
+      color: #c8a860; letter-spacing: 8px; text-transform: uppercase;
+      animation: loadTitlePulse 3s ease-in-out infinite;
+      margin-bottom: 4px;
+    `;
+    content.appendChild(title);
+
+    // ── Arena name subtitle ──
+    const arenaName = document.createElement('div');
+    arenaName.textContent = ARENA_NAMES[Math.floor(Math.random() * ARENA_NAMES.length)];
+    arenaName.style.cssText = `
+      font-family: "Cinzel", serif; font-size: 14px; color: #666;
+      letter-spacing: 4px; text-transform: uppercase; margin-bottom: 40px;
+    `;
+    content.appendChild(arenaName);
+
+    // ── Decorative line ──
+    const line1 = document.createElement('div');
+    line1.style.cssText = `
+      width: 200px; height: 1px; margin: 0 auto 32px;
+      background: linear-gradient(90deg, transparent, #c8a860, transparent);
+    `;
+    content.appendChild(line1);
+
+    // ── Class matchup cards ──
+    const matchupRow = document.createElement('div');
+    matchupRow.style.cssText = `
+      display: flex; align-items: center; justify-content: center; gap: 28px;
+      margin-bottom: 48px; width: 100%;
+    `;
+    content.appendChild(matchupRow);
+
+    const buildClassCard = (classId, label, slideAnim) => {
+      const color = CLASS_COLORS[classId] || '#666';
+      const name = classId.charAt(0).toUpperCase() + classId.slice(1);
+      const card = document.createElement('div');
+      card.style.cssText = `
+        display: flex; flex-direction: column; align-items: center;
+        animation: ${slideAnim} 0.6s ease-out both;
+      `;
+      // Portrait frame
+      const frame = document.createElement('div');
+      frame.style.cssText = `
+        width: 120px; height: 160px; border-radius: 6px; overflow: hidden;
+        border: 2px solid ${color}; box-shadow: 0 0 20px ${color}44, 0 4px 20px rgba(0,0,0,0.6);
+        position: relative; background: #0a0a12;
+      `;
+      const img = document.createElement('img');
+      img.src = `/assets/art/${classId}_splash.webp`;
+      img.style.cssText = `
+        width: 100%; height: 100%; object-fit: cover; object-position: top center;
+        filter: brightness(0.8) saturate(1.1);
+      `;
+      img.onerror = () => { img.style.display = 'none'; };
+      frame.appendChild(img);
+      // Color tint overlay on portrait
+      const tint = document.createElement('div');
+      tint.style.cssText = `
+        position: absolute; bottom: 0; left: 0; width: 100%; height: 50%;
+        background: linear-gradient(transparent, ${color}44);
+      `;
+      frame.appendChild(tint);
+      card.appendChild(frame);
+      // Class name
+      const nameEl = document.createElement('div');
+      nameEl.textContent = name;
+      nameEl.style.cssText = `
+        font-family: "Cinzel", serif; font-size: 16px; font-weight: 700;
+        color: ${color}; letter-spacing: 3px; text-transform: uppercase;
+        margin-top: 10px; text-shadow: 0 0 10px ${color}66;
+      `;
+      card.appendChild(nameEl);
+      // Label (Player / Enemy)
+      const labelEl = document.createElement('div');
+      labelEl.textContent = label;
+      labelEl.style.cssText = `
+        font-size: 11px; color: #555; letter-spacing: 2px;
+        text-transform: uppercase; margin-top: 3px;
+      `;
+      card.appendChild(labelEl);
+      return card;
+    };
+
+    matchupRow.appendChild(buildClassCard(this.playerClassId, 'Player', 'loadCardSlideLeft'));
+
+    // VS divider
+    const vs = document.createElement('div');
+    vs.textContent = 'VS';
+    vs.style.cssText = `
+      font-family: "Cinzel", serif; font-size: 28px; font-weight: 900;
+      color: #ff4400; letter-spacing: 4px;
+      animation: loadVsGlow 2s ease-in-out infinite;
+    `;
+    matchupRow.appendChild(vs);
+
+    matchupRow.appendChild(buildClassCard(this.enemyClassId, 'Enemy', 'loadCardSlideRight'));
+
+    // ── Loading bar ──
+    const barWrap = document.createElement('div');
+    barWrap.style.cssText = `
+      width: 500px; max-width: 85vw; margin-bottom: 8px;
+      display: flex; align-items: center; gap: 14px;
+    `;
+    content.appendChild(barWrap);
+
+    const barOuter = document.createElement('div');
+    barOuter.style.cssText = `
+      flex: 1; height: 8px; background: rgba(255,255,255,0.06);
+      border-radius: 4px; overflow: hidden; position: relative;
+      border: 1px solid rgba(200,168,96,0.2);
+      animation: loadBarGlow 2.5s ease-in-out infinite;
+    `;
+    barWrap.appendChild(barOuter);
+
+    const barInner = document.createElement('div');
+    barInner.id = 'load-bar-fill';
+    barInner.style.cssText = `
+      height: 100%; width: 0%; border-radius: 4px;
+      background: linear-gradient(90deg, #8b0000, #c8a860, #8b0000);
+      background-size: 300% 100%;
+      animation: loadBarShimmer 2s linear infinite;
+      transition: width 0.4s ease-out;
+    `;
+    barOuter.appendChild(barInner);
+
+    const barPct = document.createElement('div');
+    barPct.id = 'load-bar-pct';
+    barPct.textContent = '0%';
+    barPct.style.cssText = `
+      font-family: "Cinzel", serif; font-size: 14px; font-weight: 700;
+      color: #c8a860; min-width: 40px; text-align: right;
+    `;
+    barWrap.appendChild(barPct);
+
+    // ── Decorative line ──
+    const line2 = document.createElement('div');
+    line2.style.cssText = `
+      width: 500px; max-width: 85vw; height: 1px; margin-bottom: 20px;
+      background: linear-gradient(90deg, transparent, rgba(200,168,96,0.15), transparent);
+    `;
+    content.appendChild(line2);
+
+    // ── Gameplay tip (rotating) ──
+    const tipEl = document.createElement('div');
+    tipEl.id = 'load-tip';
+    tipEl.style.cssText = `
+      font-size: 13px; color: #777; font-style: italic;
+      letter-spacing: 0.5px; min-height: 20px;
+      animation: loadTipFade 4s ease-in-out infinite;
+    `;
+    const shuffled = TIPS.sort(() => Math.random() - 0.5);
+    let tipIdx = 0;
+    tipEl.textContent = shuffled[tipIdx];
+    content.appendChild(tipEl);
+
+    // Rotate tips every 4s
+    this._tipInterval = setInterval(() => {
+      tipIdx = (tipIdx + 1) % shuffled.length;
+      tipEl.textContent = shuffled[tipIdx];
+      tipEl.style.animation = 'none';
+      void tipEl.offsetWidth; // trigger reflow
+      tipEl.style.animation = 'loadTipFade 4s ease-in-out infinite';
+    }, 4000);
+  }
+
+  _updateLoadProgress(percent) {
+    const fill = document.getElementById('load-bar-fill');
+    const pct = document.getElementById('load-bar-pct');
+    if (fill) fill.style.width = `${Math.min(100, percent)}%`;
+    if (pct) pct.textContent = `${Math.min(100, Math.round(percent))}%`;
+  }
+
+  _hideLoadingScreen() {
+    return new Promise(resolve => {
+      // Stop tip rotation
+      if (this._tipInterval) {
+        clearInterval(this._tipInterval);
+        this._tipInterval = null;
+      }
+      const screen = document.getElementById('loading-screen');
+      if (!screen) { resolve(); return; }
+      screen.style.transition = 'opacity 0.6s ease-out';
+      screen.style.opacity = '0';
+      setTimeout(() => {
+        screen.style.display = 'none';
+        screen.style.opacity = '1';
+        screen.style.transition = '';
+        // Clean up injected CSS
+        const css = document.getElementById('loadscreen-css');
+        if (css) css.remove();
+        resolve();
+      }, 600);
+    });
   }
 }
 

@@ -9,6 +9,20 @@ export class InputManager {
     this.mousePosition = { x: 0, y: 0 };
     this.mouseButtons = { left: false, right: false, middle: false };
 
+    // Custom control bindings (action -> key)
+    this._controls = {
+      moveForward: 'w',
+      moveBackward: 's',
+      moveLeft: 'a',
+      moveRight: 'd',
+      jump: ' ',
+      dodge: 'shift',
+      tabTarget: 'tab',
+    };
+    // Reverse lookup (key -> action) built from _controls
+    this._controlKeyMap = new Map();
+    this._buildControlKeyMap();
+
     // Movement keys
     this.moveForward = false;
     this.moveBackward = false;
@@ -35,11 +49,67 @@ export class InputManager {
     this.onAbilityPress = null; // (abilityId) => void
     this.onMovementChange = null; // ({ forward, backward, left, right }) => void
 
+    // Gamepad state
+    this.gamepadConnected = false;
+    this.gamepadIndex = -1;
+    this._gpPrevButtons = new Array(17).fill(false);
+    this._gpRightStick = { x: 0, y: 0 };
+    this._inputMode = 'keyboard'; // 'keyboard' | 'gamepad'
+
     this._boundKeyDown = this._onKeyDown.bind(this);
     this._boundKeyUp = this._onKeyUp.bind(this);
     this._boundMouseDown = this._onMouseDown.bind(this);
     this._boundMouseUp = this._onMouseUp.bind(this);
     this._boundMouseMove = this._onMouseMove.bind(this);
+
+    // Gamepad connection events
+    window.addEventListener('gamepadconnected', (e) => {
+      this.gamepadConnected = true;
+      this.gamepadIndex = e.gamepad.index;
+      this._inputMode = 'gamepad';
+      console.log(`Gamepad connected: ${e.gamepad.id}`);
+    });
+    window.addEventListener('gamepaddisconnected', (e) => {
+      if (e.gamepad.index === this.gamepadIndex) {
+        this.gamepadConnected = false;
+        this.gamepadIndex = -1;
+        this._inputMode = 'keyboard';
+        this._gpRightStick = { x: 0, y: 0 };
+        console.log('Gamepad disconnected');
+      }
+    });
+
+    // Polling fallback — gamepadconnected event is unreliable on some systems
+    this._gamepadPollInterval = setInterval(() => {
+      if (this.gamepadConnected) return;
+      const gamepads = navigator.getGamepads();
+      for (let i = 0; i < gamepads.length; i++) {
+        if (gamepads[i] && gamepads[i].connected) {
+          this.gamepadConnected = true;
+          this.gamepadIndex = gamepads[i].index;
+          this._inputMode = 'gamepad';
+          console.log(`Gamepad detected (poll): ${gamepads[i].id}`);
+          break;
+        }
+      }
+    }, 1000);
+  }
+
+  /**
+   * Update control bindings from a settings object.
+   * @param {object} controls - { moveForward, moveBackward, moveLeft, moveRight, jump, dodge, tabTarget }
+   */
+  setControls(controls) {
+    if (!controls) return;
+    Object.assign(this._controls, controls);
+    this._buildControlKeyMap();
+  }
+
+  _buildControlKeyMap() {
+    this._controlKeyMap.clear();
+    for (const [action, key] of Object.entries(this._controls)) {
+      this._controlKeyMap.set(key.toLowerCase(), action);
+    }
   }
 
   /**
@@ -77,32 +147,37 @@ export class InputManager {
 
   _onKeyDown(e) {
     if (e.repeat) return;
+    this._inputMode = 'keyboard';
     const key = e.key.toLowerCase();
     this.keys.set(key, true);
 
-    // Movement keys (WASD)
-    if (key === 'w') this.moveForward = true;
-    if (key === 's') this.moveBackward = true;
-    if (key === 'a') this.moveLeft = true;
-    if (key === 'd') this.moveRight = true;
+    // Resolve action from custom control bindings
+    const action = this._controlKeyMap.get(key);
+
+    // Movement
+    if (action === 'moveForward') this.moveForward = true;
+    if (action === 'moveBackward') this.moveBackward = true;
+    if (action === 'moveLeft') this.moveLeft = true;
+    if (action === 'moveRight') this.moveRight = true;
 
     // Tab — target cycling
-    if (key === 'tab') {
+    if (action === 'tabTarget') {
       this.tabPressed = true;
       e.preventDefault();
     }
 
     // Jump
-    if (key === ' ') {
+    if (action === 'jump') {
       this.jumpPressed = true;
       e.preventDefault();
     }
 
-    // Shift tracking
-    if (key === 'shift') this.shiftHeld = true;
+    // Dodge key tracking
+    if (action === 'dodge') this.shiftHeld = true;
 
-    // Dodge roll — Shift + WASD
-    if (e.shiftKey && ['w', 'a', 's', 'd'].includes(key)) {
+    // Dodge roll — dodge key + movement key
+    const dodgeKey = this._controls.dodge.toLowerCase();
+    if (this.keys.get(dodgeKey) && ['moveForward', 'moveBackward', 'moveLeft', 'moveRight'].includes(action)) {
       this.dodgeRollDirection = key;
       this.dodgeRollQueued = true;
     }
@@ -129,12 +204,14 @@ export class InputManager {
     const key = e.key.toLowerCase();
     this.keys.set(key, false);
 
-    if (key === 'w') this.moveForward = false;
-    if (key === 's') this.moveBackward = false;
-    if (key === 'a') this.moveLeft = false;
-    if (key === 'd') this.moveRight = false;
+    const action = this._controlKeyMap.get(key);
 
-    if (key === 'shift') this.shiftHeld = false;
+    if (action === 'moveForward') this.moveForward = false;
+    if (action === 'moveBackward') this.moveBackward = false;
+    if (action === 'moveLeft') this.moveLeft = false;
+    if (action === 'moveRight') this.moveRight = false;
+
+    if (action === 'dodge') this.shiftHeld = false;
 
     if (this.onMovementChange) {
       this.onMovementChange({
@@ -261,5 +338,89 @@ export class InputManager {
 
     const len = Math.sqrt(rx * rx + rz * rz);
     return { x: rx / len, z: rz / len };
+  }
+
+  /**
+   * Poll gamepad state each frame. Call before camera update.
+   * @param {object} gamepadMapping - Button index -> action name mapping from SettingsManager
+   * @param {number} deadzone - Stick deadzone (0-0.4)
+   * @returns {{ rightStickX: number, rightStickY: number }} Right stick deltas for camera
+   */
+  pollGamepad(gamepadMapping, deadzone = 0.15) {
+    this._gpRightStick = { x: 0, y: 0 };
+    if (!this.gamepadConnected) return this._gpRightStick;
+
+    const gamepads = navigator.getGamepads();
+    const gp = gamepads[this.gamepadIndex];
+    if (!gp) return this._gpRightStick;
+
+    this._inputMode = 'gamepad';
+
+    // Left stick -> movement (axes 0, 1)
+    const lx = Math.abs(gp.axes[0]) > deadzone ? gp.axes[0] : 0;
+    const ly = Math.abs(gp.axes[1]) > deadzone ? gp.axes[1] : 0;
+
+    this.moveLeft = lx < -0.3;
+    this.moveRight = lx > 0.3;
+    this.moveForward = ly < -0.3;
+    this.moveBackward = ly > 0.3;
+
+    if (this.onMovementChange) {
+      this.onMovementChange({
+        forward: this.moveForward,
+        backward: this.moveBackward,
+        left: this.moveLeft,
+        right: this.moveRight
+      });
+    }
+
+    // Right stick -> camera (axes 2, 3)
+    const rx = Math.abs(gp.axes[2]) > deadzone ? gp.axes[2] : 0;
+    const ry = Math.abs(gp.axes[3]) > deadzone ? gp.axes[3] : 0;
+    this._gpRightStick = { x: rx, y: ry };
+
+    // Button edge detection (trigger on press, not hold)
+    for (let i = 0; i < gp.buttons.length && i < 17; i++) {
+      const pressed = gp.buttons[i].pressed;
+      const wasPressed = this._gpPrevButtons[i];
+
+      if (pressed && !wasPressed) {
+        const action = gamepadMapping?.[i];
+        if (action) {
+          if (action.startsWith('ability_')) {
+            const slotIdx = parseInt(action.split('_')[1]) - 1;
+            const abilityId = this.keybindings.get(['1','2','3','4','5','6'][slotIdx]);
+            if (abilityId) {
+              this.abilityQueue.push(abilityId);
+              if (this.onAbilityPress) this.onAbilityPress(abilityId);
+            }
+          } else if (action === 'target' || action === 'tab_target') {
+            this.tabPressed = true;
+          } else if (action === 'dodge') {
+            // Dodge in the direction of left stick, default forward
+            if (ly < -0.3) this.dodgeRollDirection = 'w';
+            else if (ly > 0.3) this.dodgeRollDirection = 's';
+            else if (lx < -0.3) this.dodgeRollDirection = 'a';
+            else if (lx > 0.3) this.dodgeRollDirection = 'd';
+            else this.dodgeRollDirection = 'w';
+            this.dodgeRollQueued = true;
+          } else if (action === 'settings') {
+            // Emit a custom event for settings toggle
+            window.dispatchEvent(new CustomEvent('gamepad-settings'));
+          }
+        }
+      }
+
+      this._gpPrevButtons[i] = pressed;
+    }
+
+    return this._gpRightStick;
+  }
+
+  /**
+   * Get current input mode: 'keyboard' or 'gamepad'
+   */
+  get inputMode() {
+    return this._inputMode;
   }
 }

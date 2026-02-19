@@ -42,6 +42,13 @@ export class CameraController {
     // Raycaster for collision
     this.raycaster = new THREE.Raycaster();
     this.collisionObjects = [];
+
+    // Action camera auto-follow
+    this.autoFollow = false;
+    this.autoFollowSpeed = 0.03;
+    this._targetMoving = false;
+    this._targetFacing = 0;
+    this._rightStickActive = false;
   }
 
   setTarget(position) {
@@ -171,9 +178,33 @@ export class CameraController {
   }
 
   /**
+   * Inform camera of character movement state for auto-follow.
+   */
+  setTargetMoving(isMoving, facing) {
+    this._targetMoving = isMoving;
+    this._targetFacing = facing;
+  }
+
+  /**
+   * Lerp between two angles, handling wraparound.
+   */
+  _lerpAngle(a, b, t) {
+    let diff = b - a;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    return a + diff * t;
+  }
+
+  /**
    * Update camera position and look-at
    */
   update(deltaTime) {
+    // Auto-follow: gently rotate camera behind character when moving
+    if (this.autoFollow && this._targetMoving && !this._rightStickActive && !this.isRightDrag) {
+      const behindAngle = this._targetFacing + Math.PI;
+      this.rotationAngle = this._lerpAngle(this.rotationAngle, behindAngle, this.autoFollowSpeed);
+    }
+
     const offsetX = Math.sin(this.rotationAngle) * this.distance * Math.cos(this.pitchAngle);
     const offsetZ = Math.cos(this.rotationAngle) * this.distance * Math.cos(this.pitchAngle);
     const offsetY = this.height + this.distance * Math.sin(-this.pitchAngle);
@@ -224,6 +255,18 @@ export class CameraController {
       this.fovTarget += (this.fovBase - this.fovTarget) * (this._fovReturnSpeed || 0.02);
       if (Math.abs(this.fovTarget - this.fovBase) < 0.5) this.fovTarget = this.fovBase;
     }
+  }
+
+  /**
+   * Apply right-stick gamepad rotation to camera.
+   * @param {number} rx - Right stick X axis (-1 to 1)
+   * @param {number} ry - Right stick Y axis (-1 to 1)
+   * @param {number} sensitivity - Camera sensitivity multiplier (0-3)
+   */
+  applyGamepadRotation(rx, ry, sensitivity = 1.0) {
+    this._rightStickActive = (rx !== 0 || ry !== 0);
+    this.rotationAngle -= rx * 0.04 * sensitivity;
+    this.pitchAngle = Math.max(-1.4, Math.min(0.1, this.pitchAngle - ry * 0.03 * sensitivity));
   }
 
   /**
