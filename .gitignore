@@ -6,3 +6,41 @@ dist/
 
 # Meshy 3D models (large GLBs — regenerate via Meshy API)
 public/assets/models/*.glb
+
+# Unused shared animations (kept locally for future assignment via viewer)
+# These are not mapped to any ability in CLASS_ANIMATIONS yet
+public/assets/animations/shared/alert.glb
+public/assets/animations/shared/angry_ground_stomp.glb
+public/assets/animations/shared/axe_stance.glb
+public/assets/animations/shared/backflip.glb
+public/assets/animations/shared/charged_slash.glb
+public/assets/animations/shared/charged_upward_slash.glb
+public/assets/animations/shared/counterstrike.glb
+public/assets/animations/shared/dodge_and_counter.glb
+public/assets/animations/shared/double_blade_spin.glb
+public/assets/animations/shared/electrocuted_fall.glb
+public/assets/animations/shared/idle_02.glb
+public/assets/animations/shared/idle_03.glb
+public/assets/animations/shared/injured_walk.glb
+public/assets/animations/shared/knock_down.glb
+public/assets/animations/shared/leg_sweep.glb
+public/assets/animations/shared/punch_combo.glb
+public/assets/animations/shared/roundhouse_kick.glb
+public/assets/animations/shared/run_03.glb
+public/assets/animations/shared/run_fast.glb
+public/assets/animations/shared/shield_push.glb
+public/assets/animations/shared/simple_kick.glb
+public/assets/animations/shared/skill_01.glb
+public/assets/animations/shared/skill_02.glb
+public/assets/animations/shared/skill_03.glb
+public/assets/animations/shared/sneaky_walk.glb
+public/assets/animations/shared/spartan_kick.glb
+public/assets/animations/shared/standard_forward_charge.glb
+public/assets/animations/shared/sword_parry.glb
+public/assets/animations/shared/sword_shout.glb
+public/assets/animations/shared/triple_combo_attack.glb
+public/assets/animations/shared/two_handed_parry.glb
+public/assets/animations/shared/walk_backward.glb
+public/assets/animations/shared/walk_fight_back.glb
+public/assets/animations/shared/walk_fight_forward.glb
+public/assets/animations/shared/weapon_combo.glb
