@@ -4,6 +4,9 @@ dist/
 .env.local
 *.log
 
+# Admin dashboard (contains hardcoded AWS credentials — local only)
+admin/
+
 # Meshy 3D models (large GLBs — regenerate via Meshy API)
 public/assets/models/*.glb
 
@@ -44,3 +47,8 @@ public/assets/animations/shared/walk_backward.glb
 public/assets/animations/shared/walk_fight_back.glb
 public/assets/animations/shared/walk_fight_forward.glb
 public/assets/animations/shared/weapon_combo.glb
+
+# Pre-strip animation originals (2.6GB). The shipped clips in
+# rigs/<rig>/ are these with mesh+texture removed; keep the originals
+# locally as a re-strip source, never in the repo.
+public/assets/animations/rigs/_originals_*/
