@@ -1161,4 +1161,333 @@ export class SoundGenerator {
     rustle.stop(t + 0.15);
   }
 
+  // ── Class-specific & Additional SFX ──────────────────────────────────
+
+  /** Frost impact: crystalline shatter + icy shimmer */
+  playFrostImpact(destination, volume = 0.3) {
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    // Glass shatter: short noise burst through highpass 4000Hz
+    const shatter = ctx.createBufferSource();
+    shatter.buffer = this._createNoiseBuffer(0.06);
+    const shatterFilter = ctx.createBiquadFilter();
+    shatterFilter.type = 'highpass'; shatterFilter.frequency.value = 4000; shatterFilter.Q.value = 2;
+    const shatterGain = ctx.createGain();
+    shatterGain.gain.setValueAtTime(volume * 0.6, t);
+    shatterGain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+    shatter.connect(shatterFilter).connect(shatterGain);
+    this._sendToReverb(shatterGain, destination, 0.5, 0.5);
+    shatter.start(t); shatter.stop(t + 0.08);
+    // Icy ring: sine 2400Hz with slow decay
+    const ring = ctx.createOscillator();
+    ring.type = 'sine'; ring.frequency.value = 2400;
+    const ringGain = ctx.createGain();
+    ringGain.gain.setValueAtTime(volume * 0.3, t);
+    ringGain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+    ring.connect(ringGain);
+    this._sendToReverb(ringGain, destination, 0.4, 0.6);
+    ring.start(t); ring.stop(t + 0.35);
+    // Sub crack: sine sweep 200→60Hz
+    const crack = ctx.createOscillator();
+    crack.type = 'sine';
+    crack.frequency.setValueAtTime(200, t);
+    crack.frequency.exponentialRampToValueAtTime(60, t + 0.1);
+    const crackGain = ctx.createGain();
+    crackGain.gain.setValueAtTime(volume * 0.5, t);
+    crackGain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+    crack.connect(crackGain).connect(destination);
+    crack.start(t); crack.stop(t + 0.15);
+  }
+
+  /** Melee hit: flesh/armor impact thud */
+  playMeleeHit(destination, volume = 0.3) {
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    // Body thud: sine sweep 200→40Hz, 60ms
+    const thud = ctx.createOscillator();
+    thud.type = 'sine';
+    thud.frequency.setValueAtTime(200, t);
+    thud.frequency.exponentialRampToValueAtTime(40, t + 0.06);
+    const thudGain = ctx.createGain();
+    thudGain.gain.setValueAtTime(volume * 0.8, t);
+    thudGain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+    thud.connect(thudGain).connect(destination);
+    thud.start(t); thud.stop(t + 0.1);
+    // Noise burst: impact transient, 5ms
+    const impact = ctx.createBufferSource();
+    impact.buffer = this._createNoiseBuffer(0.005);
+    const impGain = ctx.createGain();
+    impGain.gain.setValueAtTime(volume * 0.5, t);
+    impGain.gain.exponentialRampToValueAtTime(0.001, t + 0.01);
+    impact.connect(impGain).connect(destination);
+    impact.start(t); impact.stop(t + 0.015);
+  }
+
+  /** Sword swing: fast whoosh */
+  playSwordSwing(destination, volume = 0.25) {
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    // Whoosh: noise bandpass sweep 800→4000Hz, 150ms
+    const whoosh = ctx.createBufferSource();
+    whoosh.buffer = this._createNoiseBuffer(0.15);
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(800, t);
+    filter.frequency.exponentialRampToValueAtTime(4000, t + 0.15);
+    filter.Q.value = 1.5;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(volume, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+    whoosh.connect(filter).connect(gain).connect(destination);
+    whoosh.start(t); whoosh.stop(t + 0.2);
+  }
+
+  /** Shield block: metallic clang + ring */
+  playShieldBlock(destination, volume = 0.35) {
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    // Metal clang transient
+    const clang = ctx.createBufferSource();
+    clang.buffer = this._createNoiseBuffer(0.008);
+    const clangFilter = ctx.createBiquadFilter();
+    clangFilter.type = 'bandpass'; clangFilter.frequency.value = 3000; clangFilter.Q.value = 5;
+    const clangGain = ctx.createGain();
+    clangGain.gain.setValueAtTime(volume * 0.7, t);
+    clangGain.gain.exponentialRampToValueAtTime(0.001, t + 0.015);
+    clang.connect(clangFilter).connect(clangGain).connect(destination);
+    clang.start(t); clang.stop(t + 0.02);
+    // Metallic ring: triangle 1200Hz decaying
+    const ring = ctx.createOscillator();
+    ring.type = 'triangle'; ring.frequency.value = 1200;
+    const ringGain = ctx.createGain();
+    ringGain.gain.setValueAtTime(volume * 0.4, t);
+    ringGain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+    ring.connect(ringGain);
+    this._sendToReverb(ringGain, destination, 0.5, 0.5);
+    ring.start(t); ring.stop(t + 0.35);
+    // Sub thump
+    const sub = ctx.createOscillator();
+    sub.type = 'sine'; sub.frequency.value = 80;
+    const subGain = ctx.createGain();
+    subGain.gain.setValueAtTime(volume * 0.5, t);
+    subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+    sub.connect(subGain).connect(destination);
+    sub.start(t); sub.stop(t + 0.08);
+  }
+
+  /** CC break: chains snapping + sharp burst */
+  playCCBreak(destination, volume = 0.3) {
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    // Sharp snap: noise burst 3ms
+    const snap = ctx.createBufferSource();
+    snap.buffer = this._createNoiseBuffer(0.003);
+    const snapGain = ctx.createGain();
+    snapGain.gain.setValueAtTime(volume * 0.8, t);
+    snapGain.gain.exponentialRampToValueAtTime(0.001, t + 0.005);
+    snap.connect(snapGain).connect(destination);
+    snap.start(t); snap.stop(t + 0.01);
+    // Rising bright tone: sine sweep 400→1600Hz, 100ms (freedom feel)
+    const rise = ctx.createOscillator();
+    rise.type = 'sine';
+    rise.frequency.setValueAtTime(400, t);
+    rise.frequency.exponentialRampToValueAtTime(1600, t + 0.1);
+    const riseGain = ctx.createGain();
+    riseGain.gain.setValueAtTime(volume * 0.3, t);
+    riseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+    rise.connect(riseGain);
+    this._sendToReverb(riseGain, destination, 0.6, 0.4);
+    rise.start(t); rise.stop(t + 0.2);
+  }
+
+  /** Charge rush: rushing wind + sub whomp */
+  playChargeRush(destination, volume = 0.3) {
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    // Wind rush: noise sweep 300→6000Hz bandpass, 400ms
+    const wind = ctx.createBufferSource();
+    wind.buffer = this._createNoiseBuffer(0.4);
+    const windFilter = ctx.createBiquadFilter();
+    windFilter.type = 'bandpass';
+    windFilter.frequency.setValueAtTime(300, t);
+    windFilter.frequency.exponentialRampToValueAtTime(6000, t + 0.3);
+    windFilter.Q.value = 0.8;
+    const windGain = ctx.createGain();
+    windGain.gain.setValueAtTime(0.001, t);
+    windGain.gain.linearRampToValueAtTime(volume * 0.5, t + 0.15);
+    windGain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+    wind.connect(windFilter).connect(windGain).connect(destination);
+    wind.start(t); wind.stop(t + 0.45);
+    // Sub whomp at midpoint
+    const sub = ctx.createOscillator();
+    sub.type = 'sine'; sub.frequency.value = 50;
+    const subGain = ctx.createGain();
+    subGain.gain.setValueAtTime(0.001, t);
+    subGain.gain.setValueAtTime(volume * 0.6, t + 0.15);
+    subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+    sub.connect(subGain).connect(destination);
+    sub.start(t); sub.stop(t + 0.35);
+  }
+
+  /** Poison splash: toxic bubble + acid sizzle (Wraith) */
+  playPoisonSplash(destination, volume = 0.25) {
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    // Bubble: sine 300Hz with rapid vibrato
+    const bubble = ctx.createOscillator();
+    bubble.type = 'sine'; bubble.frequency.value = 300;
+    const vibrato = ctx.createOscillator();
+    vibrato.type = 'sine'; vibrato.frequency.value = 30;
+    const vibGain = ctx.createGain(); vibGain.gain.value = 80;
+    vibrato.connect(vibGain).connect(bubble.frequency);
+    const bubbleGain = ctx.createGain();
+    bubbleGain.gain.setValueAtTime(volume * 0.4, t);
+    bubbleGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+    bubble.connect(bubbleGain);
+    this._sendToReverb(bubbleGain, destination, 0.7, 0.3);
+    bubble.start(t); vibrato.start(t);
+    bubble.stop(t + 0.2); vibrato.stop(t + 0.2);
+    // Acid sizzle: noise highpass 6000Hz, 200ms
+    const sizzle = ctx.createBufferSource();
+    sizzle.buffer = this._createNoiseBuffer(0.2);
+    const sizzFilter = ctx.createBiquadFilter();
+    sizzFilter.type = 'highpass'; sizzFilter.frequency.value = 6000;
+    const sizzGain = ctx.createGain();
+    sizzGain.gain.setValueAtTime(volume * 0.2, t + 0.05);
+    sizzGain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    sizzle.connect(sizzFilter).connect(sizzGain).connect(destination);
+    sizzle.start(t); sizzle.stop(t + 0.3);
+  }
+
+  /** Arcane blast: magical discharge + sparkle (Infernal) */
+  playArcaneBlast(destination, volume = 0.25) {
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    // Arcane zap: sawtooth 800Hz→200Hz sweep through bandpass
+    const zap = ctx.createOscillator();
+    zap.type = 'sawtooth';
+    zap.frequency.setValueAtTime(800, t);
+    zap.frequency.exponentialRampToValueAtTime(200, t + 0.15);
+    const zapFilter = ctx.createBiquadFilter();
+    zapFilter.type = 'bandpass'; zapFilter.frequency.value = 600; zapFilter.Q.value = 2;
+    const zapGain = ctx.createGain();
+    zapGain.gain.setValueAtTime(volume * 0.4, t);
+    zapGain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    zap.connect(zapFilter).connect(zapGain);
+    this._sendToReverb(zapGain, destination, 0.4, 0.6);
+    zap.start(t); zap.stop(t + 0.25);
+    // Sparkle shimmer: noise highpass 8000Hz, 150ms
+    const sparkle = ctx.createBufferSource();
+    sparkle.buffer = this._createNoiseBuffer(0.15);
+    const sparkFilter = ctx.createBiquadFilter();
+    sparkFilter.type = 'highpass'; sparkFilter.frequency.value = 8000;
+    const sparkGain = ctx.createGain();
+    sparkGain.gain.setValueAtTime(volume * 0.15, t);
+    sparkGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+    sparkle.connect(sparkFilter).connect(sparkGain).connect(destination);
+    sparkle.start(t); sparkle.stop(t + 0.2);
+  }
+
+  /** Dark curse: ominous low tone + eerie whisper (Harbinger) */
+  playDarkCurse(destination, volume = 0.25) {
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    // Dark drone: sawtooth 55Hz through lowpass 200Hz, 300ms
+    const drone = ctx.createOscillator();
+    drone.type = 'sawtooth'; drone.frequency.value = 55;
+    const droneFilter = ctx.createBiquadFilter();
+    droneFilter.type = 'lowpass'; droneFilter.frequency.value = 200;
+    const droneGain = ctx.createGain();
+    droneGain.gain.setValueAtTime(volume * 0.5, t);
+    droneGain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+    drone.connect(droneFilter).connect(droneGain);
+    this._sendToReverb(droneGain, destination, 0.3, 0.7);
+    drone.start(t); drone.stop(t + 0.35);
+    // Eerie whisper: noise bandpass 1500Hz Q=4, 250ms
+    const whisper = ctx.createBufferSource();
+    whisper.buffer = this._createNoiseBuffer(0.25);
+    const whisperFilter = ctx.createBiquadFilter();
+    whisperFilter.type = 'bandpass'; whisperFilter.frequency.value = 1500; whisperFilter.Q.value = 4;
+    const whisperGain = ctx.createGain();
+    whisperGain.gain.setValueAtTime(0.001, t);
+    whisperGain.gain.linearRampToValueAtTime(volume * 0.2, t + 0.1);
+    whisperGain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    whisper.connect(whisperFilter).connect(whisperGain);
+    this._sendToReverb(whisperGain, destination, 0.2, 0.8);
+    whisper.start(t); whisper.stop(t + 0.3);
+    // Sub hit
+    const sub = ctx.createOscillator();
+    sub.type = 'sine'; sub.frequency.value = 40;
+    const subGain = ctx.createGain();
+    subGain.gain.setValueAtTime(volume * 0.4, t);
+    subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+    sub.connect(subGain).connect(destination);
+    sub.start(t); sub.stop(t + 0.15);
+  }
+
+  /** Holy smite: divine chime + bright burst (Revenant) */
+  playHolySmite(destination, volume = 0.3) {
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    // Chime: triangle 1500Hz + 2000Hz harmonics
+    const chime1 = ctx.createOscillator();
+    chime1.type = 'triangle'; chime1.frequency.value = 1500;
+    const chime2 = ctx.createOscillator();
+    chime2.type = 'triangle'; chime2.frequency.value = 2000;
+    const chimeGain = ctx.createGain();
+    chimeGain.gain.setValueAtTime(volume * 0.3, t);
+    chimeGain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    chime1.connect(chimeGain); chime2.connect(chimeGain);
+    this._sendToReverb(chimeGain, destination, 0.3, 0.7);
+    chime1.start(t); chime2.start(t);
+    chime1.stop(t + 0.3); chime2.stop(t + 0.3);
+    // Bright burst: noise highpass 5000Hz, 30ms
+    const burst = ctx.createBufferSource();
+    burst.buffer = this._createNoiseBuffer(0.03);
+    const burstFilter = ctx.createBiquadFilter();
+    burstFilter.type = 'highpass'; burstFilter.frequency.value = 5000;
+    const burstGain = ctx.createGain();
+    burstGain.gain.setValueAtTime(volume * 0.4, t);
+    burstGain.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
+    burst.connect(burstFilter).connect(burstGain).connect(destination);
+    burst.start(t); burst.stop(t + 0.05);
+    // Sub impact
+    const sub = ctx.createOscillator();
+    sub.type = 'sine'; sub.frequency.value = 70;
+    const subGain = ctx.createGain();
+    subGain.gain.setValueAtTime(volume * 0.5, t);
+    subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+    sub.connect(subGain).connect(destination);
+    sub.start(t); sub.stop(t + 0.1);
+  }
+
+  /** Warrior rage: guttural roar + sub rumble (Tyrant) */
+  playWarriorRage(destination, volume = 0.3) {
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    // Roar: sawtooth 120Hz through lowpass sweep 200→800Hz
+    const roar = ctx.createOscillator();
+    roar.type = 'sawtooth'; roar.frequency.value = 120;
+    const roarFilter = ctx.createBiquadFilter();
+    roarFilter.type = 'lowpass';
+    roarFilter.frequency.setValueAtTime(200, t);
+    roarFilter.frequency.linearRampToValueAtTime(800, t + 0.2);
+    roarFilter.frequency.linearRampToValueAtTime(300, t + 0.4);
+    const roarGain = ctx.createGain();
+    roarGain.gain.setValueAtTime(0.001, t);
+    roarGain.gain.linearRampToValueAtTime(volume * 0.4, t + 0.1);
+    roarGain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+    roar.connect(roarFilter).connect(roarGain);
+    this._sendToReverb(roarGain, destination, 0.5, 0.5);
+    roar.start(t); roar.stop(t + 0.45);
+    // Sub rumble
+    const sub = ctx.createOscillator();
+    sub.type = 'sine'; sub.frequency.value = 45;
+    const subGain = ctx.createGain();
+    subGain.gain.setValueAtTime(volume * 0.5, t);
+    subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+    sub.connect(subGain).connect(destination);
+    sub.start(t); sub.stop(t + 0.35);
+  }
+
 }

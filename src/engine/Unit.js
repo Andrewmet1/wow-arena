@@ -97,6 +97,11 @@ export class Unit {
 
     // Class-specific data (set by class implementations)
     this.classData = {};
+
+    // Team (2v2/3v3) — null = legacy 1v1
+    this.team = null;
+    this.timeAlive = 0;
+    this.killParticipation = 0;
   }
 
   get isAlive() {
@@ -295,6 +300,7 @@ export class Unit {
 
   tick(currentTick) {
     if (!this.alive) return [];
+    this.timeAlive++;
 
     // Expire dodge roll
     if (this.dodgeRollState && currentTick >= this.dodgeRollState.endTick) {
@@ -391,7 +397,8 @@ export class Unit {
       castState: this.castState ? { abilityId: this.castState.abilityId, progress: 0 } : null,
       channelState: this.channelState ? { abilityId: this.channelState.abilityId } : null,
       resources: {},
-      auras: this.auras.serialize()
+      auras: this.auras.serialize(),
+      team: this.team
     };
   }
 }

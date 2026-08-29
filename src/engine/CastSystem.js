@@ -54,6 +54,11 @@ export class CastSystem {
    */
   static getCastTime(unit, ability) {
     if (!ability.castTime || ability.castTime === 0) return 0;
+    // Ignition proc: next fire spell is instant (consumes the proc)
+    if (unit.classData?.ignitionProc && ability.school === 'fire') {
+      unit.auras?.remove('ignition_proc');
+      return 0;
+    }
     return Math.max(1, Math.round(ability.castTime / unit.stats.hasteMultiplier));
   }
 

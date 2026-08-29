@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+  <title>Ebon Crucible — Dark Fantasy Arena Combat</title>
+  <meta name="description" content="Ebon Crucible — Dark fantasy 1v1 arena combat. Five classes, 63 abilities, ranked matchmaking. Free to play in your browser.">
+  <meta property="og:title" content="Ebon Crucible — Dark Fantasy Arena Combat">
+  <meta property="og:description" content="Choose a deadly class. Master 63 abilities. Fight real players in ranked 1v1 arena combat. Free to play.">
+  <meta property="og:image" content="/assets/art/home_bg.webp">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Ebon Crucible — Dark Fantasy Arena Combat">
+  <meta name="twitter:description" content="Five classes. 63 abilities. Ranked 1v1 combat. Free to play in your browser.">
+  <meta name="twitter:image" content="/assets/art/home_bg.webp">
+  <link rel="canonical" href="https://eboncrucible.com/play/">
+  <meta name="theme-color" content="#08080f">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0a; }
+    #game-canvas { width: 100%; height: 100%; display: block; }
+    #game-canvas { position: absolute; top: 0; left: 0; }
+    #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #e0d8c8; }
+    #hud button, #hud .ability-slot { pointer-events: auto; }
+    #loading-screen {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: #0a0a0a; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; z-index: 1000;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #e0d8c8;
+    }
+    #loading-screen h1 { font-size: 48px; letter-spacing: 8px; text-transform: uppercase; color: #8b0000; margin-bottom: 20px; }
+    #loading-screen .subtitle { font-size: 14px; letter-spacing: 4px; text-transform: uppercase; color: #666; }
+    #loading-bar-container { width: 300px; height: 4px; background: #1a1a1a; margin-top: 40px; border-radius: 2px; }
+    #loading-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #8b0000, #cc0000); border-radius: 2px; transition: width 0.3s; }
+  </style>
+</head>
+<body>
+  <div id="loading-screen">
+    <h1>Ebon Crucible</h1>
+    <div class="subtitle">Blood. Steel. Magic.</div>
+    <div id="loading-bar-container"><div id="loading-bar"></div></div>
+  </div>
+  <canvas id="game-canvas"></canvas>
+  <div id="hud"></div>
+  <script>
+    // Polyfill for amazon-cognito-identity-js which expects Node.js globals
+    if (typeof global === 'undefined') { window.global = window; }
+  </script>
+  <script type="module" src="/src/main.js"></script>
+  <script>
+    // Only register service worker on web — skip on Capacitor native apps
+    // Service workers can cause page reload issues in WKWebView
+    var isCapacitor = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    if (!isCapacitor && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function() {});
+    // If Capacitor, unregister any existing service worker
+    if (isCapacitor && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(regs) {
+        regs.forEach(function(r) { r.unregister(); });
+      });
+    }
+  </script>
+<script src="/src/analytics/consent.js"></script>
+</body>
+</html>

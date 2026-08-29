@@ -26,6 +26,11 @@ export class CrowdControlSystem {
       return { applied: false, immune: true, duration: 0 };
     }
 
+    // Root immunity (e.g., Shade Shift buff)
+    if (ccType === CC_TYPE.ROOT && target.classData?.rootImmune) {
+      return { applied: false, immune: true, duration: 0 };
+    }
+
     // Get DR category
     const drCategory = CC_TO_DR[ccType];
     if (!drCategory) {

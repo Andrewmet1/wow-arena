@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <title>Ebon Crucible — Character Viewer</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -96,6 +98,11 @@
     background: #3a3a1a !important; border-color: #f0c040 !important;
   }
   .pool-btn.unavailable { opacity: 0.3; cursor: not-allowed; }
+  .pool-btn.shared-fallback {
+    border-left: 2px solid #4a6a8a !important;
+    opacity: 0.65;
+  }
+  .pool-btn.shared-fallback:hover { opacity: 1; }
   .pool-category-header {
     font-size: 9px; color: #888; text-transform: uppercase;
     letter-spacing: 1px; margin: 8px 0 3px; padding: 2px 0;
@@ -116,6 +123,53 @@
   .reset-btn:hover { background: #3a2a2a !important; }
   .ability-row.flash { background: #2a4a2a; border-color: #4a8a4a; transition: none; }
   .has-changes { color: #f0c040 !important; font-style: italic; }
+
+  /* Generate skin section */
+  .gen-input {
+    width: 100%; background: #2a2a3a; border: 1px solid #444; color: #ddd;
+    padding: 5px 8px; border-radius: 4px; font-size: 11px; font-family: inherit;
+  }
+  .gen-input:focus { border-color: #f0c040; outline: none; }
+  .gen-input::placeholder { color: #666; }
+  .gen-textarea { resize: vertical; min-height: 48px; max-height: 120px; }
+  .gen-btn {
+    width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #448844;
+    background: #1a3a1a; color: #88cc88; font-size: 12px; font-weight: bold;
+    cursor: pointer; transition: all 0.15s; margin-top: 6px;
+  }
+  .gen-btn:hover { background: #2a4a2a; }
+  .gen-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .gen-progress {
+    margin-top: 6px; padding: 6px 8px; background: #1a1a2a; border-radius: 4px;
+    font-size: 11px; display: none;
+  }
+  .gen-progress .gen-step { color: #f0c040; font-weight: bold; }
+  .gen-progress .gen-log {
+    margin-top: 4px; max-height: 80px; overflow-y: auto; font-size: 10px;
+    color: #666; font-family: monospace; white-space: pre-wrap; word-break: break-all;
+    scrollbar-width: thin; scrollbar-color: #444 #1a1a2a;
+  }
+
+  /* Content Studio tabs */
+  .studio-tabs { display: flex; gap: 2px; margin-bottom: 8px; }
+  .studio-tab {
+    flex: 1; padding: 6px 4px; background: #1a1a2a; border: 1px solid #333;
+    color: #888; font-size: 11px; cursor: pointer; border-radius: 4px 4px 0 0;
+    text-align: center; transition: all 0.15s; font-weight: bold;
+  }
+  .studio-tab:hover { background: #2a2a3a; color: #bbb; }
+  .studio-tab.active { background: #2a2a3a; border-color: #f0c040; color: #f0c040; }
+  .studio-panel { display: none; }
+  .studio-panel.active { display: block; }
+
+  /* Step pills for model generation workflow */
+  .step-pill {
+    flex: 1; padding: 3px 4px; background: #1a1a2a; border: 1px solid #333;
+    color: #555; font-size: 10px; text-align: center; border-radius: 3px;
+    transition: all 0.2s;
+  }
+  .step-pill.active { background: #2a2a1a; border-color: #f0c040; color: #f0c040; }
+  .step-pill.done { background: #1a2a1a; border-color: #4a8a4a; color: #6a6; }
 
   /* Weapon section */
   .weapon-status {
@@ -150,6 +204,243 @@
 
   <h2>Class</h2>
   <div class="btn-row" id="class-buttons"></div>
+
+  <h2>Skin</h2>
+  <div style="display: flex; gap: 6px; align-items: flex-start; margin-bottom: 8px;">
+    <div style="flex: 1;">
+      <select id="skin-select" onchange="loadSkin(this.value)" style="width:100%;background:#2a2a3a;border:1px solid #444;color:#ddd;padding:5px 8px;border-radius:4px;font-size:11px;">
+        <option value="default">Default</option>
+      </select>
+      <div id="skin-status" style="font-size:10px;color:#666;margin-top:3px;"></div>
+    </div>
+    <div id="concept-art-thumb" style="display:none;width:64px;height:64px;border-radius:4px;border:1px solid #555;overflow:hidden;flex-shrink:0;cursor:pointer;" onclick="toggleConceptArtExpand()">
+      <img id="concept-art-img" style="width:100%;height:100%;object-fit:cover;" title="Click to expand" />
+    </div>
+  </div>
+  <!-- Expanded concept art view -->
+  <div id="concept-art-expanded" style="display:none;margin-bottom:8px;text-align:center;">
+    <img id="concept-art-img-lg" style="max-width:100%;max-height:300px;border-radius:6px;border:1px solid #555;" />
+    <div style="font-size:10px;color:#666;margin-top:2px;cursor:pointer;" onclick="toggleConceptArtExpand()">Click to collapse</div>
+  </div>
+
+  <h2>Content Studio</h2>
+  <div class="studio-tabs">
+    <button class="studio-tab active" data-tab="model" onclick="switchStudioTab('model')">Model</button>
+    <button class="studio-tab" data-tab="anims" onclick="switchStudioTab('anims')">Anims</button>
+    <button class="studio-tab" data-tab="weapon" onclick="switchStudioTab('weapon')">Weapon</button>
+    <button class="studio-tab" data-tab="publish" onclick="switchStudioTab('publish')">Publish</button>
+  </div>
+  <div style="margin-bottom: 8px;">
+    <!-- Model Generation (2-step approval flow) -->
+    <div id="studio-model" class="studio-panel active">
+      <!-- Step indicator -->
+      <div id="gen-model-steps" style="display:flex;gap:2px;margin-bottom:6px;font-size:10px;">
+        <div class="step-pill active" data-step="1">1. Concept Art</div>
+        <div class="step-pill" data-step="2">2. Review</div>
+        <div class="step-pill" data-step="3">3. Build 3D</div>
+        <div class="step-pill" data-step="4">4. Rig</div>
+      </div>
+
+      <!-- Phase 1: Input + Generate Concept Art -->
+      <div id="gen-model-input-phase">
+        <input type="text" id="gen-model-style" class="gen-input" placeholder="e.g. icy blue dragon-scale plate, frost runes, glowing blue crystal visor, icicle spikes" style="margin-bottom:4px;">
+        <div style="font-size:10px;color:#666;margin-bottom:4px;">Describe colors, materials, motifs. Edits base reference to keep pose. Leave empty for base model.</div>
+        <button id="gen-concept-btn" class="gen-btn" data-label="Generate Concept Art" onclick="startConceptGeneration()">Generate Concept Art</button>
+      </div>
+
+      <!-- Phase 2: Review concept art -->
+      <div id="gen-model-review-phase" style="display:none;">
+        <div style="text-align:center;margin-bottom:6px;">
+          <img id="gen-concept-preview" style="max-width:100%;max-height:280px;border-radius:6px;border:1px solid #555;cursor:pointer;" onclick="this.style.maxHeight=this.style.maxHeight==='280px'?'600px':'280px'" />
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:4px;">
+          <button class="gen-btn" style="flex:1;background:#2a5a2a;" onclick="approveConceptArt()">Accept &rarr; Build 3D</button>
+          <button class="gen-btn" style="flex:1;background:#5a2a2a;" onclick="rejectConceptArt()">Reject &rarr; Redo</button>
+        </div>
+        <div style="font-size:10px;color:#888;text-align:center;">Check: A-pose? Empty hands? Right style? Click image to enlarge.</div>
+      </div>
+
+      <!-- Phase 3: Building 3D model (shown after approval) -->
+      <div id="gen-model-progress" class="gen-progress">
+        <div class="gen-step" id="gen-model-step">Starting...</div>
+        <div class="gen-log" id="gen-model-log"></div>
+      </div>
+    </div>
+    <!-- Animation Generation -->
+    <div id="studio-anims" class="studio-panel">
+      <!-- Active Animation Set selector -->
+      <div style="margin-bottom:6px;">
+        <div style="font-size:10px;color:#aaa;margin-bottom:2px;">Active Animation Set</div>
+        <select id="anim-set-select" class="gen-input" style="margin-bottom:0;" onchange="switchAnimSet(this.value)">
+          <option value="shared">Shared (default)</option>
+        </select>
+        <div id="anim-set-info" style="font-size:10px;color:#666;margin-top:2px;"></div>
+      </div>
+      <hr style="border:none;border-top:1px solid #333;margin:6px 0;">
+      <!-- Generate New Animations -->
+      <div style="font-size:10px;color:#aaa;margin-bottom:2px;">Generate New Animations</div>
+      <select id="gen-anim-rig" class="gen-input" style="margin-bottom:4px;">
+        <option value="">Select rig source...</option>
+        <optgroup label="Default Class Rigs">
+          <option value="019c6e11-13e7-7295-a177-4dbda07934aa">Tyrant (default)</option>
+          <option value="019c6e7d-0741-7db3-80d2-6f6790ed4a35">Wraith (default)</option>
+          <option value="019c6ea5-346e-7857-bfad-e3f4f4586cb4">Infernal (default)</option>
+          <option value="019c6eda-d451-7720-8faa-eca6741a0685">Harbinger (default)</option>
+          <option value="019c6f31-d0f6-78c8-b20e-a15e8fe302a7">Revenant (default)</option>
+        </optgroup>
+        <optgroup label="Skin Rigs">
+          <option value="019c7f2f-a0fa-7b52-8d91-d470367b8eda">Tyrant — Frost Dragon Skin</option>
+        </optgroup>
+      </select>
+      <div style="display:flex;gap:4px;margin-bottom:4px;">
+        <input type="text" id="gen-anim-rig-name" class="gen-input" style="flex:1;" placeholder="Set name (e.g. tyrant_frost_dragon)">
+        <div style="font-size:9px;color:#666;display:flex;align-items:center;white-space:nowrap;">→ rigs/</div>
+      </div>
+      <div id="gen-anim-hint" style="font-size:10px;color:#666;margin-bottom:4px;">Leave name empty to overwrite shared set</div>
+      <div style="display:flex;gap:4px;margin-bottom:4px;">
+        <select id="gen-anim-scope" class="gen-input" style="flex:1;">
+          <optgroup label="Batch">
+            <option value="">All missing clips</option>
+            <option value="idle,run,dead,hit_reaction,roll_dodge,basic_jump">Base states (6)</option>
+            <option value="attack,left_slash,reaping_swing,rightward_spin,sword_judgment,heavy_hammer_swing,kung_fu_punch,counterstrike,double_blade_spin,double_combo_attack,triple_combo_attack,punch_combo,weapon_combo,right_hand_sword_slash,charged_upward_slash,axe_spin_attack,charged_slash,charged_axe_chop,thrust_slash,weapon_combo_1,weapon_combo_2">Melee attacks (21)</option>
+            <option value="charged_spell_cast,mage_spell_cast,mage_spell_cast_0,mage_spell_cast_2,mage_spell_cast_3,mage_spell_cast_4,mage_spell_cast_5,mage_spell_cast_6,mage_spell_cast_7,mage_spell_cast_8,charged_ground_slam,skill_01,skill_02,skill_03">Spell casts (14)</option>
+            <option value="block,block_2,block_3,block_4,block_5,sword_parry,sword_parry_backward,two_handed_parry,shield_push,sword_shout,chest_pound_taunt">Defense (11)</option>
+            <option value="roll_dodge,roll_dodge_1,roll_dodge_2,dodge_and_counter,quick_step_spin_dodge,backflip,basic_jump,sprint_roll_and_flip,jump_and_slam">Dodge / Acrobatic (9)</option>
+            <option value="hit_reaction,hit_reaction_1,dead,dying_backwards">Hit / Death (4)</option>
+          </optgroup>
+          <optgroup label="── Single Clip ──">
+            <option value="idle">idle</option>
+            <option value="run">run</option>
+            <option value="dead">dead</option>
+            <option value="hit_reaction">hit_reaction</option>
+            <option value="roll_dodge">roll_dodge</option>
+            <option value="basic_jump">basic_jump</option>
+            <option value="attack">attack</option>
+            <option value="combat_stance">combat_stance</option>
+            <option value="block">block</option>
+            <option value="charged_spell_cast">charged_spell_cast</option>
+            <option value="mage_spell_cast">mage_spell_cast</option>
+            <option value="left_slash">left_slash</option>
+            <option value="reaping_swing">reaping_swing</option>
+            <option value="rightward_spin">rightward_spin</option>
+            <option value="sword_judgment">sword_judgment</option>
+            <option value="heavy_hammer_swing">heavy_hammer_swing</option>
+            <option value="charged_ground_slam">charged_ground_slam</option>
+            <option value="kung_fu_punch">kung_fu_punch</option>
+            <option value="chest_pound_taunt">chest_pound_taunt</option>
+            <option value="sword_parry">sword_parry</option>
+            <option value="roll_dodge_1">roll_dodge_1</option>
+            <option value="roll_dodge_2">roll_dodge_2</option>
+            <option value="backflip">backflip</option>
+            <option value="counterstrike">counterstrike</option>
+            <option value="lean_forward_sprint">lean_forward_sprint</option>
+            <option value="double_blade_spin">double_blade_spin</option>
+            <option value="dodge_and_counter">dodge_and_counter</option>
+            <option value="charged_axe_chop">charged_axe_chop</option>
+            <option value="thrust_slash">thrust_slash</option>
+            <option value="skill_01">skill_01</option>
+            <option value="skill_02">skill_02</option>
+            <option value="skill_03">skill_03</option>
+          </optgroup>
+        </select>
+        <label style="font-size:10px;color:#888;display:flex;align-items:center;gap:3px;white-space:nowrap;">
+          <input type="checkbox" id="gen-anim-force" style="accent-color:#f0c040;"> Regen
+        </label>
+      </div>
+      <button id="gen-anim-btn" class="gen-btn" data-label="Generate Animations" onclick="startAnimGeneration()">Generate Animations</button>
+      <div id="gen-anim-progress" class="gen-progress">
+        <div class="gen-step" id="gen-anim-step">Starting...</div>
+        <div class="gen-log" id="gen-anim-log"></div>
+      </div>
+    </div>
+    <!-- Weapon Generation (2-step approval flow) -->
+    <div id="studio-weapon" class="studio-panel">
+      <!-- Step indicator -->
+      <div id="gen-weapon-steps" style="display:flex;gap:2px;margin-bottom:6px;font-size:10px;">
+        <div class="step-pill active" data-step="1">1. Concept Art</div>
+        <div class="step-pill" data-step="2">2. Review</div>
+        <div class="step-pill" data-step="3">3. Build 3D</div>
+      </div>
+
+      <!-- Phase 1: Input + Generate Concept Art -->
+      <div id="gen-weapon-input-phase">
+        <select id="gen-weapon-class-type" class="gen-input" style="margin-bottom:4px;"></select>
+        <textarea id="gen-weapon-prompt" class="gen-input gen-textarea" placeholder="Custom weapon description (optional)&#10;Leave empty to use class default prompt"></textarea>
+        <div style="font-size:10px;color:#666;margin-bottom:4px;">Describe colors, materials, motifs for the weapon.</div>
+        <button id="gen-weapon-concept-btn" class="gen-btn" data-label="Generate Concept Art" onclick="startWeaponConceptGeneration()">Generate Concept Art</button>
+      </div>
+
+      <!-- Phase 2: Review concept art -->
+      <div id="gen-weapon-review-phase" style="display:none;">
+        <div style="text-align:center;margin-bottom:6px;">
+          <img id="gen-weapon-concept-preview" style="max-width:100%;max-height:280px;border-radius:6px;border:1px solid #555;cursor:pointer;" onclick="this.style.maxHeight=this.style.maxHeight==='280px'?'600px':'280px'" />
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:4px;">
+          <button class="gen-btn" style="flex:1;background:#2a5a2a;" onclick="approveWeaponConceptArt()">Accept &rarr; Build 3D</button>
+          <button class="gen-btn" style="flex:1;background:#5a2a2a;" onclick="rejectWeaponConceptArt()">Reject &rarr; Redo</button>
+        </div>
+        <div style="font-size:10px;color:#888;text-align:center;">Check: Isolated weapon? Right style? No extra objects? Click image to enlarge.</div>
+      </div>
+
+      <!-- Phase 3: Building 3D model (shown after approval) -->
+      <div id="gen-weapon-progress" class="gen-progress">
+        <div class="gen-step" id="gen-weapon-step">Starting...</div>
+        <div class="gen-log" id="gen-weapon-log"></div>
+      </div>
+    </div>
+    <!-- Publish to Game -->
+    <div id="studio-publish" class="studio-panel">
+      <div style="font-size:10px;color:#aaa;margin-bottom:6px;">Finalize this skin and generate showcase art for the shop, profile, and loadout screens.</div>
+
+      <!-- Readiness checks -->
+      <div id="publish-checks" style="margin-bottom:8px;font-size:11px;">
+        <div id="publish-check-model" style="margin:2px 0;color:#888;">&#9744; 3D model loaded</div>
+        <div id="publish-check-anims" style="margin:2px 0;color:#888;">&#9744; Base animations assigned</div>
+        <div id="publish-check-weapon" style="margin:2px 0;color:#888;">&#9744; Weapon configured (or baked-in)</div>
+        <div id="publish-check-skin" style="margin:2px 0;color:#888;">&#9744; Skin selected (not default)</div>
+      </div>
+
+      <!-- Skin ID (editable — renames the internal skin identifier) -->
+      <div style="font-size:10px;color:#aaa;margin-bottom:2px;">Skin ID <span style="color:#666;">(internal name, used for files &amp; code)</span></div>
+      <div style="display:flex;gap:4px;margin-bottom:4px;">
+        <input type="text" id="publish-skin-id" class="gen-input" placeholder="e.g. frost_dragon" style="margin-bottom:0;flex:1;font-family:monospace;">
+        <div style="font-size:9px;color:#666;display:flex;align-items:center;white-space:nowrap;">auto: from prompt</div>
+      </div>
+
+      <!-- Metadata -->
+      <div style="font-size:10px;color:#aaa;margin-bottom:2px;">Display Name</div>
+      <input type="text" id="publish-name" class="gen-input" placeholder="e.g. Frost Dragon" style="margin-bottom:4px;">
+
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
+        <div style="font-size:10px;color:#aaa;">Description</div>
+        <button id="publish-gen-desc-btn" class="gen-btn" onclick="generateDescription()" style="font-size:9px;padding:1px 6px;margin:0;background:#1a1a3a;border-color:#4444aa;min-width:auto;">AI Generate</button>
+      </div>
+      <textarea id="publish-desc" class="gen-input" style="height:40px;resize:vertical;margin-bottom:4px;" placeholder="Short description for the shop card (click AI Generate or type your own)"></textarea>
+
+      <div style="display:flex;gap:4px;margin-bottom:6px;">
+        <div style="flex:1;">
+          <div style="font-size:10px;color:#aaa;margin-bottom:2px;">Rarity</div>
+          <select id="publish-rarity" class="gen-input" style="margin-bottom:0;">
+            <option value="rare">Rare</option>
+            <option value="epic" selected>Epic</option>
+            <option value="legendary">Legendary</option>
+          </select>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:10px;color:#aaa;margin-bottom:2px;">Price (coins)</div>
+          <input type="number" id="publish-price" class="gen-input" value="5000" min="100" step="100" style="margin-bottom:0;">
+        </div>
+      </div>
+
+      <button id="publish-skin-btn" class="gen-btn" data-label="Publish to Game" onclick="startPublish()" disabled style="background:#1a1a4a;border-color:#4444aa;">Publish to Game</button>
+      <div style="font-size:9px;color:#666;margin-top:2px;">Generates 5 showcase art assets + registers skin in the game code.</div>
+
+      <div id="publish-progress" class="gen-progress">
+        <div class="gen-step" id="publish-step">Starting...</div>
+        <div class="gen-log" id="publish-log"></div>
+      </div>
+    </div>
+  </div>
 
   <h2>View Mode</h2>
   <div class="btn-row">
@@ -194,13 +485,19 @@
   </div>
   <div id="meshy-anim-section" style="display: none;">
     <div id="ability-list"></div>
-    <h2 style="margin-top: 8px;">Animation Pool</h2>
+    <h2 style="margin-top: 8px; display:flex; align-items:center; justify-content:space-between;">
+      Animation Pool
+      <select id="anim-set-inline" style="font-size:11px;padding:2px 4px;background:#2a2a3e;color:#ccc;border:1px solid #444;border-radius:3px;max-width:180px;" onchange="filterPool(this.value)">
+        <option value="shared">Shared (default)</option>
+      </select>
+    </h2>
     <div id="anim-pool" class="anim-pool"></div>
     <div id="meshy-anim-status" style="font-size: 11px; color: #666; margin-top: 4px;"></div>
     <div class="assign-actions">
       <button class="btn export-btn" onclick="saveToFile()">Save to File</button>
       <button class="btn reset-btn" onclick="resetMappings()">Reset Class</button>
     </div>
+    <div id="deploy-status" style="font-size:11px;margin-top:6px;padding:6px 8px;border-radius:4px;display:none;"></div>
   </div>
 
   <h2>Weapons</h2>
@@ -213,6 +510,7 @@
     <div class="weapon-actions">
       <button class="btn attach-btn" onclick="attachWeapon()">Attach</button>
       <button class="btn detach-btn" onclick="detachWeapon()">Detach</button>
+      <button class="btn attach-btn" id="bake-weapons-btn" onclick="bakeWeaponsIntoModel()" style="background:#b45309;margin-top:4px;display:none;" title="Export model + attached weapons as a single GLB file">Bake Weapons into GLB</button>
     </div>
     <div class="toggle-row" style="margin-top: 6px;">
       <label>Editing</label>
@@ -298,20 +596,38 @@
 <script type="module">
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { rigWithMixamoSkeleton } from '/src/rendering/SkeletonTransfer.js';
 import { getClassAnimations } from '/src/rendering/AnimationFactory.js';
-import { CLASS_ANIMATIONS, SHARED_ANIMATIONS, resolveAnimationPath, ASSET_MANIFEST, getWeaponOffset, resolveModelPath } from '/src/rendering/AssetManifest.js';
+import { CLASS_ANIMATIONS, SKIN_ANIMATIONS, SHARED_ANIMATIONS, resolveAnimationPath, ASSET_MANIFEST, getWeaponOffset, resolveModelPath } from '/src/rendering/AssetManifest.js';
 
 // ── State ──
 let scene, camera, renderer, controls, clock;
 let currentModel = null;
+let _loadGen = 0; // generation counter to cancel stale async model loads
 let skeletonHelper = null;
 let bboxHelper = null;
 let gridHelper = null;
 let autoRotate = true;
-let currentClass = 'tyrant';
+
+// Restore viewer state across HMR reloads (sessionStorage survives page reloads)
+const _savedViewerState = JSON.parse(sessionStorage.getItem('ebon_viewer_state') || 'null');
+function _saveViewerState() {
+  sessionStorage.setItem('ebon_viewer_state', JSON.stringify({
+    animSetId: currentAnimSetId,
+    animSetPath: currentAnimSetPath,
+    poolFilter: poolFilterSetId,
+    classId: currentClass,
+    skinId: currentSkinId,
+  }));
+}
+
+let currentClass = _savedViewerState?.classId || 'tyrant';
+let currentSkinId = _savedViewerState?.skinId || 'default';
+let currentSkinPath = null; // null = use default char_{class}.glb
+let skinsByClass = {}; // populated from /api/list-skins
 let viewMode = 'animated';
 let modelScale = 2.5;
 let camHeight = 3;
@@ -323,6 +639,63 @@ let mixerActions = {};
 let currentAction = null;
 let activeBaseAction = null;
 
+// Animation retargeting state
+let sourceRestPose = null; // rest pose from animation GLB skeleton (captured once)
+let targetRestPose = null; // rest pose from current character model skeleton
+
+// Per-rig animation set state
+let currentAnimSetId = _savedViewerState?.animSetId || 'shared';
+let currentAnimSetPath = _savedViewerState?.animSetPath || '/assets/animations/shared/';
+let animSetClipFiles = null; // { setId: ['idle.glb', 'run.glb', ...] } from API
+let poolFilterSetId = _savedViewerState?.poolFilter || 'shared';
+
+/**
+ * Get the effective animation map for the current class + skin.
+ * Merges CLASS_ANIMATIONS[classId] with SKIN_ANIMATIONS[classId_skinId] overrides.
+ */
+function getEffectiveAnimMap(classId, skinId) {
+  const base = CLASS_ANIMATIONS[classId] || {};
+  if (skinId && skinId !== 'default') {
+    const skinKey = `${classId}_${skinId}`;
+    const raw = SKIN_ANIMATIONS[skinKey] || {};
+    // Strip metadata keys — only return animation mappings
+    const { weaponsBakedIn, modelScale, ...overrides } = raw;
+    return { ...base, ...overrides };
+  }
+  return { ...base };
+}
+
+/**
+ * Retarget an animation clip's quaternion tracks from source rest pose to target rest pose.
+ * correctedQ = targetRestQ * inverse(sourceRestQ) * originalQ
+ */
+function retargetClip(clip, tgtRestPose) {
+  if (!sourceRestPose) return clip;
+  const tmpQ = new THREE.Quaternion();
+  for (const track of clip.tracks) {
+    if (!track.name.endsWith('.quaternion')) continue;
+    const match = track.name.match(/\.bones\[(.+?)\]\.quaternion/);
+    if (!match) continue;
+    const boneName = match[1];
+    const srcQ = sourceRestPose[boneName];
+    const tgtQ = tgtRestPose[boneName];
+    if (!srcQ || !tgtQ) continue;
+    if (srcQ.equals(tgtQ)) continue;
+    const correction = tgtQ.clone().multiply(srcQ.clone().invert());
+    const values = track.values;
+    for (let i = 0; i < values.length; i += 4) {
+      tmpQ.set(values[i], values[i + 1], values[i + 2], values[i + 3]);
+      tmpQ.premultiply(correction);
+      tmpQ.normalize();
+      values[i]     = tmpQ.x;
+      values[i + 1] = tmpQ.y;
+      values[i + 2] = tmpQ.z;
+      values[i + 3] = tmpQ.w;
+    }
+  }
+  return clip;
+}
+
 // Meshy animation clip cache: { "tyrant/idle": AnimationClip, ... }
 const meshyClipCache = {};
 
@@ -333,7 +706,7 @@ const CLASS_COLORS = {
 };
 
 // Base state animations shared across all classes
-const BASE_MESHY_ANIMS = ['idle', 'run', 'death', 'hit', 'dodge', 'stun', 'jump'];
+const BASE_MESHY_ANIMS = ['idle', 'run', 'death', 'hit', 'dodge', 'stun', 'jump', 'auto_attack'];
 
 // Per-class ability animation names
 const CLASS_ABILITY_ANIMS = {
@@ -434,11 +807,11 @@ function init() {
 
   // Build class buttons
   const btnRow = document.getElementById('class-buttons');
-  CLASSES.forEach((cls, i) => {
+  CLASSES.forEach((cls) => {
     const btn = document.createElement('button');
-    btn.className = 'btn' + (i === 0 ? ' active' : '');
+    btn.className = 'btn' + (cls === currentClass ? ' active' : '');
     btn.textContent = cls.charAt(0).toUpperCase() + cls.slice(1);
-    btn.style.borderColor = i === 0 ? CLASS_COLORS[cls] : '';
+    btn.style.borderColor = cls === currentClass ? CLASS_COLORS[cls] : '';
     btn.onclick = () => selectClass(cls);
     btn.dataset.class = cls;
     btnRow.appendChild(btn);
@@ -451,16 +824,59 @@ function init() {
   });
 
   updateAnimSections();
-  loadModel('tyrant');
+  // Populate skin dropdown and animation sets, then load initial model
+  Promise.all([fetchSkins(), loadAnimSets()]).then(() => {
+    // Sync dropdowns to restored state
+    const animSetSel = document.getElementById('anim-set-select');
+    if (animSetSel) animSetSel.value = currentAnimSetId;
+    const inlineSel = document.getElementById('anim-set-inline');
+    if (inlineSel) inlineSel.value = poolFilterSetId;
+    const infoEl = document.getElementById('anim-set-info');
+    if (infoEl && currentAnimSetId !== 'shared') {
+      infoEl.textContent = `Active set: ${currentAnimSetPath.replace('/assets/animations/', '')}`;
+    }
+
+    const savedSkinId = currentSkinId; // save before updateSkinDropdown resets it
+    updateSkinDropdown(currentClass);
+    // Restore skin selection from sessionStorage
+    if (savedSkinId !== 'default') {
+      const skins = skinsByClass[currentClass] || [];
+      const skin = skins.find(s => s.id === savedSkinId);
+      if (skin) {
+        currentSkinId = savedSkinId;
+        currentSkinPath = skin.path;
+        const skinSel = document.getElementById('skin-select');
+        if (skinSel) skinSel.value = savedSkinId;
+        updateConceptArt(skin.conceptArt);
+      } else {
+        currentSkinId = 'default';
+        currentSkinPath = null;
+      }
+    }
+    updateWeaponGenDropdown(currentClass);
+    loadModel(currentClass);
+    // Restore concept art previews if they exist from a previous session
+    restoreModelConceptPreview();
+    restoreWeaponConceptPreview();
+  });
   animate();
 }
 
 // ── Animation Assignment UI ──
 let selectedAbility = null;
 let localMappings = {};
+let localMappingSets = {}; // { mappingKey: { ability: { setId, setPath } } } — which set each assignment came from
+
+// Composite key for localMappings/localMappingSets to separate global vs skin-specific state
+function getMappingKey(classId, skinId) {
+  const cls = classId || currentClass;
+  const skin = skinId !== undefined ? skinId : currentSkinId;
+  return (skin && skin !== 'default') ? `${cls}:${skin}` : cls;
+}
 let availableSharedKeys = new Set();
 
 const STORAGE_KEY = 'ebon_crucible_anim_mappings';
+const STORAGE_KEY_SETS = 'ebon_crucible_anim_mapping_sets';
 
 function loadSavedMappings() {
   try {
@@ -468,6 +884,11 @@ function loadSavedMappings() {
     if (saved) {
       localMappings = JSON.parse(saved);
       console.log('[AnimUI] Loaded saved mappings from localStorage');
+    }
+    const savedSets = localStorage.getItem(STORAGE_KEY_SETS);
+    if (savedSets) {
+      localMappingSets = JSON.parse(savedSets);
+      console.log('[AnimUI] Loaded saved mapping sets from localStorage');
     }
   } catch (e) {
     console.warn('[AnimUI] Failed to load saved mappings:', e);
@@ -477,6 +898,7 @@ function loadSavedMappings() {
 function saveMappings() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(localMappings));
+    localStorage.setItem(STORAGE_KEY_SETS, JSON.stringify(localMappingSets));
   } catch (e) {
     console.warn('[AnimUI] Failed to save mappings:', e);
   }
@@ -485,28 +907,830 @@ function saveMappings() {
 // Load saved mappings immediately
 loadSavedMappings();
 
-// Scan which shared animation GLB files exist on disk
+// ── Skin Browser ──
+async function fetchSkins() {
+  try {
+    const res = await fetch('/api/list-skins');
+    skinsByClass = await res.json();
+    console.log('[Skins] Loaded skin list:', skinsByClass);
+  } catch (err) {
+    console.warn('[Skins] Failed to fetch skin list:', err);
+    skinsByClass = {};
+  }
+}
+
+function updateSkinDropdown(classId) {
+  const select = document.getElementById('skin-select');
+  select.innerHTML = '';
+
+  const skins = skinsByClass[classId] || [];
+  if (skins.length === 0) {
+    // No skins data yet, just show default
+    const opt = document.createElement('option');
+    opt.value = 'default';
+    opt.textContent = 'Default';
+    select.appendChild(opt);
+  } else {
+    for (const skin of skins) {
+      const opt = document.createElement('option');
+      opt.value = skin.id;
+      opt.textContent = skin.name;
+      opt.dataset.path = skin.path;
+      opt.dataset.concept = skin.conceptArt || '';
+      select.appendChild(opt);
+    }
+  }
+
+  // Restore selection if switching back to a class with a previously selected skin
+  select.value = 'default';
+  currentSkinId = 'default';
+  currentSkinPath = null;
+  updateConceptArt(null);
+  updateSkinStatus(classId);
+}
+
+function updateConceptArt(conceptUrl) {
+  const thumb = document.getElementById('concept-art-thumb');
+  const img = document.getElementById('concept-art-img');
+  const expanded = document.getElementById('concept-art-expanded');
+  const imgLg = document.getElementById('concept-art-img-lg');
+  if (conceptUrl) {
+    img.src = conceptUrl;
+    imgLg.src = conceptUrl;
+    thumb.style.display = 'block';
+  } else {
+    thumb.style.display = 'none';
+    expanded.style.display = 'none';
+    img.src = '';
+    imgLg.src = '';
+  }
+}
+
+window.toggleConceptArtExpand = function() {
+  const expanded = document.getElementById('concept-art-expanded');
+  expanded.style.display = expanded.style.display === 'none' ? 'block' : 'none';
+};
+
+function updateSkinStatus(classId) {
+  const skins = skinsByClass[classId] || [];
+  const skinCount = skins.filter(s => s.id !== 'default').length;
+  const statusEl = document.getElementById('skin-status');
+  statusEl.textContent = skinCount > 0 ? `${skinCount} skin(s) available` : 'No skins generated yet';
+}
+
+window.loadSkin = function(skinId) {
+  currentSkinId = skinId;
+  const skins = skinsByClass[currentClass] || [];
+  const skin = skins.find(s => s.id === skinId);
+
+  if (skin && skin.id !== 'default') {
+    currentSkinPath = skin.path;
+    updateConceptArt(skin.conceptArt);
+  } else {
+    currentSkinPath = null;
+    updateConceptArt(null);
+  }
+
+  // Don't delete localMappings — preserve user edits across skin switches.
+  // buildAssignmentUI() will initialize from getEffectiveAnimMap() if no entry exists.
+
+  _saveViewerState();
+  loadModel(currentClass);
+  updatePublishChecks();
+};
+
+// ── Content Studio ──
+let lastRigTaskId = null;
+
+window.switchStudioTab = function(tab) {
+  document.querySelectorAll('.studio-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('.studio-panel').forEach(p => p.classList.toggle('active', p.id === `studio-${tab}`));
+  if (tab === 'publish') updatePublishChecks();
+  if (tab === 'weapon') restoreWeaponConceptPreview();
+  if (tab === 'model') restoreModelConceptPreview();
+};
+
+// Auto-detect existing weapon concept art and show review phase
+function restoreWeaponConceptPreview() {
+  const config = ASSET_MANIFEST[currentClass];
+  if (!config?.weapons) return;
+  const weaponType = document.getElementById('gen-weapon-class-type')?.value || config.defaultWeapon;
+  if (!weaponType) return;
+  const conceptUrl = `/assets/art/concepts/wpn_${currentClass}_${weaponType}.png`;
+  const img = new Image();
+  img.onload = () => {
+    pendingWeaponType = weaponType;
+    document.getElementById('gen-weapon-concept-preview').src = conceptUrl + '?t=' + Date.now();
+    document.getElementById('gen-weapon-input-phase').style.display = 'none';
+    document.getElementById('gen-weapon-review-phase').style.display = 'block';
+    setWeaponStep(2);
+  };
+  img.onerror = () => { /* no existing concept art — stay on input phase */ };
+  img.src = conceptUrl;
+}
+
+// Auto-detect existing model concept art and show review phase
+function restoreModelConceptPreview() {
+  if (currentSkinId === 'default') return;
+  const conceptUrl = `/assets/art/concepts/${currentClass}_${currentSkinId}.png`;
+  const img = new Image();
+  img.onload = () => {
+    pendingConceptSkinName = currentSkinId;
+    document.getElementById('gen-concept-preview').src = conceptUrl + '?t=' + Date.now();
+    document.getElementById('gen-model-input-phase').style.display = 'none';
+    document.getElementById('gen-model-review-phase').style.display = 'block';
+    setModelStep(2);
+  };
+  img.onerror = () => { /* no existing concept art */ };
+  img.src = conceptUrl;
+}
+
+// Generic progress poller for all generation types
+function pollGenProgress(apiUrl, taskId, prefix, onDone) {
+  const stepEl = document.getElementById(`${prefix}-step`);
+  const logEl = document.getElementById(`${prefix}-log`);
+  const btn = document.getElementById(`${prefix}-btn`);
+  const progressEl = document.getElementById(`${prefix}-progress`);
+
+  const poll = async () => {
+    try {
+      const res = await fetch(`${apiUrl}?task=${taskId}`);
+      const data = await res.json();
+
+      stepEl.textContent = data.step || data.status;
+      logEl.textContent = (data.log || []).slice(-20).join('\n');
+      logEl.scrollTop = logEl.scrollHeight;
+
+      if (data.status === 'done') {
+        if (btn) { btn.disabled = false; btn.textContent = btn.dataset.label || 'Generate'; }
+        if (onDone) await onDone(data);
+        return;
+      }
+
+      if (data.status === 'error') {
+        stepEl.textContent = 'Error: ' + (data.error || 'Unknown error');
+        if (btn) { btn.disabled = false; btn.textContent = btn.dataset.label || 'Generate'; }
+        return;
+      }
+
+      setTimeout(poll, 2000);
+    } catch (err) {
+      stepEl.textContent = 'Poll error: ' + err.message;
+      setTimeout(poll, 5000);
+    }
+  };
+
+  progressEl.style.display = 'block';
+  poll();
+}
+
+// ── Model Generation (2-step approval flow) ──
+let pendingConceptSkinName = null; // skin name waiting for approval
+
+function setModelStep(activeStep) {
+  document.querySelectorAll('#gen-model-steps .step-pill').forEach(pill => {
+    const step = parseInt(pill.dataset.step);
+    pill.classList.toggle('active', step === activeStep);
+    pill.classList.toggle('done', step < activeStep);
+  });
+}
+
+// Phase 1: Generate concept art only
+window.startConceptGeneration = async function() {
+  const styleInput = document.getElementById('gen-model-style');
+  const btn = document.getElementById('gen-concept-btn');
+
+  const style = styleInput.value.trim();
+  const modelName = style
+    ? style.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 40)
+    : 'default';
+  pendingConceptSkinName = modelName;
+
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+  setModelStep(1);
+
+  // Show progress
+  const progressEl = document.getElementById('gen-model-progress');
+  const stepEl = document.getElementById('gen-model-step');
+  const logEl = document.getElementById('gen-model-log');
+  progressEl.style.display = 'block';
+  stepEl.textContent = 'Generating concept art...';
+  logEl.textContent = '';
+
+  try {
+    const res = await fetch('/api/generate-concept', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        classId: currentClass,
+        skinName: modelName,
+        prompt: style || undefined,
+      }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    pollGenProgress('/api/generate-concept', data.taskId, 'gen-model', async (result) => {
+      // Show the review phase
+      const conceptUrl = result.result?.conceptUrl;
+      if (conceptUrl) {
+        document.getElementById('gen-concept-preview').src = conceptUrl + '?t=' + Date.now();
+        document.getElementById('gen-model-input-phase').style.display = 'none';
+        document.getElementById('gen-model-review-phase').style.display = 'block';
+        progressEl.style.display = 'none';
+        setModelStep(2);
+        stepEl.textContent = 'Review concept art below';
+      } else {
+        stepEl.textContent = 'Concept generated but no URL returned';
+        btn.disabled = false;
+        btn.textContent = 'Generate Concept Art';
+      }
+    });
+  } catch (err) {
+    stepEl.textContent = 'Failed: ' + err.message;
+    btn.disabled = false;
+    btn.textContent = 'Generate Concept Art';
+  }
+};
+
+// Phase 2a: User approves → send to Meshy for 3D generation
+window.approveConceptArt = async function() {
+  const skinName = pendingConceptSkinName;
+  if (!skinName) return;
+
+  document.getElementById('gen-model-review-phase').style.display = 'none';
+  const progressEl = document.getElementById('gen-model-progress');
+  const stepEl = document.getElementById('gen-model-step');
+  const logEl = document.getElementById('gen-model-log');
+  progressEl.style.display = 'block';
+  stepEl.textContent = 'Sending to Meshy for 3D generation...';
+  logEl.textContent = '';
+  setModelStep(3);
+
+  try {
+    const res = await fetch('/api/generate-skin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        classId: currentClass,
+        skinName: skinName,
+        skipConcept: true, // Use the concept art we just approved
+      }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    pollGenProgress('/api/generate-skin', data.taskId, 'gen-model', async (result) => {
+      stepEl.textContent = 'Done! Loading model...';
+      setModelStep(4);
+
+      // Refresh skin list and auto-load the new model
+      await fetchSkins();
+      updateSkinDropdown(currentClass);
+
+      if (skinName !== 'default') {
+        const select = document.getElementById('skin-select');
+        for (const opt of select.options) {
+          if (opt.value === skinName) {
+            select.value = skinName;
+            window.loadSkin(skinName);
+            break;
+          }
+        }
+      } else {
+        loadModel(currentClass);
+      }
+
+      // Store rig task ID and add to animation dropdown
+      if (result.result?.rigTaskId) {
+        lastRigTaskId = result.result.rigTaskId;
+        const rigSelect = document.getElementById('gen-anim-rig');
+        const label = `${currentClass.charAt(0).toUpperCase() + currentClass.slice(1)} — ${skinName} (new)`;
+        const newOpt = document.createElement('option');
+        newOpt.value = lastRigTaskId;
+        newOpt.textContent = label;
+        newOpt.selected = true;
+        rigSelect.insertBefore(newOpt, rigSelect.firstChild);
+        document.getElementById('gen-anim-hint').textContent = 'New rig available — generate animations for this skin';
+        document.getElementById('gen-anim-hint').style.color = '#8c8';
+        // Auto-populate rig name field with skin identifier
+        document.getElementById('gen-anim-rig-name').value = `${currentClass}_${skinName}`;
+        stepEl.textContent = `Done! Rig Task: ${lastRigTaskId}`;
+      }
+
+      // Reset UI for next generation
+      setTimeout(() => resetModelUI(), 3000);
+    });
+  } catch (err) {
+    stepEl.textContent = 'Failed: ' + err.message;
+    resetModelUI();
+  }
+};
+
+// Phase 2b: User rejects → go back to input
+window.rejectConceptArt = function() {
+  resetModelUI();
+};
+
+function resetModelUI() {
+  document.getElementById('gen-model-input-phase').style.display = 'block';
+  document.getElementById('gen-model-review-phase').style.display = 'none';
+  document.getElementById('gen-concept-btn').disabled = false;
+  document.getElementById('gen-concept-btn').textContent = 'Generate Concept Art';
+  setModelStep(1);
+  pendingConceptSkinName = null;
+}
+
+// ── Animation Set Management ──
+async function loadAnimSets() {
+  try {
+    const res = await fetch('/api/list-anim-sets');
+    const text = await res.text();
+    let sets;
+    try {
+      sets = JSON.parse(text);
+    } catch (parseErr) {
+      // Vite may return HTML during HMR restart — retry once after a short delay
+      console.warn('[AnimSets] Got non-JSON response, retrying in 1s...');
+      await new Promise(r => setTimeout(r, 1000));
+      const retryRes = await fetch('/api/list-anim-sets');
+      sets = await retryRes.json();
+    }
+    // Store clip file lists per set for filtering
+    animSetClipFiles = {};
+    for (const set of sets) {
+      animSetClipFiles[set.id] = set.clips || [];
+    }
+    // Populate both dropdowns (Content Studio + inline above pool)
+    for (const selId of ['anim-set-select', 'anim-set-inline']) {
+      const select = document.getElementById(selId);
+      if (!select) continue;
+      select.innerHTML = '';
+      for (const set of sets) {
+        const opt = document.createElement('option');
+        opt.value = set.id;
+        opt.textContent = `${set.name} (${set.clipCount} clips)`;
+        opt.dataset.path = set.path;
+        if (set.id === currentAnimSetId) opt.selected = true;
+        select.appendChild(opt);
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to load animation sets:', err);
+  }
+}
+
+// Content Studio dropdown — switches the ACTIVE set for clip loading/playback
+window.switchAnimSet = async function(setId) {
+  let setPath = 'shared';
+  const sel = document.getElementById('anim-set-select');
+  if (sel) {
+    sel.value = setId;
+    const opt = sel.selectedOptions[0];
+    if (opt?.dataset.path) setPath = opt.dataset.path;
+  }
+  currentAnimSetId = setId;
+  currentAnimSetPath = `/assets/animations/${setPath}/`;
+  sourceRestPose = null; // reset so it captures from new set
+
+  // Clear clip cache so animations reload from the new path
+  for (const key of Object.keys(meshyClipCache)) delete meshyClipCache[key];
+
+  // Sync pool filter to match
+  poolFilterSetId = setId;
+  const inlineSel = document.getElementById('anim-set-inline');
+  if (inlineSel) inlineSel.value = setId;
+
+  const infoEl = document.getElementById('anim-set-info');
+  infoEl.textContent = `Active set: ${setPath}/`;
+
+  _saveViewerState();
+
+  // Rebuild pool and reload current model with animations from new set
+  await loadAnimSets();
+  rebuildPool();
+  loadModel(currentClass);
+};
+
+// Pool filter dropdown — ONLY controls which clips are visible in the pool, no state change
+window.filterPool = async function(setId) {
+  poolFilterSetId = setId;
+  _saveViewerState();
+  // Refresh file lists from server
+  await loadAnimSets();
+  // Rebuild just the pool section (not the ability assignments)
+  rebuildPool();
+};
+
+// ── Animation Generation ──
+window.startAnimGeneration = async function() {
+  const rigSelect = document.getElementById('gen-anim-rig');
+  const scopeSelect = document.getElementById('gen-anim-scope');
+  const forceCheck = document.getElementById('gen-anim-force');
+  const rigNameInput = document.getElementById('gen-anim-rig-name');
+  const btn = document.getElementById('gen-anim-btn');
+  const stepEl = document.getElementById('gen-anim-step');
+
+  const rigTaskId = rigSelect.value;
+  if (!rigTaskId) {
+    rigSelect.style.borderColor = '#cc4444';
+    setTimeout(() => rigSelect.style.borderColor = '#444', 2000);
+    return;
+  }
+
+  const rigName = rigNameInput.value.trim() || undefined;
+
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+  stepEl.textContent = rigName
+    ? `Generating animations → rigs/${rigName}/...`
+    : 'Starting animation generation (→ shared/)...';
+  document.getElementById('gen-anim-log').textContent = '';
+
+  try {
+    const res = await fetch('/api/generate-animations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rigTaskId,
+        filter: scopeSelect.value || undefined,
+        force: forceCheck.checked,
+        rigName,
+      }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    pollGenProgress('/api/generate-animations', data.taskId, 'gen-anim', async () => {
+      // Refresh animation set dropdown
+      await loadAnimSets();
+
+      // Auto-switch pool filter to the newly generated set if it was rig-specific
+      if (rigName) {
+        const inlineSel = document.getElementById('anim-set-inline');
+        if (inlineSel) inlineSel.value = rigName;
+        await filterPool(rigName);
+        stepEl.textContent = `Done! Pool filtered to: ${rigName}`;
+      } else {
+        stepEl.textContent = 'Done! Animations generated.';
+        await loadAnimSets(); // refresh clip file lists
+        rebuildPool();
+      }
+    });
+  } catch (err) {
+    stepEl.textContent = 'Failed: ' + err.message;
+    btn.disabled = false;
+    btn.textContent = 'Generate Animations';
+  }
+};
+
+// ── Weapon Generation (2-step approval flow) ──
+let pendingWeaponType = null;
+
+function updateWeaponGenDropdown(classId) {
+  const select = document.getElementById('gen-weapon-class-type');
+  if (!select) return;
+  select.innerHTML = '';
+  const config = ASSET_MANIFEST[classId];
+  const weapons = config?.weapons || {};
+  if (Object.keys(weapons).length === 0) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'No weapons configured';
+    select.appendChild(opt);
+    return;
+  }
+  for (const wt of Object.keys(weapons)) {
+    const opt = document.createElement('option');
+    opt.value = wt;
+    opt.textContent = wt.charAt(0).toUpperCase() + wt.slice(1);
+    select.appendChild(opt);
+  }
+  if (config?.offHandType === 'shield' && !weapons.shield) {
+    const opt = document.createElement('option');
+    opt.value = 'shield';
+    opt.textContent = 'Shield';
+    select.appendChild(opt);
+  }
+}
+
+function setWeaponStep(activeStep) {
+  document.querySelectorAll('#gen-weapon-steps .step-pill').forEach(pill => {
+    const step = parseInt(pill.dataset.step);
+    pill.classList.toggle('active', step === activeStep);
+    pill.classList.toggle('done', step < activeStep);
+  });
+}
+
+// Phase 1: Generate weapon concept art only
+window.startWeaponConceptGeneration = async function() {
+  const typeSelect = document.getElementById('gen-weapon-class-type');
+  const promptInput = document.getElementById('gen-weapon-prompt');
+  const btn = document.getElementById('gen-weapon-concept-btn');
+
+  const weaponType = typeSelect.value;
+  if (!weaponType) {
+    typeSelect.style.borderColor = '#cc4444';
+    setTimeout(() => typeSelect.style.borderColor = '#444', 2000);
+    return;
+  }
+
+  pendingWeaponType = weaponType;
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+  setWeaponStep(1);
+
+  const progressEl = document.getElementById('gen-weapon-progress');
+  const stepEl = document.getElementById('gen-weapon-step');
+  const logEl = document.getElementById('gen-weapon-log');
+  progressEl.style.display = 'block';
+  stepEl.textContent = 'Generating weapon concept art...';
+  logEl.textContent = '';
+
+  try {
+    const res = await fetch('/api/generate-weapon-concept', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        classId: currentClass,
+        weaponType,
+        prompt: promptInput.value.trim() || undefined,
+        skinId: currentSkinId !== 'default' ? currentSkinId : undefined,
+      }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    pollGenProgress('/api/generate-weapon-concept', data.taskId, 'gen-weapon', async (result) => {
+      const conceptUrl = result.result?.conceptUrl;
+      if (conceptUrl) {
+        document.getElementById('gen-weapon-concept-preview').src = conceptUrl + '?t=' + Date.now();
+        document.getElementById('gen-weapon-input-phase').style.display = 'none';
+        document.getElementById('gen-weapon-review-phase').style.display = 'block';
+        progressEl.style.display = 'none';
+        setWeaponStep(2);
+        stepEl.textContent = 'Review weapon concept art below';
+      } else {
+        stepEl.textContent = 'Concept generated but no URL returned';
+        btn.disabled = false;
+        btn.textContent = 'Generate Concept Art';
+      }
+    });
+  } catch (err) {
+    stepEl.textContent = 'Failed: ' + err.message;
+    btn.disabled = false;
+    btn.textContent = 'Generate Concept Art';
+  }
+};
+
+// Phase 2a: User approves → send to Meshy for 3D generation
+window.approveWeaponConceptArt = async function() {
+  const weaponType = pendingWeaponType;
+  if (!weaponType) return;
+
+  document.getElementById('gen-weapon-review-phase').style.display = 'none';
+  const progressEl = document.getElementById('gen-weapon-progress');
+  const stepEl = document.getElementById('gen-weapon-step');
+  const logEl = document.getElementById('gen-weapon-log');
+  progressEl.style.display = 'block';
+  stepEl.textContent = 'Sending to Meshy for 3D generation...';
+  logEl.textContent = '';
+  setWeaponStep(3);
+
+  try {
+    const res = await fetch('/api/generate-weapon', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        classId: currentClass,
+        weaponType,
+        skipConcept: true,
+        skinId: currentSkinId !== 'default' ? currentSkinId : undefined,
+      }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    pollGenProgress('/api/generate-weapon', data.taskId, 'gen-weapon', async () => {
+      stepEl.textContent = `Done! ${weaponType} generated. Attaching...`;
+      try {
+        await window.attachWeapon();
+        stepEl.textContent = `Done! ${weaponType} generated and attached.`;
+      } catch (e) {
+        stepEl.textContent = `Done! ${weaponType} generated. (Auto-attach failed: ${e.message})`;
+      }
+      setTimeout(() => resetWeaponUI(), 3000);
+    });
+  } catch (err) {
+    stepEl.textContent = 'Failed: ' + err.message;
+    resetWeaponUI();
+  }
+};
+
+// Phase 2b: User rejects → go back to input
+window.rejectWeaponConceptArt = function() {
+  resetWeaponUI();
+};
+
+function resetWeaponUI() {
+  document.getElementById('gen-weapon-input-phase').style.display = 'block';
+  document.getElementById('gen-weapon-review-phase').style.display = 'none';
+  document.getElementById('gen-weapon-concept-btn').disabled = false;
+  document.getElementById('gen-weapon-concept-btn').textContent = 'Generate Concept Art';
+  setWeaponStep(1);
+  pendingWeaponType = null;
+}
+
+// ── Publish to Game ──
+
+function updatePublishChecks() {
+  const checks = {
+    model: !!currentModel,
+    anims: false,
+    weapon: false,
+    skin: currentSkinId && currentSkinId !== 'default',
+  };
+
+  // Check base animations assigned (idle + run at minimum)
+  if (localMappings[getMappingKey()]) {
+    const m = localMappings[getMappingKey()];
+    checks.anims = !!(m.idle && m.run);
+  }
+
+  // Check weapon: either baked-in or a weapon is attached
+  const classConf = ASSET_MANIFEST[currentClass];
+  if (classConf?.weaponsBakedIn) {
+    checks.weapon = true;
+  } else {
+    // Check if weapon mesh is attached to the model
+    const wpnStatus = document.getElementById('weapon-status');
+    checks.weapon = wpnStatus && wpnStatus.classList.contains('attached');
+  }
+
+  // Update UI
+  const items = [
+    { id: 'publish-check-model', ok: checks.model, label: '3D model loaded' },
+    { id: 'publish-check-anims', ok: checks.anims, label: 'Base animations assigned' },
+    { id: 'publish-check-weapon', ok: checks.weapon, label: 'Weapon configured (or baked-in)' },
+    { id: 'publish-check-skin', ok: checks.skin, label: 'Skin selected (not default)' },
+  ];
+  for (const item of items) {
+    const el = document.getElementById(item.id);
+    if (!el) continue;
+    el.innerHTML = `${item.ok ? '&#9745;' : '&#9744;'} ${item.label}`;
+    el.style.color = item.ok ? '#88cc88' : '#888';
+  }
+
+  // Auto-fill skin ID and display name from current skin
+  const skinIdInput = document.getElementById('publish-skin-id');
+  if (skinIdInput && !skinIdInput.value && checks.skin) {
+    skinIdInput.value = currentSkinId;
+  }
+  const nameInput = document.getElementById('publish-name');
+  if (nameInput && !nameInput.value && checks.skin) {
+    const skins = skinsByClass[currentClass] || [];
+    const skin = skins.find(s => s.id === currentSkinId);
+    if (skin) nameInput.value = skin.name;
+  }
+
+  // Enable/disable publish button
+  const allReady = checks.model && checks.anims && checks.weapon && checks.skin;
+  const btn = document.getElementById('publish-skin-btn');
+  if (btn) btn.disabled = !allReady;
+
+  return allReady;
+}
+
+window.generateDescription = async function() {
+  const btn = document.getElementById('publish-gen-desc-btn');
+  const desc = document.getElementById('publish-desc');
+  const nameInput = document.getElementById('publish-name');
+  const skinName = nameInput?.value?.trim();
+  if (!skinName || !currentClass) {
+    alert('Enter a Display Name first so the AI knows what to write about.');
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+  try {
+    const resp = await fetch('/api/generate-description', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ classId: currentClass, skinName }),
+    });
+    const data = await resp.json();
+    if (data.description) {
+      desc.value = data.description;
+    } else {
+      alert('Failed: ' + (data.error || 'No description returned'));
+    }
+  } catch (err) {
+    alert('Error: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'AI Generate';
+  }
+};
+
+window.startPublish = async function() {
+  const btn = document.getElementById('publish-skin-btn');
+  if (!btn) return;
+
+  const classId = currentClass;
+  const skinId = currentSkinId;
+  const newSkinId = (document.getElementById('publish-skin-id').value.trim() || skinId)
+    .toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  const name = document.getElementById('publish-name').value.trim();
+  const description = document.getElementById('publish-desc').value.trim();
+  const rarity = document.getElementById('publish-rarity').value;
+  const price = parseInt(document.getElementById('publish-price').value, 10) || 5000;
+
+  if (!name) {
+    alert('Please enter a display name for the skin.');
+    return;
+  }
+  if (!skinId || skinId === 'default') {
+    alert('Please select a skin variant first.');
+    return;
+  }
+  if (!newSkinId) {
+    alert('Please enter a valid Skin ID.');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Publishing...';
+
+  const progressEl = document.getElementById('publish-progress');
+  progressEl.style.display = 'block';
+
+  try {
+    const resp = await fetch('/api/publish-skin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ classId, skinId, newSkinId: newSkinId !== skinId ? newSkinId : undefined, name, description, rarity, price }),
+    });
+    const data = await resp.json();
+
+    if (data.taskId) {
+      pollGenProgress('/api/publish-skin', data.taskId, 'publish', async (result) => {
+        btn.disabled = false;
+        btn.textContent = btn.dataset.label || 'Publish to Game';
+        if (result.status === 'done') {
+          document.getElementById('publish-step').textContent = result.step || 'Published & Deployed!';
+          // If skin was renamed, refresh skin list and update current selection
+          if (newSkinId !== skinId) {
+            currentSkinId = newSkinId;
+            await fetchSkins();
+            updateSkinDropdown(currentClass);
+            const sel = document.getElementById('skin-select');
+            if (sel) sel.value = newSkinId;
+          }
+        }
+      });
+    } else {
+      document.getElementById('publish-step').textContent = 'Error: ' + (data.error || 'Unknown error');
+      btn.disabled = false;
+      btn.textContent = btn.dataset.label || 'Publish to Game';
+    }
+  } catch (err) {
+    document.getElementById('publish-step').textContent = 'Error: ' + err.message;
+    btn.disabled = false;
+    btn.textContent = btn.dataset.label || 'Publish to Game';
+  }
+};
+
+// Skins are fetched in init()
+
+// Scan which animation GLB files exist for the active animation set
 async function scanAvailableSharedAnims() {
   const available = new Set();
-  const checks = Object.keys(SHARED_ANIMATIONS).map(async (key) => {
-    if (SHARED_ANIMATIONS[key] === '__procedural__') { available.add(key); return; }
-    const url = resolveAnimationPath(key);
-    if (!url) return;
-    try {
-      const res = await fetch(url, { method: 'HEAD' });
-      if (res.ok) available.add(key);
-    } catch {}
-  });
-  await Promise.all(checks);
+  // Use server-side file list instead of HEAD requests (Vite returns 200 for missing files)
+  const clipFiles = animSetClipFiles?.[currentAnimSetId];
+  const diskFiles = clipFiles ? new Set(clipFiles) : null;
+
+  for (const key of Object.keys(SHARED_ANIMATIONS)) {
+    if (SHARED_ANIMATIONS[key] === '__procedural__') { available.add(key); continue; }
+    const file = SHARED_ANIMATIONS[key];
+    if (!file) continue;
+    if (diskFiles) {
+      // Match against actual files on disk from API
+      if (diskFiles.has(file)) available.add(key);
+    } else {
+      // Fallback: assume all exist (first load before API response)
+      available.add(key);
+    }
+  }
   return available;
 }
 
-function buildAssignmentUI(classId, available) {
-  availableSharedKeys = available;
-  if (!localMappings[classId]) {
-    localMappings[classId] = { ...(CLASS_ANIMATIONS[classId] || {}) };
+function buildAssignmentUI(classId) {
+  const mapKey = getMappingKey(classId);
+  if (!localMappings[mapKey]) {
+    localMappings[mapKey] = { ...getEffectiveAnimMap(classId, currentSkinId) };
   }
-  const mapping = localMappings[classId];
+  const mapping = localMappings[mapKey];
   selectedAbility = null;
 
   // Build ability list
@@ -534,40 +1758,110 @@ function buildAssignmentUI(classId, available) {
     }
   }
 
-  // Build shared animation pool, grouped by category
-  const ANIM_CATEGORIES = {
-    'Idle / Stance': ['rest_pose', 'idle', 'idle_02', 'idle_03', 'combat_stance', 'alert', 'axe_stance'],
-    'Run / Move': ['run', 'run_03', 'run_fast', 'lean_forward_sprint', 'walk_fight_forward', 'walk_fight_back', 'walk_backward', 'injured_walk', 'sneaky_walk', 'standard_forward_charge', 'run_and_shoot'],
-    'Melee Attacks': ['attack', 'left_slash', 'reaping_swing', 'rightward_spin', 'sword_judgment', 'heavy_hammer_swing', 'kung_fu_punch', 'counterstrike', 'double_blade_spin', 'double_combo_attack', 'triple_combo_attack', 'punch_combo', 'weapon_combo', 'right_hand_sword_slash', 'charged_upward_slash', 'axe_spin_attack', 'charged_slash'],
-    'Kicks / Unarmed': ['simple_kick', 'spartan_kick', 'roundhouse_kick', 'elbow_strike', 'leg_sweep'],
-    'Spell Casts': ['charged_spell_cast', 'mage_spell_cast', 'mage_spell_cast_3', 'mage_spell_cast_5', 'mage_spell_cast_8', 'charged_ground_slam', 'skill_01', 'skill_02', 'skill_03'],
-    'Defense / Parry': ['block', 'sword_parry', 'two_handed_parry', 'shield_push', 'sword_shout', 'chest_pound_taunt'],
-    'Dodge / Acrobatic': ['stand_dodge', 'roll_dodge', 'dodge_and_counter', 'quick_step_spin_dodge', 'backflip', 'basic_jump'],
-    'Hit / Death': ['hit_reaction', 'hit_reaction_1', 'behit_flyup', 'electrocution_reaction', 'knock_down', 'electrocuted_fall', 'angry_ground_stomp', 'dead', 'dying_backwards', 'shot_and_fall_forward', 'shot_and_slow_fall_backward'],
-  };
-  // Collect any keys not in a category
-  const categorized = new Set(Object.values(ANIM_CATEGORIES).flat());
-  const uncategorized = Object.keys(SHARED_ANIMATIONS).filter(k => !categorized.has(k));
-  if (uncategorized.length) ANIM_CATEGORIES['Other'] = uncategorized;
+  // Build the pool for the current filter
+  rebuildPool();
+}
+
+const ANIM_CATEGORIES = {
+  'Idle / Stance': ['rest_pose', 'idle', 'idle_02', 'idle_03', 'combat_stance', 'alert', 'axe_stance', 'boxing_practice', 'battle_pose'],
+  'Run / Move': ['run', 'run_03', 'run_fast', 'lean_forward_sprint', 'walk_fight_forward', 'walk_fight_back', 'walk_backward', 'injured_walk', 'sneaky_walk', 'standard_forward_charge', 'run_and_shoot'],
+  'Melee Attacks': ['attack', 'left_slash', 'reaping_swing', 'rightward_spin', 'sword_judgment', 'heavy_hammer_swing', 'kung_fu_punch', 'counterstrike', 'double_blade_spin', 'double_combo_attack', 'triple_combo_attack', 'punch_combo', 'weapon_combo', 'right_hand_sword_slash', 'charged_upward_slash', 'axe_spin_attack', 'charged_slash', 'charged_axe_chop', 'thrust_slash', 'weapon_combo_1', 'weapon_combo_2'],
+  'Spell Casts': ['charged_spell_cast', 'mage_spell_cast', 'mage_spell_cast_0', 'mage_spell_cast_2', 'mage_spell_cast_3', 'mage_spell_cast_4', 'mage_spell_cast_5', 'mage_spell_cast_6', 'mage_spell_cast_7', 'mage_spell_cast_8', 'charged_ground_slam', 'skill_01', 'skill_02', 'skill_03'],
+  'Defense / Parry': ['block', 'block_2', 'block_3', 'block_4', 'block_5', 'sword_parry', 'sword_parry_backward', 'two_handed_parry', 'shield_push', 'sword_shout', 'chest_pound_taunt'],
+  'Dodge / Acrobatic': ['roll_dodge', 'roll_dodge_1', 'roll_dodge_2', 'dodge_and_counter', 'quick_step_spin_dodge', 'backflip', 'basic_jump', 'sprint_roll_and_flip', 'jump_and_slam', 'stand_dodge'],
+  'Hit / Death': ['hit_reaction', 'hit_reaction_1', 'behit_flyup', 'dead', 'dying_backwards', 'shot_and_fall_forward', 'shot_and_slow_fall_backward'],
+  'Stun / CC': ['electrocution_reaction', 'electrocuted_fall', 'knock_down'],
+  'Kicks / Extra Melee': ['angry_ground_stomp', 'elbow_strike', 'leg_sweep', 'roundhouse_kick', 'simple_kick', 'spartan_kick'],
+  'Taunts / Emotes': ['angry_stomp', 'victory_cheer', 'victory_fist_pump'],
+};
+// Collect any keys not in a category
+const categorizedKeys = new Set(Object.values(ANIM_CATEGORIES).flat());
+const uncategorizedKeys = Object.keys(SHARED_ANIMATIONS).filter(k => !categorizedKeys.has(k));
+if (uncategorizedKeys.length) ANIM_CATEGORIES['Other'] = uncategorizedKeys;
+
+// Rebuild just the pool buttons based on the current pool filter — does NOT touch ability assignments
+function rebuildPool() {
+  const filterSetId = poolFilterSetId;
+  const isFiltered = filterSetId !== 'shared';
+
+  // Build set of clips available in the filtered rig
+  const clipFiles = animSetClipFiles?.[filterSetId];
+  const rigDiskFiles = clipFiles ? new Set(clipFiles) : null;
+  const inRig = new Set();
+  // Build set of ALL clips available in shared (global)
+  const sharedClipFiles = animSetClipFiles?.['shared'];
+  const sharedDiskFiles = sharedClipFiles ? new Set(sharedClipFiles) : null;
+  const inShared = new Set();
+
+  for (const key of Object.keys(SHARED_ANIMATIONS)) {
+    if (SHARED_ANIMATIONS[key] === '__procedural__') { inRig.add(key); inShared.add(key); continue; }
+    const file = SHARED_ANIMATIONS[key];
+    if (!file) continue;
+    // Check if in the rig set
+    if (rigDiskFiles) {
+      if (rigDiskFiles.has(file)) inRig.add(key);
+    } else {
+      inRig.add(key);
+    }
+    // Check if in the shared set
+    if (sharedDiskFiles) {
+      if (sharedDiskFiles.has(file)) inShared.add(key);
+    } else {
+      inShared.add(key);
+    }
+  }
+
+  // Resolve which animation set path this filter points to
+  let filterSetPath = '/assets/animations/shared/';
+  const sel = document.getElementById('anim-set-inline');
+  if (sel) {
+    const opt = [...sel.options].find(o => o.value === filterSetId);
+    if (opt?.dataset.path) filterSetPath = `/assets/animations/${opt.dataset.path}/`;
+  }
+  const sharedSetPath = '/assets/animations/shared/';
 
   const poolEl = document.getElementById('anim-pool');
   poolEl.innerHTML = '';
+  let rigCount = 0;
+  let sharedCount = 0;
+
   for (const [category, keys] of Object.entries(ANIM_CATEGORIES)) {
+    // Show category if ANY key is available (in rig OR in shared)
+    const hasAny = keys.some(k => SHARED_ANIMATIONS[k] && (inRig.has(k) || inShared.has(k)));
+    if (!hasAny) continue;
+
     const header = document.createElement('div');
     header.className = 'pool-category-header';
     header.textContent = category;
     poolEl.appendChild(header);
+
     for (const key of keys) {
       if (!SHARED_ANIMATIONS[key]) continue;
+      const isInRig = inRig.has(key);
+      const isInShared = inShared.has(key);
+      if (!isInRig && !isInShared) continue;
+
       const btn = document.createElement('button');
       btn.className = 'btn pool-btn';
       btn.textContent = key.replace(/_/g, ' ');
       btn.dataset.shared = key;
-      if (!available.has(key)) {
+
+      if (isFiltered && isInRig) {
+        // Clip exists in the rig set — use rig path
+        btn.dataset.setPath = filterSetPath;
+        btn.dataset.setId = filterSetId;
+        btn.onclick = () => poolAnimClick(key, filterSetPath, filterSetId);
+        rigCount++;
+      } else if (isInShared) {
+        // Clip only in shared (global) — use shared path, mark visually
+        btn.dataset.setPath = sharedSetPath;
+        btn.dataset.setId = 'shared';
+        if (isFiltered) btn.classList.add('shared-fallback');
+        btn.onclick = () => poolAnimClick(key, sharedSetPath, 'shared');
+        sharedCount++;
+      } else {
         btn.classList.add('unavailable');
         btn.title = 'GLB not found on disk';
-      } else {
-        btn.onclick = () => poolAnimClick(key);
       }
       poolEl.appendChild(btn);
     }
@@ -575,7 +1869,11 @@ function buildAssignmentUI(classId, available) {
 
   updatePoolHighlights();
   const statusEl = document.getElementById('meshy-anim-status');
-  statusEl.textContent = `${available.size}/${Object.keys(SHARED_ANIMATIONS).length} shared clips available — select an ability then click a pool animation to assign`;
+  if (isFiltered) {
+    statusEl.textContent = `${rigCount} in "${filterSetId}" + ${sharedCount} from shared — select an ability then click to assign`;
+  } else {
+    statusEl.textContent = `${inShared.size}/${Object.keys(SHARED_ANIMATIONS).length} shared clips — select an ability then click to assign`;
+  }
 }
 
 function createAbilityRow(name, assignedKey) {
@@ -599,7 +1897,14 @@ function createAbilityRow(name, assignedKey) {
 
   const assignSpan = document.createElement('span');
   assignSpan.className = 'ability-assign';
-  assignSpan.textContent = assignedKey || '(none)';
+  const setInfo = localMappingSets[getMappingKey()]?.[name];
+  const setLabel = setInfo?.setId && setInfo.setId !== 'shared' ? ` [${setInfo.setId}]` : '';
+  // For rig paths like 'rigs/tyrant_frost_dragon/run.glb', display just the filename
+  let displayKey = assignedKey;
+  if (assignedKey && assignedKey.includes('/')) {
+    displayKey = assignedKey.split('/').pop().replace('.glb', '');
+  }
+  assignSpan.textContent = displayKey ? displayKey + setLabel : '(none)';
 
   row.append(playBtn, nameSpan, arrow, assignSpan);
   row.onclick = () => selectAbility(name);
@@ -616,31 +1921,55 @@ function selectAbility(name) {
 }
 
 function updatePoolHighlights() {
-  const mapping = localMappings[currentClass] || {};
+  const mapping = localMappings[getMappingKey()] || {};
   const assignedKey = selectedAbility ? mapping[selectedAbility] : null;
   document.querySelectorAll('.pool-btn').forEach(btn => {
-    btn.classList.toggle('assigned', btn.dataset.shared === assignedKey);
+    // Match bare keys directly, or match rig paths by checking if the path ends with the pool clip's file
+    let isAssigned = btn.dataset.shared === assignedKey;
+    if (!isAssigned && assignedKey && assignedKey.includes('/')) {
+      const file = SHARED_ANIMATIONS[btn.dataset.shared];
+      isAssigned = file && assignedKey.endsWith('/' + file);
+    }
+    btn.classList.toggle('assigned', isAssigned);
     btn.classList.remove('previewing');
   });
 }
 
 function previewAbility(name) {
-  const mapping = localMappings[currentClass] || {};
+  const mapping = localMappings[getMappingKey()] || {};
   const sharedKey = mapping[name];
-  if (sharedKey) previewSharedAnim(sharedKey);
+  if (!sharedKey) return;
+  // Use the set path stored when this ability was assigned
+  const setInfo = localMappingSets[getMappingKey()]?.[name];
+  previewSharedAnim(sharedKey, setInfo?.setPath);
 }
 
-async function loadSharedClip(sharedKey) {
-  if (meshyClipCache[sharedKey]) return meshyClipCache[sharedKey].clone();
+async function loadSharedClip(sharedKey, overrideSetPath) {
+  const loadPath = overrideSetPath || currentAnimSetPath;
+  // Cache key includes the path so same clip from different sets stays separate
+  const cacheKey = `${loadPath}:${sharedKey}`;
+  if (meshyClipCache[cacheKey]) {
+    const cloned = meshyClipCache[cacheKey].clone();
+    if (targetRestPose) retargetClip(cloned, targetRestPose);
+    return cloned;
+  }
 
   // Procedural rest pose: 1-second empty clip (character stays in bind pose)
   if (SHARED_ANIMATIONS[sharedKey] === '__procedural__') {
     const clip = new THREE.AnimationClip(sharedKey, 1.0, []);
-    meshyClipCache[sharedKey] = clip;
+    meshyClipCache[cacheKey] = clip;
     return clip.clone();
   }
 
-  const url = resolveAnimationPath(sharedKey);
+  // Rig-specific path (e.g. 'rigs/tyrant_frost_dragon/run.glb') — resolve directly
+  let url;
+  if (sharedKey.includes('/')) {
+    url = '/assets/animations/' + sharedKey;
+  } else {
+    const file = SHARED_ANIMATIONS[sharedKey];
+    if (!file) return null;
+    url = loadPath + file;
+  }
   if (!url) return null;
 
   const statusEl = document.getElementById('meshy-anim-status');
@@ -654,6 +1983,25 @@ async function loadSharedClip(sharedKey) {
   if (gltf.animations.length > 0) {
     clip = gltf.animations[0];
     clip.name = sharedKey;
+  }
+
+  // Extract source rest pose from animation GLB's skeleton (once)
+  if (!sourceRestPose) {
+    sourceRestPose = {};
+    gltf.scene.traverse(node => {
+      if (node.isSkinnedMesh && node.skeleton) {
+        for (const bone of node.skeleton.bones) {
+          if (!sourceRestPose[bone.name]) {
+            sourceRestPose[bone.name] = bone.quaternion.clone();
+          }
+        }
+      }
+    });
+    if (Object.keys(sourceRestPose).length > 0) {
+      console.log(`[Retarget] Captured source rest pose (${Object.keys(sourceRestPose).length} bones)`);
+    } else {
+      sourceRestPose = null;
+    }
   }
 
   // Dispose loaded geometry — we only need the clip
@@ -672,11 +2020,14 @@ async function loadSharedClip(sharedKey) {
     }
   });
 
-  if (clip) meshyClipCache[sharedKey] = clip;
-  return clip ? clip.clone() : null;
+  if (clip) meshyClipCache[cacheKey] = clip;
+  if (!clip) return null;
+  const cloned = clip.clone();
+  if (targetRestPose) retargetClip(cloned, targetRestPose);
+  return cloned;
 }
 
-async function previewSharedAnim(sharedKey) {
+async function previewSharedAnim(sharedKey, overrideSetPath) {
   if (!mixer) return;
 
   // Highlight in pool
@@ -685,7 +2036,7 @@ async function previewSharedAnim(sharedKey) {
   });
 
   try {
-    const clip = await loadSharedClip(sharedKey);
+    const clip = await loadSharedClip(sharedKey, overrideSetPath);
     if (!clip) {
       document.getElementById('meshy-anim-status').textContent = `No clip in ${sharedKey}`;
       return;
@@ -693,7 +2044,7 @@ async function previewSharedAnim(sharedKey) {
     clip.name = sharedKey;
 
     const action = mixer.clipAction(clip);
-    const LOOPING_SHARED = new Set(['idle', 'run', 'combat_stance', 'lean_forward_sprint', 'run_and_shoot', 'block']);
+    const LOOPING_SHARED = new Set(['idle', 'run', 'combat_stance', 'lean_forward_sprint', 'run_and_shoot', 'block', 'electrocution_reaction', 'electrocuted_fall', 'knock_down']);
     const DEATH_SHARED = new Set(['dead', 'dying_backwards', 'shot_and_fall_forward', 'shot_and_slow_fall_backward']);
     const isLooping = LOOPING_SHARED.has(sharedKey);
     const isDeath = DEATH_SHARED.has(sharedKey);
@@ -717,36 +2068,40 @@ async function previewSharedAnim(sharedKey) {
   }
 }
 
-function poolAnimClick(sharedKey) {
+function poolAnimClick(sharedKey, setPath, setId) {
   // If an ability is selected, assign this animation to it
   if (selectedAbility) {
-    if (!localMappings[currentClass]) {
-      localMappings[currentClass] = { ...(CLASS_ANIMATIONS[currentClass] || {}) };
+    if (!localMappings[getMappingKey()]) {
+      localMappings[getMappingKey()] = { ...getEffectiveAnimMap(currentClass, currentSkinId) };
     }
-    localMappings[currentClass][selectedAbility] = sharedKey;
+    localMappings[getMappingKey()][selectedAbility] = sharedKey;
+    // Store which set this clip came from so preview loads from the right path
+    if (!localMappingSets[getMappingKey()]) localMappingSets[getMappingKey()] = {};
+    localMappingSets[getMappingKey()][selectedAbility] = { setId: setId || 'shared', setPath: setPath || currentAnimSetPath };
     saveMappings();
 
     // Update the ability row display
     const row = document.querySelector(`.ability-row[data-ability="${selectedAbility}"]`);
     if (row) {
-      row.querySelector('.ability-assign').textContent = sharedKey;
-      // Flash green to confirm assignment
+      const label = setId && setId !== 'shared' ? `${sharedKey} [${setId}]` : sharedKey;
+      row.querySelector('.ability-assign').textContent = label;
       row.classList.add('flash');
       setTimeout(() => row.classList.remove('flash'), 400);
     }
 
     updatePoolHighlights();
     updateChangeIndicator();
-    document.getElementById('meshy-anim-status').textContent = `Saved: "${selectedAbility}" -> ${sharedKey}`;
+    const setLabel = setId && setId !== 'shared' ? ` (from ${setId})` : '';
+    document.getElementById('meshy-anim-status').textContent = `Assigned: "${selectedAbility}" -> ${sharedKey}${setLabel}`;
   }
 
-  // Preview the animation
-  previewSharedAnim(sharedKey);
+  // Preview the animation from the correct set path
+  previewSharedAnim(sharedKey, setPath);
 }
 
 function updateChangeIndicator() {
-  const defaults = CLASS_ANIMATIONS[currentClass] || {};
-  const current = localMappings[currentClass] || {};
+  const defaults = getEffectiveAnimMap(currentClass, currentSkinId);
+  const current = localMappings[getMappingKey()] || {};
   const changed = Object.keys(current).some(k => current[k] !== defaults[k]);
   const statusEl = document.getElementById('meshy-anim-status');
   if (changed && !statusEl.textContent.includes('Saved')) {
@@ -754,32 +2109,170 @@ function updateChangeIndicator() {
   }
 }
 
-window.saveToFile = async function() {
-  const mapping = localMappings[currentClass] || CLASS_ANIMATIONS[currentClass] || {};
-  const statusEl = document.getElementById('meshy-anim-status');
-  statusEl.textContent = `Saving ${currentClass}...`;
-
+// Helper: parse JSON response, retry once if Vite HMR returns HTML
+async function safeJsonResponse(res, retryFetch) {
+  const text = await res.text();
   try {
-    const res = await fetch('/api/save-anim-mappings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ classId: currentClass, mapping }),
-    });
-    const data = await res.json();
-    if (data.ok) {
-      statusEl.textContent = `Saved ${currentClass} to AssetManifest.js`;
-    } else {
-      statusEl.textContent = `Save failed: ${data.error}`;
+    return JSON.parse(text);
+  } catch (e) {
+    if (text.startsWith('<!') && retryFetch) {
+      // Vite HMR restart — wait and retry
+      console.warn('[Save] Got HTML response (HMR restart), retrying in 1.5s...');
+      await new Promise(r => setTimeout(r, 1500));
+      const retryRes = await retryFetch();
+      return retryRes.json();
     }
-  } catch (err) {
-    statusEl.textContent = `Save failed: ${err.message}`;
+    throw e;
   }
+}
+
+window.saveToFile = async function() {
+  const rawMapping = localMappings[getMappingKey()] || getEffectiveAnimMap(currentClass, currentSkinId);
+  const sets = localMappingSets[getMappingKey()] || {};
+  const statusEl = document.getElementById('meshy-anim-status');
+  const isSkinSpecific = currentSkinId && currentSkinId !== 'default';
+  const label = isSkinSpecific ? `${currentClass} (${currentSkinId})` : currentClass;
+  statusEl.textContent = `Saving ${label}...`;
+
+  // Build resolved mapping: for rig-specific clips, store the full path
+  const resolved = {};
+  for (const [ability, sharedKey] of Object.entries(rawMapping)) {
+    const setInfo = sets[ability];
+    if (setInfo && setInfo.setId && setInfo.setId !== 'shared') {
+      // Rig-specific: build path like 'rigs/tyrant_frost_dragon/run.glb'
+      const file = SHARED_ANIMATIONS[sharedKey];
+      if (file && file !== '__procedural__') {
+        const rigPath = setInfo.setPath.replace('/assets/animations/', '');
+        resolved[ability] = rigPath + file;
+      } else {
+        resolved[ability] = sharedKey;
+      }
+    } else {
+      // Already a rig path (e.g. loaded from SKIN_ANIMATIONS) — keep as-is
+      resolved[ability] = sharedKey;
+    }
+  }
+
+  // Persist viewer state before save — Vite HMR will reload the page when AssetManifest.js changes
+  _saveViewerState();
+
+  // Clear localStorage BEFORE the fetch — writing AssetManifest.js triggers Vite HMR which
+  // reloads the page immediately, often before the fetch response comes back. If stale
+  // localStorage data (with bare keys like 'idle') still exists on reload, buildAssignmentUI
+  // uses it instead of reading the freshly saved SKIN_ANIMATIONS (which has full rig paths).
+  const mapKey = getMappingKey();
+  const backupMapping = localMappings[mapKey];
+  const backupSets = localMappingSets[mapKey];
+  delete localMappings[mapKey];
+  delete localMappingSets[mapKey];
+  saveMappings();
+
+  if (isSkinSpecific) {
+    // Skin-specific save: save ALL entries (don't filter against class base)
+    // Skin models may use rig-specific animations that need explicit overrides for every state
+    // Include the currently attached weapon so skinWeapons mapping is updated
+    const skinWeaponType = (attachedWeapons.length > 0 && attachedWeapons[0].type) ? attachedWeapons[0].type : null;
+    const bodyStr = JSON.stringify({ classId: currentClass, skinId: currentSkinId, mapping: resolved, modelScale: modelScale, skinWeapon: skinWeaponType });
+    try {
+      const res = await fetch('/api/save-anim-mappings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: bodyStr,
+      });
+      const data = await safeJsonResponse(res, () => fetch('/api/save-anim-mappings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: bodyStr,
+      }));
+      if (data.ok) {
+        statusEl.textContent = `Saved ${Object.keys(resolved).length} skin overrides for ${label}`;
+      } else {
+        statusEl.textContent = `Save failed: ${data.error}`;
+        // Restore localStorage on failure
+        localMappings[mapKey] = backupMapping;
+        localMappingSets[mapKey] = backupSets;
+        saveMappings();
+      }
+    } catch (err) {
+      statusEl.textContent = `Save failed: ${err.message}`;
+      localMappings[mapKey] = backupMapping;
+      localMappingSets[mapKey] = backupSets;
+      saveMappings();
+    }
+  } else {
+    // Class-level save (default skin)
+    const bodyStr = JSON.stringify({ classId: currentClass, mapping: resolved });
+    try {
+      const res = await fetch('/api/save-anim-mappings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: bodyStr,
+      });
+      const data = await safeJsonResponse(res, () => fetch('/api/save-anim-mappings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: bodyStr,
+      }));
+      if (data.ok) {
+        statusEl.textContent = `Saved ${currentClass} to AssetManifest.js`;
+      } else {
+        statusEl.textContent = `Save failed: ${data.error}`;
+        localMappings[mapKey] = backupMapping;
+        localMappingSets[mapKey] = backupSets;
+        saveMappings();
+      }
+    } catch (err) {
+      statusEl.textContent = `Save failed: ${err.message}`;
+      localMappings[mapKey] = backupMapping;
+      localMappingSets[mapKey] = backupSets;
+      saveMappings();
+    }
+  }
+  updatePublishChecks();
+  // Start polling deploy status
+  _pollDeployStatus();
 };
 
+let _deployPollTimer = null;
+function _pollDeployStatus() {
+  const el = document.getElementById('deploy-status');
+  if (!el) return;
+  el.style.display = 'block';
+  el.style.background = 'rgba(74,144,217,0.12)';
+  el.style.border = '1px solid rgba(74,144,217,0.3)';
+  el.style.color = '#4a90d9';
+  el.innerHTML = '\u23F3 Deploying to live site...';
+
+  if (_deployPollTimer) clearInterval(_deployPollTimer);
+  _deployPollTimer = setInterval(async () => {
+    try {
+      const res = await fetch('/api/deploy-status');
+      const status = await res.json();
+      if (status.state === 'success') {
+        clearInterval(_deployPollTimer);
+        el.style.background = 'rgba(74,219,122,0.12)';
+        el.style.border = '1px solid rgba(74,219,122,0.3)';
+        el.style.color = '#4adb7a';
+        el.innerHTML = '\u2705 LIVE — deployed to eboncrucible.com';
+        setTimeout(() => { el.style.opacity = '0.5'; }, 5000);
+      } else if (status.state === 'failed') {
+        clearInterval(_deployPollTimer);
+        el.style.background = 'rgba(255,68,68,0.12)';
+        el.style.border = '1px solid rgba(255,68,68,0.3)';
+        el.style.color = '#ff4444';
+        el.innerHTML = '\u274C Deploy failed: ' + (status.message || 'unknown error');
+      } else if (status.state === 'building') {
+        el.innerHTML = '\u23F3 ' + (status.message || 'Building...');
+      }
+    } catch { /* ignore fetch errors */ }
+  }, 2000);
+}
+
 window.resetMappings = function() {
-  delete localMappings[currentClass];
+  delete localMappings[getMappingKey()];
+  delete localMappingSets[getMappingKey()];
   saveMappings();
-  buildAssignmentUI(currentClass, availableSharedKeys);
+  buildAssignmentUI(currentClass);
   document.getElementById('meshy-anim-status').textContent = `Reset ${currentClass} to defaults`;
 };
 
@@ -788,15 +2281,27 @@ let attachedWeapons = []; // Array of { node, bone, type } for cleanup
 let editingWeaponType = null; // which weapon type the sliders control
 const weaponGlbCache = {};
 
-// Per-class weapon config from AssetManifest
+// Per-class weapon config from AssetManifest (with skin-level overrides from SKIN_ANIMATIONS)
 function getClassWeaponConfig(classId) {
   const manifest = ASSET_MANIFEST[classId];
   if (!manifest) return null;
+
+  // Check for skin-level weaponsBakedIn override
+  let weaponsBaked = manifest.weaponsBakedIn || false;
+  if (currentSkinId && currentSkinId !== 'default') {
+    const skinKey = `${classId}_${currentSkinId}`;
+    const skinMeta = SKIN_ANIMATIONS[skinKey];
+    if (skinMeta?.weaponsBakedIn !== undefined) {
+      weaponsBaked = skinMeta.weaponsBakedIn;
+    }
+  }
+
   return {
     weapons: manifest.weapons || {},
     defaultWeapon: manifest.defaultWeapon,
+    skinWeapons: manifest.skinWeapons || {},
     weaponHand: manifest.weaponHand || 'right',
-    weaponsBakedIn: manifest.weaponsBakedIn || false,
+    weaponsBakedIn: weaponsBaked,
     offHandType: manifest.offHandType || null,
     weaponOffset: manifest.weaponOffset || {},
   };
@@ -835,8 +2340,9 @@ function updateWeaponUI(classId) {
     opt.textContent = wt;
     select.appendChild(opt);
   }
-  // Default to the first weapon type
-  editingWeaponType = config.defaultWeapon || weaponTypes[0];
+  // Default to skin-specific weapon if available, otherwise class default
+  const skinWeaponKey = (currentSkinId && currentSkinId !== 'default') ? config.skinWeapons?.[currentSkinId] : null;
+  editingWeaponType = skinWeaponKey || config.defaultWeapon || weaponTypes[0];
   select.value = editingWeaponType;
 
   loadSlidersForWeaponType(classId, editingWeaponType);
@@ -864,11 +2370,13 @@ window.switchWeaponType = function(wt) {
   loadSlidersForWeaponType(currentClass, wt);
 };
 
-async function loadWeaponGlb(classId) {
+async function loadWeaponGlb(classId, overrideWeaponKey) {
   const config = getClassWeaponConfig(classId);
   if (!config || !config.defaultWeapon) return null;
 
-  const weaponFile = config.weapons[config.defaultWeapon];
+  // Use explicit override, or the currently editing weapon type
+  const weaponKey = overrideWeaponKey || editingWeaponType || config.defaultWeapon;
+  const weaponFile = config.weapons[weaponKey];
   if (!weaponFile) return null;
 
   const url = `/assets/models/${weaponFile}`;
@@ -1058,11 +2566,22 @@ window.attachWeapon = async function() {
   statusEl.className = 'weapon-status detached';
   statusEl.textContent = 'Loading weapons...';
 
-  // Attach main weapon
-  const weaponScene = await loadWeaponGlb(currentClass);
+  // Resolve weapon type:
+  //  1. explicit edit selection wins
+  //  2. otherwise per-skin override from skinWeapons map
+  //  3. fallback to defaultWeapon
+  const skinOverride = (currentSkinId && currentSkinId !== 'default')
+    ? config.skinWeapons?.[currentSkinId]
+    : null;
+  const mainType = editingWeaponType || skinOverride || config.defaultWeapon;
+
+  // Clear cache so we always load the latest GLB
+  const weaponFile = config.weapons[mainType];
+  if (weaponFile) delete weaponGlbCache[`/assets/models/${weaponFile}`];
+
+  const weaponScene = await loadWeaponGlb(currentClass, mainType);
   if (weaponScene) {
-    const mainType = config.defaultWeapon;
-    const mainOffset = config.weaponOffset[mainType] || {};
+    const mainOffset = config.weaponOffset[mainType] || config.weaponOffset[config.defaultWeapon] || {};
     const hand = config.weaponHand === 'dual' ? 'right' : config.weaponHand;
 
     const result = doAttachWeapon(currentModel, weaponScene, hand, mainOffset);
@@ -1104,6 +2623,9 @@ window.attachWeapon = async function() {
   }
 
   document.getElementById('weapon-offsets').style.display = 'block';
+  // Show "Bake Weapons into GLB" button when weapons are attached on a skin
+  const bakeBtn = document.getElementById('bake-weapons-btn');
+  if (bakeBtn) bakeBtn.style.display = (currentSkinId && currentSkinId !== 'default') ? 'block' : 'none';
   updateWeaponUI(currentClass);
 };
 
@@ -1119,6 +2641,9 @@ window.detachWeapon = function() {
     });
   }
   attachedWeapons = [];
+  // Hide bake button when weapons are detached
+  const bakeBtn = document.getElementById('bake-weapons-btn');
+  if (bakeBtn) bakeBtn.style.display = 'none';
   document.getElementById('weapon-offsets').style.display = 'none';
   updateWeaponUI(currentClass);
 };
@@ -1210,6 +2735,7 @@ window.saveWeaponOffset = async function() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         classId: currentClass,
+        skinId: currentSkinId !== 'default' ? currentSkinId : undefined,
         weaponType: editingWeaponType,
         offset,
         weaponsBakedIn: bakedIn,
@@ -1231,6 +2757,80 @@ window.saveWeaponOffset = async function() {
     }
   } catch (err) {
     statusEl.textContent = `Save failed: ${err.message}`;
+  }
+};
+
+// ── Bake Weapons into Model GLB ──
+// Exports the current model + attached weapons as a single GLB file,
+// saves it as the skin model, and sets weaponsBakedIn: true
+window.bakeWeaponsIntoModel = async function() {
+  if (!currentModel) { alert('No model loaded'); return; }
+  if (attachedWeapons.length === 0) { alert('No weapons attached — click Attach first'); return; }
+  if (!currentSkinId || currentSkinId === 'default') { alert('Bake only works for skins, not default class models'); return; }
+
+  const statusEl = document.getElementById('weapon-status');
+  statusEl.textContent = 'Baking weapons into GLB...';
+  statusEl.className = 'weapon-status detached';
+
+  try {
+    const exporter = new GLTFExporter();
+
+    // Export the entire model scene (includes skeleton + attached weapons on hand bones)
+    const glb = await exporter.parseAsync(currentModel, {
+      binary: true,
+      animations: [], // Don't include animations — they're loaded separately
+      includeCustomExtensions: false,
+    });
+
+    // Upload the GLB to the server
+    const skinKey = `${currentClass}_${currentSkinId}`;
+    const filename = `skins/${currentClass}_${currentSkinId}.glb`;
+
+    const formData = new FormData();
+    formData.append('file', new Blob([glb], { type: 'model/gltf-binary' }), filename);
+    formData.append('classId', currentClass);
+    formData.append('skinId', currentSkinId);
+    formData.append('skinKey', skinKey);
+
+    statusEl.textContent = 'Uploading baked GLB...';
+
+    const res = await fetch('/api/save-baked-model', {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Upload failed');
+
+    // Update weaponsBakedIn to true via the weapon save endpoint
+    await fetch('/api/save-weapon-offset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        classId: currentClass,
+        skinId: currentSkinId,
+        weaponType: getClassWeaponConfig(currentClass)?.defaultWeapon || 'default',
+        offset: getCurrentSliderOffset(),
+        weaponsBakedIn: true,
+      }),
+    });
+
+    // Update in-memory state
+    if (SKIN_ANIMATIONS[skinKey]) SKIN_ANIMATIONS[skinKey].weaponsBakedIn = true;
+
+    statusEl.className = 'weapon-status baked';
+    statusEl.textContent = `Weapons baked into ${filename} — weaponsBakedIn set to true`;
+
+    // Update the baked-in checkbox
+    document.getElementById('toggle-baked').checked = true;
+
+    // Auto-deploy if available
+    if (data.deploying) {
+      statusEl.textContent += ' (deploying to live...)';
+    }
+  } catch (err) {
+    console.error('Bake failed:', err);
+    statusEl.className = 'weapon-status detached';
+    statusEl.textContent = `Bake failed: ${err.message}`;
   }
 };
 
@@ -1257,16 +2857,18 @@ function updateAnimSections() {
 
 // ── Model Loading ──
 async function loadModel(classId) {
+  const gen = ++_loadGen;
   clearModel();
   currentClass = classId;
   updateAnimSections();
   updateInfo('Loading...');
 
   try {
-    const charPath = `/assets/models/char_${classId}.glb`;
+    const charPath = currentSkinPath || `/assets/models/char_${classId}.glb`;
     const gltf = await new Promise((resolve, reject) => {
       gltfLoader.load(charPath, resolve, undefined, reject);
     });
+    if (gen !== _loadGen) return; // stale load — a newer loadModel was called
 
     // Ensure PBR materials
     gltf.scene.traverse(child => {
@@ -1280,7 +2882,41 @@ async function loadModel(classId) {
     if (viewMode === 'animated') {
       // Meshy Animated mode: load rigged model + Meshy animation GLBs
       currentModel = gltf.scene;
-      currentModel.scale.setScalar(modelScale);
+
+      // Extract target rest pose from this model's skeleton for animation retargeting
+      targetRestPose = {};
+      gltf.scene.traverse(node => {
+        if (node.isSkinnedMesh && node.skeleton) {
+          for (const bone of node.skeleton.bones) {
+            if (!targetRestPose[bone.name]) {
+              targetRestPose[bone.name] = bone.quaternion.clone();
+            }
+          }
+        }
+      });
+      if (Object.keys(targetRestPose).length === 0) targetRestPose = null;
+
+      // Restore modelScale from SKIN_ANIMATIONS if available (so it doesn't revert to default 2.5)
+      if (currentSkinId && currentSkinId !== 'default') {
+        const skinKey = `${classId}_${currentSkinId}`;
+        const skinMeta = SKIN_ANIMATIONS[skinKey];
+        if (skinMeta?.modelScale) {
+          modelScale = skinMeta.modelScale;
+          const slider = document.getElementById('scale-slider');
+          if (slider) slider.value = modelScale;
+          document.getElementById('scale-val').textContent = modelScale;
+        }
+      }
+
+      // Height-normalize: measure actual model height and scale to target
+      // (different Meshy runs produce different raw dimensions)
+      const box = new THREE.Box3().setFromObject(currentModel);
+      const currentHeight = box.max.y - box.min.y;
+      if (currentHeight > 0) {
+        currentModel.scale.setScalar(modelScale / currentHeight);
+      } else {
+        currentModel.scale.setScalar(modelScale);
+      }
       scene.add(currentModel);
 
       // Set up an empty mixer on the rigged model
@@ -1299,13 +2935,12 @@ async function loadModel(classId) {
         }
       });
 
-      // Scan which shared animation files exist and build assignment UI
-      const available = await scanAvailableSharedAnims();
-      buildAssignmentUI(classId, available);
+      // Build assignment UI + pool
+      buildAssignmentUI(classId);
 
-      // Auto-play idle if available
-      const idleKey = (localMappings[classId] || CLASS_ANIMATIONS[classId] || {}).idle;
-      if (idleKey && available.has(idleKey)) {
+      // Auto-play idle
+      const idleKey = (localMappings[getMappingKey(classId)] || getEffectiveAnimMap(classId, currentSkinId) || {}).idle;
+      if (idleKey) {
         await previewSharedAnim(idleKey);
       }
 
@@ -1337,6 +2972,8 @@ async function loadModel(classId) {
     if (wpnConfig && !wpnConfig.weaponsBakedIn) {
       await window.attachWeapon();
     }
+
+    updatePublishChecks();
 
   } catch (err) {
     console.error('Load failed:', err);
@@ -1443,6 +3080,7 @@ function showStats(classId, model) {
 function clearModel() {
   // Detach any weapons
   attachedWeapons = [];
+  targetRestPose = null; // Reset so next model captures its own rest pose
   if (skeletonHelper) { scene.remove(skeletonHelper); skeletonHelper = null; }
   if (bboxHelper) { scene.remove(bboxHelper); bboxHelper = null; }
   if (mixer) {
@@ -1502,7 +3140,12 @@ window.selectClass = function(cls) {
     b.classList.toggle('active', b.textContent.toLowerCase() === 'idle');
   });
   selectedAbility = null;
+  currentSkinId = 'default';
+  currentSkinPath = null;
+  updateSkinDropdown(cls);
+  updateWeaponGenDropdown(cls);
   loadModel(cls);
+  _saveViewerState();
 };
 
 window.setViewMode = function(mode) {
@@ -1557,11 +3200,24 @@ window.playAnim = function(anim) {
   }
 };
 
+let _scaleTimer = null;
 window.setScale = function(val) {
   modelScale = parseFloat(val);
   document.getElementById('scale-val').textContent = val;
-  // Reload model with new scale (SkeletonTransfer bakes scale into vertices)
-  loadModel(currentClass);
+  // Apply scale directly to current model if in Animated mode (no reload needed)
+  if (viewMode === 'animated' && currentModel) {
+    const box = new THREE.Box3().setFromObject(currentModel);
+    const currentHeight = box.max.y - box.min.y;
+    const rawScale = currentModel.scale.x;
+    const rawHeight = currentHeight / rawScale;
+    if (rawHeight > 0) {
+      currentModel.scale.setScalar(modelScale / rawHeight);
+    }
+    return;
+  }
+  // Other modes: debounced reload
+  if (_scaleTimer) clearTimeout(_scaleTimer);
+  _scaleTimer = setTimeout(() => loadModel(currentClass), 300);
 };
 
 window.setCamHeight = function(val) {

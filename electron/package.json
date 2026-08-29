@@ -1,0 +1,73 @@
+{
+  "name": "ebon-crucible",
+  "version": "0.2.0",
+  "main": "main.js",
+  "description": "Ebon Crucible - Dark Fantasy Arena Combat",
+  "author": "Ebon Crucible",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "unset ELECTRON_RUN_AS_NODE && electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "com.eboncrucible.arena",
+    "productName": "Ebon Crucible",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.js",
+      "preload.js"
+    ],
+    "extraResources": [
+      {
+        "from": "../dist-app/play",
+        "to": "app/play"
+      },
+      {
+        "from": "../dist-app/assets",
+        "to": "app/assets",
+        "filter": [
+          "**/*",
+          "!animations/rigs/**",
+          "!models/*backup*",
+          "!models/skins/*backup*",
+          "!models/wpn_infernal_staff_classic.glb"
+        ]
+      },
+      {
+        "from": "../public/favicon-32.png",
+        "to": "app/favicon-32.png"
+      },
+      {
+        "from": "../public/apple-touch-icon.png",
+        "to": "app/apple-touch-icon.png"
+      }
+    ],
+    "win": {
+      "target": "dir",
+      "icon": "../public/icon-256.png"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "../public/icon-256.png",
+      "category": "public.app-category.games"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "../public/icon-192.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

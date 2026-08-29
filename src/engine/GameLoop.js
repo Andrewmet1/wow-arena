@@ -27,6 +27,9 @@ export class GameLoop {
 
     // Hit stop — brief game freeze on heavy impacts
     this.hitStopRemaining = 0;
+
+    // PvP render-only mode — skip local engine ticks, server is authoritative
+    this.renderOnly = false;
   }
 
   /**
@@ -48,11 +51,13 @@ export class GameLoop {
    * Start the game loop (visual mode with requestAnimationFrame)
    */
   start() {
-    this.match.start();
+    if (!this.renderOnly) {
+      this.match.start();
+      this.match.eventBus.emit(EVENTS.MATCH_START, {});
+    }
     this.running = true;
     this.lastTickTime = performance.now();
     this.accumulator = 0;
-    this.match.eventBus.emit(EVENTS.MATCH_START, {});
     this.loop(performance.now());
   }
 
@@ -76,8 +81,8 @@ export class GameLoop {
       return;
     }
 
-    // Fixed timestep game ticks
-    while (this.accumulator >= TICK_RATE && this.running) {
+    // Fixed timestep game ticks (skip in PvP — server is authoritative)
+    while (!this.renderOnly && this.accumulator >= TICK_RATE && this.running) {
       this.gameTick();
       this.accumulator -= TICK_RATE;
 
@@ -86,8 +91,8 @@ export class GameLoop {
         if (!this._matchEnded) {
           this._matchEnded = true;
           this.match.eventBus.emit(EVENTS.MATCH_END, {
-            winner: this.match.winner?.id,
-            loser: this.match.loser?.id,
+            winner: this.match.winner?.id ?? this.match.winner,
+            loser: this.match.loser?.id ?? this.match.loser,
             duration: this.match.getMatchDuration()
           });
         }
@@ -97,7 +102,10 @@ export class GameLoop {
     }
 
     // Render at display refresh rate (continues even after match ends)
-    const alpha = this.accumulator / TICK_RATE; // Interpolation factor
+    // In render-only (PvP) mode, allow slight extrapolation (1.3x) for smoother enemy motion
+    const alpha = this.renderOnly
+      ? Math.min(this.accumulator / TICK_RATE, 1.3)
+      : this.accumulator / TICK_RATE;
     if (this.onRender) {
       this.onRender(alpha, this.match);
     }

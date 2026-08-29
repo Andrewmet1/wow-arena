@@ -1,0 +1,15 @@
+{
+  "name": "Ebon Crucible",
+  "short_name": "Ebon Crucible",
+  "description": "Dark Fantasy Arena Combat — Five classes, 63 abilities, ranked 1v1.",
+  "start_url": "/play/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0a0a0a",
+  "theme_color": "#08080f",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}

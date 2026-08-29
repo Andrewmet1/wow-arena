@@ -1,0 +1,110 @@
+[
+  {
+    "id": "now-in-early-access",
+    "badge": "EARLY ACCESS",
+    "badgeColor": "#c8a860",
+    "date": "May 4, 2026",
+    "title": "Now in Early Access — Steam, iOS, Android, Web",
+    "excerpt": "Ebon Crucible is now in Early Access on Steam, the App Store, Google Play, and the web. One account, every device. Five classes, 63 abilities, real-time arena combat — pick the way you fight.",
+    "bgImage": "/assets/art/launch_early_access_banner.webp"
+  },
+  {
+    "id": "skin-tyrant-grizzled-warden",
+    "badge": "NEW SKIN",
+    "badgeColor": "#c8a860",
+    "date": "April 17, 2026",
+    "title": "New Skin: Grizzled Warden",
+    "excerpt": "The Grizzled Warden emerges from the shadows of forgotten battlefields, his once-gleaming armor now a patchwork of scars and soot, each mark telling a tale of grim victories and untold sacrifices. ...",
+    "bgImage": "/assets/art/skins/tyrant_forest_inspired_dark_bear_skin_banner.webp"
+  },
+  {
+    "id": "skin-revenant-frostfire-holy-paladin",
+    "badge": "NEW SKIN",
+    "badgeColor": "#a855f7",
+    "date": "March 29, 2026",
+    "title": "New Skin: Frostfire Holy Paladin",
+    "excerpt": "Wreathed in a blizzard of celestial flames, the Frostfire Holy Paladin embodies a chilling paradox, melding sacred light with the relentless bite of frost. His armor, forged from radiant ice, gleam...",
+    "bgImage": "/assets/art/skins/revenant_frozen_ice_holy_paladin_fallen_dragon_banner.webp"
+  },
+  {
+    "id": "skin-harbinger-frozen-ice-dragon-skeleton-warlock",
+    "badge": "NEW SKIN",
+    "badgeColor": "#a855f7",
+    "date": "March 25, 2026",
+    "title": "New Skin: Frozen Ice Dragon Skeleton Warlock",
+    "excerpt": "Donning the icy remnants of a long-fallen dragon, the Frozen Ice Dragon Skeleton Warlock emerges as a chilling specter of forgotten legends. Cloaked in ethereal frost and adorned with jagged bone, ...",
+    "bgImage": "/assets/art/skins/harbinger_frozen_ice_dragon_skeleton_warlock_banner.webp"
+  },
+  {
+    "id": "skin-infernal-ebon-frost-mage",
+    "badge": "NEW SKIN",
+    "badgeColor": "#a855f7",
+    "date": "March 1, 2026",
+    "title": "New Skin: Ebon Frost Mage",
+    "excerpt": "Clad in a mesmerizing shroud of glimmering frost, the Frost Mage emerges as the embodiment of winter's wrath; icy tendrils cascade from his fingertips, freezing the very air around him.",
+    "bgImage": "/assets/art/skins/infernal_frost_dragon_skeleton_inspired_ice_wizar_banner.webp"
+  },
+  {
+    "id": "skin-tyrant-ashen-overlord",
+    "badge": "NEW SKIN",
+    "badgeColor": "#4a9eff",
+    "date": "February 23, 2026",
+    "title": "New Skin: Ashen Overlord",
+    "excerpt": "Forged in the heart of a dying star, the Ashen Overlord commands the battlefield clad in molten-runed armor.",
+    "bgImage": "/assets/art/skins/tyrant_ashen_overlord_banner.webp"
+  },
+  {
+    "id": "skin-wraith-frozen-reaper",
+    "badge": "NEW SKIN",
+    "badgeColor": "#a855f7",
+    "date": "February 23, 2026",
+    "title": "New Skin: Frozen Reaper",
+    "excerpt": "Once a Wraith who stalked the living, now entombed in cursed permafrost. The Frozen Reaper moves through the arena trailing shards of black ice, each dagger strike leaving frostbitten wounds that n...",
+    "bgImage": "/assets/art/skins/wraith_frozen_reaper_banner.webp"
+  },
+  {
+    "id": "wager-duels",
+    "badge": "NEW FEATURE",
+    "badgeColor": "#e05555",
+    "date": "February 20, 2026",
+    "title": "Wager Duels & Global Chat",
+    "excerpt": "Challenge higher-rated players for Crucible Coins with amplified ELO stakes. Plus: global chat, duel chat, and DMs. The Crucible just got personal.",
+    "bgImage": "/assets/art/news_wager_duels.webp"
+  },
+  {
+    "id": "shop-betting",
+    "badge": "NEW FEATURE",
+    "badgeColor": "#c8a860",
+    "date": "February 20, 2026",
+    "title": "Economy, Betting & Weekly Challenges",
+    "excerpt": "Rebalanced coin rewards, champion betting with pool-based payouts, the Champion's Cut, the Crucible Jackpot, and AI-generated weekly challenges. The full metagame economy is live.",
+    "bgImage": "/assets/art/news_shop_betting.webp"
+  },
+  {
+    "id": "patch-0.2",
+    "badge": "PATCH NOTES",
+    "badgeColor": "#c8a860",
+    "date": "February 19, 2026",
+    "title": "Patch 0.2 — Rotation Depth: Ability Synergies",
+    "excerpt": "All five classes receive new ability synergies that reward smart rotations. Tyrant rage combos, Wraith bleed chains, Infernal fire stacks, Harbinger DoT extensions, and Revenant holy power generation all gain depth.",
+    "bgImage": "/assets/art/news_patch_0_2.webp"
+  },
+  {
+    "id": "ranked-s1",
+    "badge": "RANKED",
+    "badgeColor": "#a0e6d4",
+    "date": "February 2026",
+    "title": "Ranked Season 1 Now Live",
+    "excerpt": "ELO matchmaking is here. Six ranked tiers from The Broken to The Ascended. Climb the ladder and claim your rank.",
+    "bgImage": "/assets/art/ranked_banner.webp"
+  },
+  {
+    "id": "launch",
+    "badge": "LAUNCH",
+    "badgeColor": "#c8a860",
+    "date": "February 2026",
+    "title": "Ebon Crucible Alpha Launches",
+    "excerpt": "Five classes, 63 abilities, real-time 1v1 combat. Play free in your browser.",
+    "bgImage": "/assets/art/champion_select_bg.webp"
+  }
+]

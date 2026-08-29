@@ -1,0 +1,60 @@
+<!doctype html><meta charset=utf-8><title>Ebon Crucible runtime verification</title>
+<body><canvas id=c></canvas>
+<script type="module">
+// Loaded by scripts/verify-runtime.mjs. Exercises the real ModelLoader and a
+// sample of stripped animation clips, then parks the result on window.__probe.
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { loadModel } from '/src/rendering/ModelLoader.js';
+
+const out = [];
+const log = (level, msg) => out.push({ level, msg });
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c') });
+
+const CLASSES = ['tyrant', 'wraith', 'infernal', 'harbinger', 'revenant'];
+const TRI_BUDGET = 160000;
+
+for (const cls of CLASSES) {
+  try {
+    const model = await loadModel(`/assets/models/char_${cls}.glb`);
+    let mats = 0, pbr = 0, bump = 0, tris = 0, bones = 0;
+    model.traverse(o => {
+      if (o.isBone) bones++;
+      if (!o.isMesh && !o.isSkinnedMesh) return;
+      if (o.geometry?.index) tris += o.geometry.index.count / 3;
+      for (const m of [].concat(o.material)) {
+        if (!m) continue;
+        mats++;
+        if (m.normalMap && m.metalnessMap && m.roughnessMap) pbr++;
+        if (m.bumpMap) bump++;
+      }
+    });
+    tris = Math.round(tris);
+    const okPbr = mats > 0 && pbr === mats && bump === 0;
+    const okTris = tris <= TRI_BUDGET;
+    log(okPbr && okTris ? 'pass' : 'fail',
+      `${cls}: ${tris.toLocaleString()} tris, ${bones} bones, ${pbr}/${mats} materials with full PBR` +
+      (okTris ? '' : `  [OVER ${TRI_BUDGET.toLocaleString()} BUDGET]`) +
+      (okPbr ? '' : '  [PBR NOT APPLIED]'));
+  } catch (e) {
+    log('fail', `${cls}: load failed — ${e.message}`);
+  }
+}
+
+const loader = new GLTFLoader();
+const CLIPS = ['attack','run','dead','mage_spell_cast_3','left_slash',
+               'heavy_hammer_swing','charged_ground_slam','block','roll_dodge','sword_judgment'];
+let animOk = 0;
+for (const name of CLIPS) {
+  try {
+    const g = await loader.loadAsync(`/assets/animations/rigs/tyrant_frost_dragon/${name}.glb`);
+    const a = g.animations?.[0];
+    if (a?.tracks?.length) animOk++;
+    else log('fail', `clip ${name}: no animation tracks`);
+  } catch (e) { log('fail', `clip ${name}: ${e.message}`); }
+}
+log(animOk === CLIPS.length ? 'pass' : 'fail', `animation clips: ${animOk}/${CLIPS.length} parsed with tracks`);
+
+window.__probe = out;
+window.__probeDone = true;
+</script></body>

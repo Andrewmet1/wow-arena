@@ -32,6 +32,7 @@ export class ClassBase {
     // Loadout system
     this.coreAbilityIds = config.coreAbilityIds || [];
     this.defaultLoadout = config.defaultLoadout || [];
+    this.builds = config.builds || [];
 
     // Class-specific data set on unit.classData
     this.classData = config.classData || {};

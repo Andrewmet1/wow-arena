@@ -5,14 +5,39 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "deploy": "vite build && ./scripts/deploy-client.sh",
+    "build:app": "vite build --config vite.config.app.js",
+    "build:electron": "vite build --config vite.config.app.js --mode electron",
     "preview": "vite preview",
-    "balance": "node tools/balance-cli.js"
+    "balance": "node tools/balance-cli.js",
+    "content:check": "node scripts/content-check.mjs",
+    "content:check:json": "node scripts/content-check.mjs --json",
+    "verify": "node scripts/verify-runtime.mjs",
+    "verify:all": "npm run content:check && npm run verify",
+    "dev:server": "cd server && EC_DUNGEON_ENABLED=1 node index.js",
+    "dev:dungeon": "echo \"1) npm run dev:server   2) npm run dev   3) open http://localhost:5173/play/?dungeon=1\""
   },
   "dependencies": {
+    "@aws-sdk/client-sesv2": "^3.1042.0",
+    "@capacitor/android": "^8.3.0",
+    "@capacitor/cli": "^7.6.1",
+    "@capacitor/core": "^8.3.0",
+    "@capacitor/ios": "^8.3.0",
+    "amazon-cognito-identity-js": "^6.3.16",
+    "openai": "^6.22.0",
+    "png-to-ico": "^3.0.1",
+    "puppeteer": "^24.40.0",
+    "stripe": "^22.1.0",
     "three": "^0.182.0",
     "vite": "^7.3.1"
   },
   "devDependencies": {
-    "dotenv": "^17.3.1"
+    "@gltf-transform/core": "^4.3.0",
+    "@gltf-transform/extensions": "^4.3.0",
+    "@gltf-transform/functions": "^4.3.0",
+    "dotenv": "^17.3.1",
+    "meshoptimizer": "^1.1.1",
+    "sharp": "^0.34.5",
+    "typescript": "^6.0.2"
   }
 }

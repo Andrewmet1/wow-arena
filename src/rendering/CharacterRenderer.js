@@ -1,18 +1,60 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { isModelCached, loadCharacter, loadWeapon, getClassScale } from './ModelLoader.js';
+import { isModelCached, loadCharacter, loadWeapon, getClassScale, loadModel, cloneModel } from './ModelLoader.js';
 import { autoRig, attachWeapon } from './AutoRigger.js';
-import { resolveModelPath, ASSET_MANIFEST, getWeaponOffset, getClassAnimationMap, resolveAnimationPath } from './AssetManifest.js';
+import { resolveModelPath, ASSET_MANIFEST, SKIN_ANIMATIONS, getWeaponOffset, getClassAnimationMap, resolveAnimationPath } from './AssetManifest.js';
 import { getClassAnimations } from './AnimationFactory.js';
 import { rigWithMixamoSkeleton } from './SkeletonTransfer.js';
 
 // Shared GLTFLoader for animation clip loading
 const _meshyGltfLoader = new GLTFLoader();
-// Global cache: shared clip key → AnimationClip (one copy per unique animation)
+// Global cache: shared clip key → AnimationClip (one copy per unique animation, UN-retargeted)
 const _meshyClipCache = {};
+// Source rest pose from animation GLB skeleton (captured once — all shared anims share the same rig)
+let _sourceRestPose = null;
 
 // Base state clip names to preload during character init (critical for gameplay)
-const MESHY_BASE_CLIPS = ['idle', 'run', 'death', 'hit', 'stun', 'dodge', 'jump'];
+const MESHY_BASE_CLIPS = ['idle', 'run', 'death', 'hit', 'stun', 'dodge', 'jump', 'auto_attack'];
+
+/**
+ * Retarget an animation clip from source rest pose to target rest pose.
+ * For each quaternion track, applies: correctedQ = correction * originalQ
+ * where correction = targetRestQ * inverse(sourceRestQ).
+ * Mutates the clip's track values in-place. Call on a cloned clip.
+ */
+function _retargetClip(clip, targetRestPose) {
+  if (!_sourceRestPose) {
+    console.log(`[Retarget] SKIP ${clip.name} — no source rest pose available`);
+    return clip;
+  }
+  let correctedCount = 0;
+  const tmpQ = new THREE.Quaternion();
+  for (const track of clip.tracks) {
+    if (!track.name.endsWith('.quaternion')) continue;
+    const match = track.name.match(/\.bones\[(.+?)\]\.quaternion/);
+    if (!match) continue;
+    const boneName = match[1];
+    const sourceQ = _sourceRestPose[boneName];
+    const targetQ = targetRestPose[boneName];
+    if (!sourceQ || !targetQ) continue;
+    if (sourceQ.equals(targetQ)) continue;
+    correctedCount++;
+    // correction = targetQ * inverse(sourceQ)
+    const correction = targetQ.clone().multiply(sourceQ.clone().invert());
+    const values = track.values;
+    for (let i = 0; i < values.length; i += 4) {
+      tmpQ.set(values[i], values[i + 1], values[i + 2], values[i + 3]);
+      tmpQ.premultiply(correction);
+      tmpQ.normalize();
+      values[i]     = tmpQ.x;
+      values[i + 1] = tmpQ.y;
+      values[i + 2] = tmpQ.z;
+      values[i + 3] = tmpQ.w;
+    }
+  }
+  console.log(`[Retarget] ${clip.name}: corrected ${correctedCount} bone tracks`);
+  return clip;
+}
 
 /**
  * CharacterRenderer — Procedural character model renderer for a dark fantasy Ebon Crucible game.
@@ -2240,7 +2282,7 @@ export default class CharacterRenderer {
    * @param {string} classId  — one of TYRANT, WRAITH, INFERNAL, HARBINGER, REVENANT
    * @returns {THREE.Group} the root group for this character
    */
-  createCharacter(unitId, classId) {
+  createCharacter(unitId, classId, skinId = null, monsterId = null) {
     // Remove existing character with the same unitId, if any
     if (this.characters.has(unitId)) {
       this.removeCharacter(unitId);
@@ -2249,12 +2291,41 @@ export default class CharacterRenderer {
     const normalizedId = typeof classId === 'string' ? classId.toUpperCase() : classId;
     const lowerClassId = normalizedId.toLowerCase();
 
-    // Try Meshy model first
+    // Dungeon monster mesh — load /assets/models/monsters/<id>.glb instead
+    // of the class default. Falls back to class mesh if monster GLB missing.
+    if (monsterId && this.useMeshyModels) {
+      const placeholder = new THREE.Group();
+      placeholder.name = `monster_${unitId}_${monsterId}`;
+      placeholder.userData.classId = normalizedId;
+      placeholder.userData.unitId = unitId;
+      placeholder.userData.monsterId = monsterId;
+      placeholder.userData.skinId = 'default';
+      placeholder.userData.isMeshy = true;
+      placeholder.userData._originalEmissives = new Map();
+      this.scene.add(placeholder);
+      this.characters.set(unitId, placeholder);
+      placeholder.userData._loadPromise = this._loadAndRigAsync(
+        placeholder, unitId, normalizedId, lowerClassId, null, monsterId
+      );
+      return placeholder;
+    }
+
+    // Try Meshy model first (skin variant or default)
     if (this.useMeshyModels) {
+      // If a skin is requested, always use the Meshy pipeline — the model will load async
+      // even if not pre-cached (the loading screen waits for waitForCharacterLoad anyway)
+      if (skinId) {
+        try {
+          resolveModelPath(lowerClassId, 'character', skinId); // validate path exists in manifest
+          return this._createMeshyCharacter(unitId, normalizedId, lowerClassId, skinId);
+        } catch {
+          // Skin not in manifest — fall through to default
+        }
+      }
       try {
         const charPath = resolveModelPath(lowerClassId, 'character');
         if (isModelCached(charPath)) {
-          return this._createMeshyCharacter(unitId, normalizedId, lowerClassId);
+          return this._createMeshyCharacter(unitId, normalizedId, lowerClassId, null);
         }
       } catch {
         // Fall through to procedural
@@ -2265,16 +2336,18 @@ export default class CharacterRenderer {
     return this._createProceduralCharacter(unitId, normalizedId, classId);
   }
 
+
   /**
    * Create a character from a cached Meshy model with auto-rigging.
    * @private
    */
-  _createMeshyCharacter(unitId, normalizedId, lowerClassId) {
+  _createMeshyCharacter(unitId, normalizedId, lowerClassId, skinId = null) {
     // Create placeholder group immediately (sync) — model loads async but resolves from cache near-instantly
     const placeholder = new THREE.Group();
     placeholder.name = `character_${unitId}`;
     placeholder.userData.classId = normalizedId;
     placeholder.userData.unitId = unitId;
+    placeholder.userData.skinId = skinId || 'default';
     placeholder.userData.isMeshy = true;
     placeholder.userData._originalEmissives = new Map();
 
@@ -2282,7 +2355,7 @@ export default class CharacterRenderer {
     this.characters.set(unitId, placeholder);
 
     // Async load + rig + attach (resolves from cache so effectively instant)
-    placeholder.userData._loadPromise = this._loadAndRigAsync(placeholder, unitId, normalizedId, lowerClassId);
+    placeholder.userData._loadPromise = this._loadAndRigAsync(placeholder, unitId, normalizedId, lowerClassId, skinId);
 
     return placeholder;
   }
@@ -2292,10 +2365,24 @@ export default class CharacterRenderer {
    * Tries skin-based base mesh first, falls back to legacy auto-rig, then procedural.
    * @private
    */
-  async _loadAndRigAsync(placeholder, unitId, normalizedId, lowerClassId) {
+  async _loadAndRigAsync(placeholder, unitId, normalizedId, lowerClassId, skinId = null, monsterId = null) {
     try {
       // ── Load character model ──
-      const charModel = await loadCharacter(lowerClassId);
+      // If a monsterId is set, fetch the dungeon monster mesh directly. On
+      // failure (404 = generation hasn't completed yet) fall back to the
+      // base class mesh via loadCharacter.
+      let charModel;
+      if (monsterId) {
+        try {
+          const original = await loadModel(`/assets/models/monsters/${monsterId}.glb`);
+          charModel = cloneModel(original);
+        } catch (err) {
+          console.warn(`[CharacterRenderer] monster mesh ${monsterId} unavailable, using ${lowerClassId} placeholder: ${err.message}`);
+          charModel = await loadCharacter(lowerClassId, skinId || undefined);
+        }
+      } else {
+        charModel = await loadCharacter(lowerClassId, skinId || undefined);
+      }
 
       // Check if model is already rigged by Meshy (has SkinnedMesh with skeleton)
       let hasPreRiggedSkeleton = false;
@@ -2312,7 +2399,10 @@ export default class CharacterRenderer {
         // ── Meshy Animated path: use model as-is with Meshy animation clips ──
         // DON'T rename bones or adapt clips — Meshy animations target native bone names
         rigged = charModel;
-        const worldScale = getClassScale(lowerClassId) * 2.5;
+        // Use per-skin modelScale if set in SKIN_ANIMATIONS, otherwise class default
+        const skinKey = skinId && skinId !== 'default' ? `${lowerClassId}_${skinId}` : null;
+        const skinMeta = skinKey ? SKIN_ANIMATIONS[skinKey] : null;
+        const worldScale = skinMeta?.modelScale || (getClassScale(lowerClassId) * 2.5);
         rigged.scale.setScalar(worldScale);
       } else {
         // ── Fallback: rig locally with SkeletonTransfer ──
@@ -2329,14 +2419,30 @@ export default class CharacterRenderer {
       placeholder.userData.usesMeshyAnimations = hasPreRiggedSkeleton;
       placeholder.userData.classId = lowerClassId;
 
-      // Blob shadow — cheap circle on the ground (skinned meshes don't
-      // cast real shadows for performance, so this fakes it)
+      // Blob shadow — soft falloff circle using vertex colors so the edge
+      // fades to transparent instead of a hard circle (which read as a
+      // "black puddle" on the floor). Lower opacity too.
+      const blobGeo = new THREE.CircleGeometry(1.4, 24);
+      // Per-vertex alpha gradient: center 1.0, edge 0.0
+      const colors = new Float32Array(blobGeo.attributes.position.count * 3);
+      for (let i = 0; i < blobGeo.attributes.position.count; i++) {
+        const x = blobGeo.attributes.position.getX(i);
+        const y = blobGeo.attributes.position.getY(i);
+        const d = Math.sqrt(x * x + y * y) / 1.4; // 0 at center, 1 at edge
+        const a = 1.0 - Math.min(1, d);
+        colors[i * 3] = a; colors[i * 3 + 1] = a; colors[i * 3 + 2] = a;
+      }
+      blobGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
       const blobShadow = new THREE.Mesh(
-        new THREE.CircleGeometry(1.2, 16),
-        new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }),
+        blobGeo,
+        new THREE.MeshBasicMaterial({
+          color: 0x000000, transparent: true, opacity: 0.28,
+          depthWrite: false, vertexColors: true,
+          blending: THREE.NormalBlending,
+        }),
       );
       blobShadow.rotation.x = -Math.PI / 2;
-      blobShadow.position.y = 0.05;
+      blobShadow.position.y = 0.08;  // up slightly so heightmap-displaced floor doesn't clip
       blobShadow.name = 'blobShadow';
       blobShadow.renderOrder = -1;
       placeholder.add(blobShadow);
@@ -2351,11 +2457,15 @@ export default class CharacterRenderer {
         this._setupAnimationMixer(placeholder, rigged, allClips);
       }
 
-      // Attach weapon models to hand bones — only for classes without weapons baked into the mesh
+      // Attach weapon models to hand bones — only for classes/skins without weapons baked into the mesh
       try {
         const manifest = ASSET_MANIFEST[lowerClassId];
-        if (manifest && !manifest.weaponsBakedIn) {
-          const weaponModel = await loadWeapon(lowerClassId);
+        // Per-skin override: generated skins set weaponsBakedIn: false in SKIN_ANIMATIONS
+        const skinKey = skinId && skinId !== 'default' ? `${lowerClassId}_${skinId}` : null;
+        const skinMeta = skinKey ? SKIN_ANIMATIONS[skinKey] : null;
+        const weaponsBaked = skinMeta?.weaponsBakedIn !== undefined ? skinMeta.weaponsBakedIn : manifest?.weaponsBakedIn;
+        if (manifest && !weaponsBaked) {
+          const weaponModel = await loadWeapon(lowerClassId, null, skinId);
           const hand = manifest.weaponHand || 'right';
           const offset = getWeaponOffset(lowerClassId);
           console.log(`CharacterRenderer: attaching weapon for ${lowerClassId}, hand=${hand}, offset=`, offset);
@@ -2387,7 +2497,7 @@ export default class CharacterRenderer {
       // Reduce excessive emissive glow on Meshy models (textures can have baked-in emissive)
       if (hasPreRiggedSkeleton) {
         rigged.traverse(child => {
-          if (child.isMesh && child.material) {
+          if (child.isMesh && child.material && !child.userData.isWeaponAttachment) {
             if (child.material.emissive) {
               child.material.emissive.set(0x000000);
             }
@@ -2473,22 +2583,91 @@ export default class CharacterRenderer {
   async _loadMeshyAnimations(placeholder, scene, classId) {
     const mixer = new THREE.AnimationMixer(scene);
     const actions = {};
-    const animMap = getClassAnimationMap(classId);
+    const skinId = placeholder.userData.skinId || 'default';
+    const animMap = getClassAnimationMap(classId, skinId);
 
-    // Load base state clips in parallel from the shared animation library
-    const loadPromises = MESHY_BASE_CLIPS.map(name => {
-      const sharedKey = animMap[name]; // e.g. 'idle' → 'combat_stance' for wraith
-      if (!sharedKey) return Promise.resolve();
-      return this._loadSharedClipAsync(sharedKey).then(clip => {
-        if (clip) {
-          // Clone the clip so each mixer gets its own copy, but rename to the state name
-          const cloned = clip.clone();
-          cloned.name = name;
-          actions[name] = mixer.clipAction(cloned);
+    // Extract target rest pose from this model's skeleton (for animation retargeting)
+    const targetRestPose = {};
+    scene.traverse(node => {
+      if (node.isSkinnedMesh && node.skeleton) {
+        for (const bone of node.skeleton.bones) {
+          if (!targetRestPose[bone.name]) {
+            targetRestPose[bone.name] = bone.quaternion.clone();
+          }
         }
-      });
+      }
     });
-    await Promise.all(loadPromises);
+    placeholder.userData._targetRestPose = targetRestPose;
+
+    const targetBoneNames = Object.keys(targetRestPose);
+    console.log(`[Retarget] ${classId} target model has ${targetBoneNames.length} bones: [${targetBoneNames.slice(0, 10).join(', ')}${targetBoneNames.length > 10 ? '...' : ''}]`);
+    console.log(`[Retarget] Source rest pose captured: ${_sourceRestPose ? Object.keys(_sourceRestPose).length + ' bones' : 'NO (animation GLBs have no skeleton)'}`);
+
+    // Load base state clips sequentially. These gate the first rendered frame,
+    // so they stay ordered and awaited; ability clips are preloaded in parallel
+    // immediately after (see below).
+    for (const name of MESHY_BASE_CLIPS) {
+      let sharedKey = animMap[name];
+      if (!sharedKey) continue;
+      // Fall back to the real shared clip when a class's anim map points at
+      // 'rest_pose' (which is '__procedural__' → no GLB). This produced the
+      // T-pose bug on every monster whose base class used 'rest_pose' for
+      // idle — monsters don't have skin overrides, so they hit this path
+      // directly. Try the same key as a shared anim, otherwise use idle.
+      let clip = await this._loadSharedClipAsync(sharedKey);
+      if (!clip) {
+        const fallbackKey = (name === 'idle') ? 'idle' : sharedKey;
+        if (fallbackKey !== sharedKey) {
+          clip = await this._loadSharedClipAsync(fallbackKey);
+          if (clip) console.log(`[MeshyAnim] ${classId} ${name}: '${sharedKey}' resolved to no GLB, falling back to '${fallbackKey}'`);
+          sharedKey = fallbackKey;
+        }
+      }
+      if (clip) {
+        if (name === 'idle') {
+          const trackBones = clip.tracks
+            .filter(t => t.name.endsWith('.quaternion'))
+            .map(t => { const m = t.name.match(/\.bones\[(.+?)\]/); return m ? m[1] : t.name; })
+            .slice(0, 10);
+          console.log(`[Retarget] Animation track bones: [${trackBones.join(', ')}...]`);
+        }
+        const cloned = clip.clone();
+        cloned.name = name;
+        const isRigSpecific = sharedKey.includes('/');
+        if (!isRigSpecific) _retargetClip(cloned, targetRestPose);
+        actions[name] = mixer.clipAction(cloned);
+      }
+    }
+
+    // Preload every remaining ability clip in parallel.
+    //
+    // These used to lazy-load on first cast, which meant the first use of any
+    // ability rendered `idle` for the whole cast while a ~37MB GLB downloaded
+    // — the clips shipped a full textured character mesh alongside 72 channels
+    // of animation. Stripped, the entire 72-clip set is ~4.4MB, so there is no
+    // longer any reason to defer: fetching them all costs less than one of the
+    // old single clips. Failures are non-fatal — the lazy path below still
+    // exists as a backstop.
+    const abilityClips = Object.keys(animMap).filter(
+      name => !MESHY_BASE_CLIPS.includes(name) && !actions[name]
+    );
+    await Promise.all(abilityClips.map(async (name) => {
+      const sharedKey = animMap[name];
+      if (!sharedKey) return;
+      try {
+        const clip = await this._loadSharedClipAsync(sharedKey);
+        if (!clip) return;
+        const cloned = clip.clone();
+        cloned.name = name;
+        // Rig-specific clips already match the model's skeleton; only shared
+        // clips need retargeting onto the target rest pose.
+        if (!sharedKey.includes('/')) _retargetClip(cloned, targetRestPose);
+        actions[name] = mixer.clipAction(cloned);
+      } catch (err) {
+        console.warn(`[MeshyAnim] preload failed for ${classId}/${name}:`, err?.message);
+      }
+    }));
+    console.log(`[MeshyAnim] ${classId}: ${Object.keys(actions).length} clips ready (${abilityClips.length} abilities preloaded)`);
 
     // Store mixer state
     placeholder.userData.mixer = mixer;
@@ -2538,6 +2717,29 @@ export default class CharacterRenderer {
       const clip = gltf.animations[0];
       clip.name = sharedKey;
 
+      // Strip .scale tracks — Meshy animation GLBs contain bone scale keyframes
+      // that override the model's intended scale, causing characters to randomly grow/shrink
+      clip.tracks = clip.tracks.filter(t => !t.name.endsWith('.scale'));
+
+      // Capture source rest pose from animation GLB's skeleton (once — all shared anims come from same rig)
+      if (!_sourceRestPose) {
+        _sourceRestPose = {};
+        gltf.scene.traverse(node => {
+          if (node.isSkinnedMesh && node.skeleton) {
+            for (const bone of node.skeleton.bones) {
+              if (!_sourceRestPose[bone.name]) {
+                _sourceRestPose[bone.name] = bone.quaternion.clone();
+              }
+            }
+          }
+        });
+        if (Object.keys(_sourceRestPose).length > 0) {
+          console.log(`[Retarget] Captured source rest pose (${Object.keys(_sourceRestPose).length} bones)`);
+        } else {
+          _sourceRestPose = null; // no skeleton found
+        }
+      }
+
       // Dispose the loaded scene — we only need the animation clip data
       gltf.scene.traverse(c => {
         if (c.isMesh || c.isSkinnedMesh) {
@@ -2573,7 +2775,8 @@ export default class CharacterRenderer {
     loading.add(clipName);
 
     const classId = model.userData.classId;
-    const animMap = getClassAnimationMap(classId);
+    const skinId = model.userData.skinId || 'default';
+    const animMap = getClassAnimationMap(classId, skinId);
     const sharedKey = animMap[clipName];
     if (!sharedKey) { loading.delete(clipName); return; }
 
@@ -2582,8 +2785,13 @@ export default class CharacterRenderer {
       if (clip && model.userData.mixer) {
         const cloned = clip.clone();
         cloned.name = clipName;
+        // Only retarget shared animations — rig-specific clips already match the model's skeleton
+        const isRigSpecific = sharedKey.includes('/');
+        const targetRestPose = model.userData._targetRestPose;
+        if (targetRestPose && !isRigSpecific) _retargetClip(cloned, targetRestPose);
         model.userData.actions[clipName] = model.userData.mixer.clipAction(cloned);
-        console.log(`[MeshyAnim] Lazy-loaded ${classId}/${clipName} (shared: ${sharedKey})`);
+      } else {
+        console.warn(`[MeshyAnim] Lazy-load failed for ${classId}/${clipName} (shared: ${sharedKey})`);
       }
     });
   }
@@ -2785,6 +2993,12 @@ export default class CharacterRenderer {
         baseScale[1] * armatureScaleCompensation,
         baseScale[2] * armatureScaleCompensation
       );
+      // Mark as weapon and disable frustum culling (bone transforms can confuse the culler)
+      wpn.userData.isWeaponAttachment = true;
+      wpn.traverse(c => {
+        c.userData.isWeaponAttachment = true;
+        if (c.isMesh) c.frustumCulled = false;
+      });
       bone.add(wpn);
     };
 
@@ -4822,11 +5036,15 @@ export default class CharacterRenderer {
         targetClip = 'idle';
         timeScale = 0.5;
         break;
-      case 'rolling':
+      case 'rolling': {
         targetClip = actions['dodge'] ? 'dodge' : (actions['roll'] ? 'roll' : 'idle');
         loopMode = THREE.LoopOnce;
-        timeScale = 1.0;
+        // Compress full dodge clip into the short roll window (0.4s)
+        const dodgeAction = actions[targetClip];
+        const clipDur = dodgeAction ? dodgeAction.getClip().duration : 1.0;
+        timeScale = Math.max(1.0, clipDur / 0.5); // play full clip in ~0.5s
         break;
+      }
       default:
         targetClip = 'idle';
         break;
@@ -4854,9 +5072,20 @@ export default class CharacterRenderer {
         const nextAction = actions[targetClip];
         nextAction.setLoop(loopMode);
         nextAction.timeScale = timeScale;
+        // Death animations must hold final frame (stay on ground)
+        if (loopMode === THREE.LoopOnce) {
+          nextAction.clampWhenFinished = (targetClip === 'death');
+        }
 
+        // Fast crossfade for dodge/rolling — short window, needs instant start.
+        // run→idle uses 0.05s so the legs stop moving essentially when the
+        // position stops. Was 0.10s (still visible slide); 0.25 (very visible).
+        let fadeDur = 0.20;
+        if (targetClip === 'dodge' || targetClip === 'roll') fadeDur = 0.08;
+        else if ((activeBase === 'run' && targetClip === 'idle') ||
+                 (activeBase === 'idle' && targetClip === 'run')) fadeDur = 0.05;
         if (oldBase && oldBase.isRunning() && activeBase !== targetClip) {
-          oldBase.crossFadeTo(nextAction, 0.25, true);
+          oldBase.crossFadeTo(nextAction, fadeDur, true);
         }
         nextAction.reset().play();
         model.userData._activeBaseClip = targetClip;

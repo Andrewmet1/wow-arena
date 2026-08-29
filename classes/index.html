@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <title>Classes — Ebon Crucible</title>
+  <meta name="description" content="All 5 classes in Ebon Crucible: Tyrant, Wraith, Infernal, Harbinger, and Revenant. 63 abilities, unique resource systems, and distinct playstyles. Master your class in 1v1 arena combat.">
+  <meta property="og:title" content="Classes — Ebon Crucible">
+  <meta property="og:description" content="Five classes, 63 abilities, unique resource systems. Tyrant, Wraith, Infernal, Harbinger, and Revenant — master your class in 1v1 arena combat.">
+  <meta property="og:image" content="/assets/art/champion_select_bg.webp">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://eboncrucible.com/classes/">
+  <meta name="theme-color" content="#08080f">
+  <link rel="stylesheet" href="/src/styles/ebon-pages.css">
+</head>
+<body class="ambient-lines">
+  <div class="page-bg" style="background-image:url('/assets/art/champion_select_bg.webp');"></div>
+  <nav class="nav">
+    <a href="/" class="nav-brand">EBON CRUCIBLE <span class="alpha-badge">ALPHA</span></a>
+    <button class="nav-toggle" aria-label="Menu"><span></span><span></span><span></span></button>
+    <div class="nav-links">
+      <a href="/">HOME</a>
+      <a href="/classes/" class="active">CLASSES</a>
+      <a href="/gameplay/">GAME</a>
+      <a href="/rankings/">RANKINGS</a>
+      <a href="/news/">NEWS</a>
+      <a href="/community/">COMMUNITY</a>
+      <a href="/play/" class="nav-signin" id="nav-auth">SIGN IN</a>
+      <a href="/play/" class="nav-play">PLAY FREE</a>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <div class="hero-bg" style="background-image: url('/assets/art/champion_select_bg.webp');"></div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <h1>THE FIVE CLASSES</h1>
+      <div class="hero-line"></div>
+      <p>63 abilities. Five playstyles. Every fight is a test of mastery.</p>
+    </div>
+    <div class="hero-scroll-arrow">&#9660;</div>
+  </div>
+
+  <div class="glow-divider"></div>
+
+  <!-- Class Showcase Grid -->
+  <div class="class-showcase ambient-grid">
+    <div class="class-showcase-grid">
+
+      <a href="/classes/tyrant/" class="class-showcase-card" style="animation-delay: 0.1s;">
+        <div class="class-showcase-bg"><img src="/assets/art/tyrant_splash.webp" alt="Tyrant"></div>
+        <div class="class-showcase-overlay"></div>
+        <div class="class-showcase-content">
+          <div class="class-showcase-role">WARRIOR</div>
+          <div class="class-showcase-name" style="color:#8B0000;">TYRANT</div>
+          <div class="class-showcase-meta">12 ABILITIES &bull; RAGE</div>
+          <div class="class-showcase-desc">Relentless melee pressure. Build Rage through auto-attacks, then shatter your enemy's armor and execute them when they're wounded. Two gap-closers keep you on top of kiting classes.</div>
+          <div class="class-showcase-cta" style="color:#8B0000;">EXPLORE CLASS &rarr;</div>
+        </div>
+        <div class="class-showcase-bar" style="background:#8B0000;"></div>
+      </a>
+
+      <a href="/classes/wraith/" class="class-showcase-card" style="animation-delay: 0.15s;">
+        <div class="class-showcase-bg"><img src="/assets/art/wraith_splash.webp" alt="Wraith" loading="lazy"></div>
+        <div class="class-showcase-overlay"></div>
+        <div class="class-showcase-content">
+          <div class="class-showcase-role">ASSASSIN</div>
+          <div class="class-showcase-name" style="color:#6B2FA0;">WRAITH</div>
+          <div class="class-showcase-meta">14 ABILITIES &bull; ENERGY + COMBO POINTS</div>
+          <div class="class-showcase-desc">Opens from stealth with devastating openers. Build Combo Points through quick attacks, then spend them on powerful finishers. Evasion and Vanish let you reset fights on your terms.</div>
+          <div class="class-showcase-cta" style="color:#6B2FA0;">EXPLORE CLASS &rarr;</div>
+        </div>
+        <div class="class-showcase-bar" style="background:#6B2FA0;"></div>
+      </a>
+
+      <a href="/classes/infernal/" class="class-showcase-card" style="animation-delay: 0.2s;">
+        <div class="class-showcase-bg"><img src="/assets/art/infernal_splash.webp" alt="Infernal" loading="lazy"></div>
+        <div class="class-showcase-overlay"></div>
+        <div class="class-showcase-content">
+          <div class="class-showcase-role">MAGE</div>
+          <div class="class-showcase-name" style="color:#FF4500;">INFERNAL</div>
+          <div class="class-showcase-meta">15 ABILITIES &bull; MANA + CINDER STACKS</div>
+          <div class="class-showcase-desc">Fire and frost magic from range. Stack Cinders to empower Cataclysm Flare into a one-shot nuke. Phase Shift and roots keep melee at bay. Pyroclasm turns you into a glass cannon.</div>
+          <div class="class-showcase-cta" style="color:#FF4500;">EXPLORE CLASS &rarr;</div>
+        </div>
+        <div class="class-showcase-bar" style="background:#FF4500;"></div>
+      </a>
+
+      <a href="/classes/harbinger/" class="class-showcase-card" style="animation-delay: 0.25s;">
+        <div class="class-showcase-bg"><img src="/assets/art/harbinger_splash.webp" alt="Harbinger" loading="lazy"></div>
+        <div class="class-showcase-overlay"></div>
+        <div class="class-showcase-content">
+          <div class="class-showcase-role">WARLOCK</div>
+          <div class="class-showcase-name" style="color:#228B22;">HARBINGER</div>
+          <div class="class-showcase-meta">15 ABILITIES &bull; MANA + SOUL SHARDS</div>
+          <div class="class-showcase-desc">Grind enemies down through relentless DoTs and life drain. Stack afflictions, then detonate them with Hex Rupture. Fear and Nether Slam lock down opponents while your demon pet provides utility.</div>
+          <div class="class-showcase-cta" style="color:#228B22;">EXPLORE CLASS &rarr;</div>
+        </div>
+        <div class="class-showcase-bar" style="background:#228B22;"></div>
+      </a>
+
+      <a href="/classes/revenant/" class="class-showcase-card" style="animation-delay: 0.3s;">
+        <div class="class-showcase-bg"><img src="/assets/art/revenant_splash.webp" alt="Revenant" loading="lazy"></div>
+        <div class="class-showcase-overlay"></div>
+        <div class="class-showcase-content">
+          <div class="class-showcase-role">PALADIN</div>
+          <div class="class-showcase-name" style="color:#C8B560;">REVENANT</div>
+          <div class="class-showcase-meta">13 ABILITIES &bull; HOLY POWER + MANA</div>
+          <div class="class-showcase-desc">Build Holy Power through strikes and judgments, then spend it on devastating finishers or clutch healing. Aegis of Dawn grants immunity. The ultimate hybrid &mdash; can kill or outlast.</div>
+          <div class="class-showcase-cta" style="color:#C8B560;">EXPLORE CLASS &rarr;</div>
+        </div>
+        <div class="class-showcase-bar" style="background:#C8B560;"></div>
+      </a>
+
+    </div>
+  </div>
+
+  <div class="glow-divider"></div>
+
+  <div class="cta-section ember-corners section-glow-top">
+    <h2>READY TO FIGHT?</h2>
+    <p style="color:#555;font-size:13px;margin-bottom:24px;">Free to play. Browser or Steam (coming soon). Choose your class and enter the arena.</p>
+    <a href="/play/" class="cta-btn">PLAY FREE</a>
+  </div>
+
+  <div class="footer">&copy; 2026 Ebon Crucible. All rights reserved. <a href="/privacy/" style="color:#666;margin-left:12px;">Privacy Policy</a> <a href="/terms/" style="color:#666;margin-left:12px;">Terms of Service</a><div class="footer-alpha">Currently in Alpha — features and balance are actively evolving.</div></div>
+
+  <script>
+    (function() {
+      var c = document.querySelector('.hero');
+      for (var i = 0; i < 15; i++) {
+        var p = document.createElement('div');
+        var s = 2 + Math.random() * 4;
+        p.style.cssText = 'position:absolute;bottom:-10px;left:' + (Math.random()*100) + '%;width:' + s + 'px;height:' + s + 'px;border-radius:50%;background:rgba(200,168,96,0.6);opacity:0;pointer-events:none;animation:particleFloat ' + (6+Math.random()*6) + 's ' + (Math.random()*8) + 's ease-out infinite;';
+        c.appendChild(p);
+      }
+    })();
+  </script>
+<script>
+(function(){try{
+  var n=localStorage.getItem('ec_username');
+  if(n){
+    var el=document.getElementById('nav-auth');
+    if(el){
+      el.textContent=n+' \u25BE';
+      el.href='javascript:void(0)';
+      el.style.position='relative';
+      el.style.cursor='pointer';
+      var dd=document.createElement('div');
+      dd.style.cssText='display:none;position:absolute;top:100%;right:0;margin-top:8px;min-width:120px;background:rgba(12,12,22,0.98);border:1px solid #2a2a3a;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.5);overflow:hidden;z-index:9999;';
+      var profile=document.createElement('a');profile.href='/play/';profile.textContent='\u26E8 PROFILE';
+      profile.style.cssText='display:block;padding:10px 16px;font-size:9px;letter-spacing:2px;font-weight:700;color:#888;text-decoration:none;transition:background 0.2s;';
+      profile.onmouseenter=function(){this.style.background='rgba(255,255,255,0.04)'};profile.onmouseleave=function(){this.style.background='none'};
+      dd.appendChild(profile);
+      var logout=document.createElement('a');logout.href='javascript:void(0)';logout.textContent='\u23FB LOG OUT';
+      logout.style.cssText='display:block;padding:10px 16px;font-size:9px;letter-spacing:2px;font-weight:700;color:#cc6666;text-decoration:none;transition:background 0.2s;';
+      logout.onmouseenter=function(){this.style.background='rgba(255,255,255,0.04)'};logout.onmouseleave=function(){this.style.background='none'};
+      logout.onclick=function(e){e.stopPropagation();localStorage.removeItem('ec_username');localStorage.removeItem('CognitoIdentityServiceProvider.sn01blkd57e7oi7e7vq80mipv.LastAuthUser');var keys=Object.keys(localStorage);for(var i=0;i<keys.length;i++){if(keys[i].indexOf('CognitoIdentityServiceProvider')===0)localStorage.removeItem(keys[i]);}window.location.reload();};
+      dd.appendChild(logout);
+      el.appendChild(dd);
+      var open=false;
+      el.onclick=function(e){e.preventDefault();e.stopPropagation();open=!open;dd.style.display=open?'block':'none';};
+      document.addEventListener('click',function(){dd.style.display='none';open=false;});var pb=document.querySelector('.nav-play');if(pb)pb.textContent='PLAY NOW';
+    }
+  }
+}catch(e){}}());
+(function(){var tog=document.querySelector('.nav-toggle');var links=document.querySelector('.nav-links');if(tog)tog.onclick=function(){links.classList.toggle('open');};document.addEventListener('click',function(e){if(!e.target.closest('.nav'))links.classList.remove('open');});})();
+</script>
+<script src="/src/analytics/consent.js"></script>
+</body>
+</html>

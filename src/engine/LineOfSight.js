@@ -17,6 +17,51 @@ export class LineOfSight {
 
     /** When false, units are confined to their staging cell. Set true when gates open. */
     this.gatesOpen = false;
+
+    /**
+     * Optional rectangular bounds override. When set, isInBounds and
+     * clampToBounds use this rectangle instead of the default circular arena.
+     * Used by dungeon mode where the chamber is rectangular and bigger than
+     * the PvP arena's 40-radius circle.
+     * Shape: { halfX, halfZ }
+     */
+    this.dungeonBounds = null;
+
+    /**
+     * When set, movement is constrained to the union of these axis-aligned
+     * tiles (chambers + corridors). Without this, the rectangular bounds let
+     * players + mobs walk into the negative space *between* chambers — out
+     * of any actual room.
+     * Shape: [{ cx, cz, halfX, halfZ }]
+     */
+    this.dungeonTiles = null;
+  }
+
+  /** Is `pos` inside any dungeonTile? */
+  _isInsideAnyTile(pos, margin = 0) {
+    if (!this.dungeonTiles) return true;
+    for (const t of this.dungeonTiles) {
+      if (Math.abs(pos.x - t.cx) <= t.halfX - margin &&
+          Math.abs(pos.z - t.cz) <= t.halfZ - margin) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Clamp `pos` to the nearest tile interior. Returns the tile-clamped pos. */
+  _clampToNearestTile(pos, margin = 1.0) {
+    if (!this.dungeonTiles?.length) return pos;
+    let best = null, bestDist = Infinity;
+    for (const t of this.dungeonTiles) {
+      // Closest point inside the tile (with inset margin so we don't sit on the wall)
+      const ix = Math.max(t.cx - t.halfX + margin, Math.min(t.cx + t.halfX - margin, pos.x));
+      const iz = Math.max(t.cz - t.halfZ + margin, Math.min(t.cz + t.halfZ - margin, pos.z));
+      const dx = ix - pos.x, dz = iz - pos.z;
+      const d = dx * dx + dz * dz;
+      if (d < bestDist) { bestDist = d; best = { x: ix, z: iz }; }
+    }
+    return best || pos;
   }
 
   /**
@@ -120,13 +165,17 @@ export class LineOfSight {
    */
   isInBounds(pos) {
     if (!this.gatesOpen) {
-      // During staging, check if in any cell
       for (const cell of STAGING_CELLS) {
         if (pos.x >= cell.minX && pos.x <= cell.maxX && pos.z >= cell.minZ && pos.z <= cell.maxZ) {
           return true;
         }
       }
       return false;
+    }
+    // Dungeon: rectangular chamber bounds
+    if (this.dungeonBounds) {
+      return Math.abs(pos.x) <= this.dungeonBounds.halfX
+          && Math.abs(pos.z) <= this.dungeonBounds.halfZ;
     }
     return (pos.x * pos.x + pos.z * pos.z) <= ARENA_RADIUS * ARENA_RADIUS;
   }
@@ -136,7 +185,6 @@ export class LineOfSight {
    */
   clampToBounds(pos) {
     if (!this.gatesOpen) {
-      // Find which staging cell this unit is closest to and clamp to it
       let bestCell = STAGING_CELLS[0];
       let bestDist = Infinity;
       for (const cell of STAGING_CELLS) {
@@ -152,7 +200,26 @@ export class LineOfSight {
       };
     }
 
-    // Normal arena circular bounds
+    // Dungeon: prefer per-tile polygon clamp (keeps the player + mobs inside
+    // chambers/corridors instead of letting them roam the negative space
+    // between rectangles). Fall back to rectangular bounds if no tile data.
+    if (this.dungeonTiles?.length) {
+      if (this._isInsideAnyTile(pos, 1.0)) {
+        return { x: pos.x, y: pos.y || 0, z: pos.z };
+      }
+      const clamped = this._clampToNearestTile(pos, 1.0);
+      return { x: clamped.x, y: pos.y || 0, z: clamped.z };
+    }
+    if (this.dungeonBounds) {
+      const margin = 1.5;
+      return {
+        x: Math.max(-this.dungeonBounds.halfX + margin, Math.min(this.dungeonBounds.halfX - margin, pos.x)),
+        y: pos.y || 0,
+        z: Math.max(-this.dungeonBounds.halfZ + margin, Math.min(this.dungeonBounds.halfZ - margin, pos.z)),
+      };
+    }
+
+    // Normal PvP arena circular bounds
     const distSq = pos.x * pos.x + pos.z * pos.z;
     if (distSq <= ARENA_RADIUS * ARENA_RADIUS) return pos;
 

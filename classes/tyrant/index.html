@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <title>Tyrant (Warrior) — Ebon Crucible Classes</title>
+  <meta name="description" content="Tyrant class guide. 12 abilities, Rage resource, relentless melee pressure. Build rage, shatter armor, execute wounded enemies.">
+  <meta property="og:title" content="Tyrant (Warrior) — Ebon Crucible Classes">
+  <meta property="og:description" content="Tyrant class guide. 12 abilities, Rage resource, relentless melee pressure. Build rage, shatter armor, execute wounded enemies.">
+  <meta property="og:image" content="/assets/art/tyrant_splash.webp">
+  <meta property="og:type" content="article">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://eboncrucible.com/classes/tyrant/">
+  <meta name="theme-color" content="#08080f">
+  <link rel="stylesheet" href="/src/styles/ebon-pages.css">
+</head>
+<body class="ambient-lines">
+  <div class="page-bg" style="background-image:url('/assets/art/tyrant_banner.webp');"></div>
+  <nav class="nav">
+    <a href="/" class="nav-brand">EBON CRUCIBLE <span class="alpha-badge">ALPHA</span></a>
+    <button class="nav-toggle" aria-label="Menu"><span></span><span></span><span></span></button>
+    <div class="nav-links">
+      <a href="/">HOME</a>
+      <a href="/classes/" class="active">CLASSES</a>
+      <a href="/gameplay/">GAME</a>
+      <a href="/rankings/">RANKINGS</a>
+      <a href="/news/">NEWS</a>
+      <a href="/community/">COMMUNITY</a>
+      <a href="/play/" class="nav-signin" id="nav-auth">SIGN IN</a>
+      <a href="/play/" class="nav-play">PLAY FREE</a>
+    </div>
+  </nav>
+
+  <div class="hero" style="min-height: 50vh;">
+    <div class="hero-bg" style="background-image: url('/assets/art/tyrant_banner.webp');"></div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <div style="font-size:10px;letter-spacing:3px;color:#888;">WARRIOR</div>
+      <h1 style="font-size: 48px; letter-spacing: 12px; color:#8B0000;">TYRANT</h1>
+      <div class="hero-line"></div>
+      <div class="class-resource">Rage</div>
+    </div>
+    <div class="hero-scroll-arrow">&#9660;</div>
+  </div>
+
+  <div class="class-section ambient-grid">
+    <a href="/classes/" class="back-link">&larr; ALL CLASSES</a>
+
+    <div class="class-overview">
+      <div class="class-overview-portrait">
+        <img src="/assets/art/tyrant_splash.webp" alt="Tyrant">
+      </div>
+      <div class="class-overview-info">
+        <div class="class-badges">
+          <span class="class-badge class-badge--role" style="--class-color:#8B0000;">WARRIOR</span>
+          <span class="class-badge">RAGE</span>
+          <span class="class-badge">MELEE</span>
+        </div>
+        <p class="class-playstyle">Relentless melee pressure. Build Rage through auto-attacks, then shatter your enemy's armor and execute them when they're wounded. Two gap-closers keep you on top of kiting classes. Iron Resolve makes you unstoppable during burst windows.</p>
+        <a href="/play/" class="class-play-btn" style="color:#8B0000;border-color:#8B0000;">PLAY AS TYRANT</a>
+        <div class="class-strengths">
+          <div class="class-strengths-title">CLASS STRENGTHS</div>
+          <div class="strength-row"><div class="strength-label">DAMAGE</div><div class="strength-meter"><div class="strength-fill" style="width:85%;background:#8B0000;color:#8B0000;"></div></div></div>
+          <div class="strength-row"><div class="strength-label">DURABILITY</div><div class="strength-meter"><div class="strength-fill" style="width:70%;background:#8B0000;color:#8B0000;"></div></div></div>
+          <div class="strength-row"><div class="strength-label">MOBILITY</div><div class="strength-meter"><div class="strength-fill" style="width:65%;background:#8B0000;color:#8B0000;"></div></div></div>
+          <div class="strength-row"><div class="strength-label">CONTROL</div><div class="strength-meter"><div class="strength-fill" style="width:50%;background:#8B0000;color:#8B0000;"></div></div></div>
+          <div class="strength-row"><div class="strength-label">HEALING</div><div class="strength-meter"><div class="strength-fill" style="width:40%;background:#8B0000;color:#8B0000;"></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="builds-section ambient-wash section-glow-top">
+      <div class="builds-heading">STARTER BUILDS</div>
+      <div class="builds-subheading">4 BUILDS &bull; 3 CORE + 3 FLEX ABILITIES</div>
+      <div class="builds-grid">
+        <div class="build-card" style="animation-delay:0.1s;">
+          <div class="build-name" style="color:#8B0000;">IRON TIDE</div>
+          <div class="build-desc">Relentless aggression. Break them before they can react.</div>
+          <div class="build-loadout">
+            <span class="build-icon-wrap"><img class="build-icon" src="/assets/icons/ravaging_cleave.png" alt="Ravaging Cleave"><span class="build-tooltip"><span class="build-tooltip-name">Ravaging Cleave <span class="build-tooltip-type">CORE</span></span><span class="build-tooltip-desc">8500 damage, -50% healing 10s.</span><span class="build-tooltip-stats">CD: 6s · Range: 5yd · Cost: 30 Rage</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon" src="/assets/icons/bloodrage_strike.png" alt="Bloodrage Strike"><span class="build-tooltip"><span class="build-tooltip-name">Bloodrage Strike <span class="build-tooltip-type">CORE</span></span><span class="build-tooltip-desc">7000 damage, +10 rage if target &gt;80% or Ravaged Flesh.</span><span class="build-tooltip-stats">CD: 0 · Range: 5yd · Cost: 20 Rage</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon" src="/assets/icons/skull_crack.png" alt="Skull Crack"><span class="build-tooltip"><span class="build-tooltip-name">Skull Crack <span class="build-tooltip-type">CORE</span></span><span class="build-tooltip-desc">Interrupt, lock school 4s.</span><span class="build-tooltip-stats">CD: 15s · Range: 5yd</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon build-icon--flex" src="/assets/icons/shatter_guard.png" alt="Shatter Guard"><span class="build-tooltip"><span class="build-tooltip-name">Shatter Guard <span class="build-tooltip-type">FLEX</span></span><span class="build-tooltip-desc">6000 damage, +30% damage taken 10s, strips immunity.</span><span class="build-tooltip-stats">CD: 45s · Range: 5yd · Cost: 10 Rage</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon build-icon--flex" src="/assets/icons/iron_cyclone.png" alt="Iron Cyclone"><span class="build-tooltip"><span class="build-tooltip-name">Iron Cyclone <span class="build-tooltip-type">FLEX</span></span><span class="build-tooltip-desc">5000 impact + 3000/0.5s for 5s, immune to CC.</span><span class="build-tooltip-stats">CD: 90s · Range: 8yd</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon build-icon--flex" src="/assets/icons/warbringer_rush.png" alt="Warbringer Rush"><span class="build-tooltip"><span class="build-tooltip-name">Warbringer Rush <span class="build-tooltip-type">FLEX</span></span><span class="build-tooltip-desc">2000 damage, root 1.5s, +20 rage.</span><span class="build-tooltip-stats">CD: 15s · Range: 25yd · Min: 8yd</span></span></span>
+          </div>
+        </div>
+        <div class="build-card" style="animation-delay:0.15s;">
+          <div class="build-name" style="color:#8B0000;">BLOOD OATH</div>
+          <div class="build-desc">Unyielding resilience. Outlast anyone who dares stand against you.</div>
+          <div class="build-loadout">
+            <span class="build-icon-wrap"><img class="build-icon" src="/assets/icons/ravaging_cleave.png" alt="Ravaging Cleave"><span class="build-tooltip"><span class="build-tooltip-name">Ravaging Cleave <span class="build-tooltip-type">CORE</span></span><span class="build-tooltip-desc">8500 damage, -50% healing 10s.</span><span class="build-tooltip-stats">CD: 6s · Range: 5yd · Cost: 30 Rage</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon" src="/assets/icons/bloodrage_strike.png" alt="Bloodrage Strike"><span class="build-tooltip"><span class="build-tooltip-name">Bloodrage Strike <span class="build-tooltip-type">CORE</span></span><span class="build-tooltip-desc">7000 damage, +10 rage if target &gt;80% or Ravaged Flesh.</span><span class="build-tooltip-stats">CD: 0 · Range: 5yd · Cost: 20 Rage</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon" src="/assets/icons/skull_crack.png" alt="Skull Crack"><span class="build-tooltip"><span class="build-tooltip-name">Skull Crack <span class="build-tooltip-type">CORE</span></span><span class="build-tooltip-desc">Interrupt, lock school 4s.</span><span class="build-tooltip-stats">CD: 15s · Range: 5yd</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon build-icon--flex" src="/assets/icons/iron_resolve.png" alt="Iron Resolve"><span class="build-tooltip"><span class="build-tooltip-name">Iron Resolve <span class="build-tooltip-type">FLEX</span></span><span class="build-tooltip-desc">Break CC, immune to CC + 65% DR 8s.</span><span class="build-tooltip-stats">CD: 60s</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon build-icon--flex" src="/assets/icons/warborn_rally.png" alt="Warborn Rally"><span class="build-tooltip"><span class="build-tooltip-name">Warborn Rally <span class="build-tooltip-type">FLEX</span></span><span class="build-tooltip-desc">Heal 18000 + 12000 shield 10s.</span><span class="build-tooltip-stats">CD: 60s · Cost: 30 Rage</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon build-icon--flex" src="/assets/icons/thunder_spike.png" alt="Thunder Spike"><span class="build-tooltip"><span class="build-tooltip-name">Thunder Spike <span class="build-tooltip-type">FLEX</span></span><span class="build-tooltip-desc">4000 damage, stun 3s, -75% healing 12s, slow 50% 8s.</span><span class="build-tooltip-stats">CD: 30s · Range: 20yd · Cost: 10 Rage</span></span></span>
+          </div>
+        </div>
+        <div class="build-card" style="animation-delay:0.2s;">
+          <div class="build-name" style="color:#8B0000;">BUTCHER</div>
+          <div class="build-desc">Savage executioner. The weaker they get, the harder you hit.</div>
+          <div class="build-loadout">
+            <span class="build-icon-wrap"><img class="build-icon" src="/assets/icons/ravaging_cleave.png" alt="Ravaging Cleave"><span class="build-tooltip"><span class="build-tooltip-name">Ravaging Cleave <span class="build-tooltip-type">CORE</span></span><span class="build-tooltip-desc">8500 damage, -50% healing 10s.</span><span class="build-tooltip-stats">CD: 6s · Range: 5yd · Cost: 30 Rage</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon" src="/assets/icons/bloodrage_strike.png" alt="Bloodrage Strike"><span class="build-tooltip"><span class="build-tooltip-name">Bloodrage Strike <span class="build-tooltip-type">CORE</span></span><span class="build-tooltip-desc">7000 damage, +10 rage if target &gt;80% or Ravaged Flesh.</span><span class="build-tooltip-stats">CD: 0 · Range: 5yd · Cost: 20 Rage</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon" src="/assets/icons/skull_crack.png" alt="Skull Crack"><span class="build-tooltip"><span class="build-tooltip-name">Skull Crack <span class="build-tooltip-type">CORE</span></span><span class="build-tooltip-desc">Interrupt, lock school 4s.</span><span class="build-tooltip-stats">CD: 15s · Range: 5yd</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon build-icon--flex" src="/assets/icons/shatter_guard.png" alt="Shatter Guard"><span class="build-tooltip"><span class="build-tooltip-name">Shatter Guard <span class="build-tooltip-type">FLEX</span></span><span class="build-tooltip-desc">6000 damage, +30% damage taken 10s, strips immunity.</span><span class="build-tooltip-stats">CD: 45s · Range: 5yd · Cost: 10 Rage</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon build-icon--flex" src="/assets/icons/brutal_slam.png" alt="Brutal Slam"><span class="build-tooltip"><span class="build-tooltip-name">Brutal Slam <span class="build-tooltip-type">FLEX</span></span><span class="build-tooltip-desc">5000 damage, triple if &lt;40% HP.</span><span class="build-tooltip-stats">CD: 0 · Range: 5yd · Cost: 20 Rage</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon build-icon--flex" src="/assets/icons/crushing_descent.png" alt="Crushing Descent"><span class="build-tooltip"><span class="build-tooltip-name">Crushing Descent <span class="build-tooltip-type">FLEX</span></span><span class="build-tooltip-desc">Leap, 2500 damage, slow 50% 3s.</span><span class="build-tooltip-stats">CD: 30s · Range: 30yd</span></span></span>
+          </div>
+        </div>
+        <div class="build-card" style="animation-delay:0.25s;">
+          <div class="build-name" style="color:#8B0000;">SIEGEBREAKER</div>
+          <div class="build-desc">No one escapes. Close the gap and never let go.</div>
+          <div class="build-loadout">
+            <span class="build-icon-wrap"><img class="build-icon" src="/assets/icons/ravaging_cleave.png" alt="Ravaging Cleave"><span class="build-tooltip"><span class="build-tooltip-name">Ravaging Cleave <span class="build-tooltip-type">CORE</span></span><span class="build-tooltip-desc">8500 damage, -50% healing 10s.</span><span class="build-tooltip-stats">CD: 6s · Range: 5yd · Cost: 30 Rage</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon" src="/assets/icons/bloodrage_strike.png" alt="Bloodrage Strike"><span class="build-tooltip"><span class="build-tooltip-name">Bloodrage Strike <span class="build-tooltip-type">CORE</span></span><span class="build-tooltip-desc">7000 damage, +10 rage if target &gt;80% or Ravaged Flesh.</span><span class="build-tooltip-stats">CD: 0 · Range: 5yd · Cost: 20 Rage</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon" src="/assets/icons/skull_crack.png" alt="Skull Crack"><span class="build-tooltip"><span class="build-tooltip-name">Skull Crack <span class="build-tooltip-type">CORE</span></span><span class="build-tooltip-desc">Interrupt, lock school 4s.</span><span class="build-tooltip-stats">CD: 15s · Range: 5yd</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon build-icon--flex" src="/assets/icons/warbringer_rush.png" alt="Warbringer Rush"><span class="build-tooltip"><span class="build-tooltip-name">Warbringer Rush <span class="build-tooltip-type">FLEX</span></span><span class="build-tooltip-desc">2000 damage, root 1.5s, +20 rage.</span><span class="build-tooltip-stats">CD: 15s · Range: 25yd · Min: 8yd</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon build-icon--flex" src="/assets/icons/crushing_descent.png" alt="Crushing Descent"><span class="build-tooltip"><span class="build-tooltip-name">Crushing Descent <span class="build-tooltip-type">FLEX</span></span><span class="build-tooltip-desc">Leap, 2500 damage, slow 50% 3s.</span><span class="build-tooltip-stats">CD: 30s · Range: 30yd</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon build-icon--flex" src="/assets/icons/crippling_strike.png" alt="Crippling Strike"><span class="build-tooltip"><span class="build-tooltip-name">Crippling Strike <span class="build-tooltip-type">FLEX</span></span><span class="build-tooltip-desc">1500 damage, slow 50% 12s.</span><span class="build-tooltip-stats">CD: 0 · Range: 5yd · Cost: 10 Rage</span></span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:40px;">
+      <div class="abilities-section-header">
+        <div class="abilities-heading">ABILITIES</div>
+        <div class="abilities-count">12 ABILITIES</div>
+        <div style="width:60px;height:1px;margin:0 auto;background:linear-gradient(90deg,transparent,#8B000080,transparent);"></div>
+      </div>
+      <div class="ability-grid" style="--class-color:#8B0000;--class-glow:#8B000040;">
+
+        <div class="ability-card" style="animation-delay:0s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/ravaging_cleave.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#8B0000;">Ravaging Cleave</div>
+              <div class="ability-desc">8500 damage, -50% healing 10s.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 6s</span>
+                <span class="stat-badge">Range: 5yd</span>
+                <span class="stat-badge">Cost: 30 Rage</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ability-card" style="animation-delay:0.05s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/bloodrage_strike.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#8B0000;">Bloodrage Strike</div>
+              <div class="ability-desc">7000 damage, +10 rage if target &gt;80% or Ravaged Flesh.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 0</span>
+                <span class="stat-badge">Range: 5yd</span>
+                <span class="stat-badge">Cost: 20 Rage</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ability-card" style="animation-delay:0.1s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/brutal_slam.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#8B0000;">Brutal Slam</div>
+              <div class="ability-desc">5000 damage, triple if &lt;40% HP.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 0</span>
+                <span class="stat-badge">Range: 5yd</span>
+                <span class="stat-badge">Cost: 20 Rage</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ability-card" style="animation-delay:0.15s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/iron_cyclone.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#8B0000;">Iron Cyclone</div>
+              <div class="ability-desc">5000 impact + 3000/0.5s for 5s, immune to CC.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 90s</span>
+                <span class="stat-badge">Range: 8yd</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ability-card" style="animation-delay:0.2s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/shatter_guard.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#8B0000;">Shatter Guard</div>
+              <div class="ability-desc">6000 damage, +30% damage taken 10s, strips immunity.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 45s</span>
+                <span class="stat-badge">Range: 5yd</span>
+                <span class="stat-badge">Cost: 10 Rage</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ability-card" style="animation-delay:0.25s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/warbringer_rush.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#8B0000;">Warbringer Rush</div>
+              <div class="ability-desc">2000 damage, root 1.5s, +20 rage.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 15s</span>
+                <span class="stat-badge">Range: 25yd</span>
+                <span class="stat-badge">Min: 8yd</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ability-card" style="animation-delay:0.3s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/crippling_strike.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#8B0000;">Crippling Strike</div>
+              <div class="ability-desc">1500 damage, slow 50% 12s.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 0</span>
+                <span class="stat-badge">Range: 5yd</span>
+                <span class="stat-badge">Cost: 10 Rage</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ability-card" style="animation-delay:0.35s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/thunder_spike.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#8B0000;">Thunder Spike</div>
+              <div class="ability-desc">4000 damage, stun 3s, -75% healing 12s, slow 50% 8s.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 30s</span>
+                <span class="stat-badge">Range: 20yd</span>
+                <span class="stat-badge">Cost: 10 Rage</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ability-card" style="animation-delay:0.4s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/iron_resolve.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#8B0000;">Iron Resolve</div>
+              <div class="ability-desc">Break CC, immune to CC + 65% DR 8s.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 60s</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ability-card" style="animation-delay:0.45s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/warborn_rally.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#8B0000;">Warborn Rally</div>
+              <div class="ability-desc">Heal 18000 + 12000 shield 10s.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 60s</span>
+                <span class="stat-badge">Cost: 30 Rage</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ability-card" style="animation-delay:0.5s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/skull_crack.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#8B0000;">Skull Crack</div>
+              <div class="ability-desc">Interrupt, lock school 4s.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 15s</span>
+                <span class="stat-badge">Range: 5yd</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ability-card" style="animation-delay:0.55s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/crushing_descent.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#8B0000;">Crushing Descent</div>
+              <div class="ability-desc">Leap, 2500 damage, slow 50% 3s.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 30s</span>
+                <span class="stat-badge">Range: 30yd</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Inter-class Navigation -->
+
+  <!-- BEGIN SKINS -->
+  <div class="glow-divider"></div>
+  <div class="skins-section ambient-wash section-glow-top">
+    <div class="skins-header">
+      <div class="skins-header-title">SKINS</div>
+      <div class="skins-header-count">2 SKINS AVAILABLE</div>
+      <div class="skins-header-line" style="background:linear-gradient(90deg,transparent,#8B000080,transparent);"></div>
+    </div>
+    <div class="skin-showcase">
+      <div class="skin-slide active" data-skin-idx="0">
+        <img class="skin-slide-img" src="/assets/art/tyrant_banner.webp" alt="Tyrant">
+        <div class="skin-slide-overlay">
+          <div class="skin-slide-rarity" style="color:#888;">DEFAULT</div>
+          <div class="skin-slide-name">TYRANT</div>
+          <div class="skin-slide-desc">The original look. Free for all players.</div>
+          <a href="/play/" class="skin-slide-cta">PLAY NOW</a>
+        </div>
+      </div>
+      <div class="skin-slide" data-skin-idx="1">
+        <img class="skin-slide-img" src="/assets/art/skins/tyrant_ashen_overlord_banner.webp" alt="Ashen Overlord">
+        <div class="skin-slide-overlay">
+          <div class="skin-slide-rarity" style="color:#4a9eff;">RARE</div>
+          <div class="skin-slide-name">ASHEN OVERLORD</div>
+          <div class="skin-slide-desc">Forged in the heart of a dying star, the Ashen Overlord commands the battlefield clad in molten-runed armor.</div>
+          <div class="skin-slide-price">&#x1FA99; 2500</div>
+          <a href="/play/" class="skin-slide-cta">GET IN SHOP</a>
+        </div>
+      </div>
+      <div class="skin-slide" data-skin-idx="2">
+        <img class="skin-slide-img" src="/assets/art/skins/tyrant_forest_inspired_dark_bear_skin_banner.webp" alt="Grizzled Warden">
+        <div class="skin-slide-overlay">
+          <div class="skin-slide-rarity" style="color:#c8a860;">LEGENDARY</div>
+          <div class="skin-slide-name">GRIZZLED WARDEN</div>
+          <div class="skin-slide-desc">The Grizzled Warden emerges from the shadows of forgotten battlefields, his once-gleaming armor now a patchwork of scars and soot, each mark telling a tale of grim victories and untold sacrifices. Adorned with relics of fallen foes, his presence embodies the haunting burden of a lifetime spent defending the realm against darkness, turning him into a living monument of resilience clad in ash and steel.</div>
+          <div class="skin-slide-price">&#x1FA99; 8000</div>
+          <a href="/play/" class="skin-slide-cta">GET IN SHOP</a>
+        </div>
+      </div>
+    </div>
+    <div class="skin-thumbs">
+      <div class="skin-thumb active" data-skin-idx="0" style="--thumb-color:#888;--thumb-glow:#88840;">
+        <img src="/assets/art/tyrant_portrait.webp" alt="Tyrant">
+        <div class="skin-thumb-label">DEFAULT</div>
+      </div>
+      <div class="skin-thumb" data-skin-idx="1" style="--thumb-color:#4a9eff;--thumb-glow:#4a9eff40;">
+        <img src="/assets/art/skins/tyrant_ashen_overlord_portrait.webp" alt="Ashen Overlord">
+        <div class="skin-thumb-label">Ashen Overlord</div>
+      </div>
+      <div class="skin-thumb" data-skin-idx="2" style="--thumb-color:#c8a860;--thumb-glow:#c8a86040;">
+        <img src="/assets/art/skins/tyrant_forest_inspired_dark_bear_skin_portrait.webp" alt="Grizzled Warden">
+        <div class="skin-thumb-label">Grizzled Warden</div>
+      </div>
+    </div>
+  </div>
+  <script>
+  (function(){
+    var thumbs=document.querySelectorAll('.skin-thumb');
+    var slides=document.querySelectorAll('.skin-slide');
+    thumbs.forEach(function(t){
+      t.addEventListener('click',function(){
+        var idx=parseInt(t.dataset.skinIdx,10);
+        thumbs.forEach(function(th){th.classList.remove('active')});
+        slides.forEach(function(sl){sl.classList.remove('active')});
+        t.classList.add('active');
+        slides[idx].classList.add('active');
+      });
+    });
+  })();
+  </script>
+  <!-- END SKINS -->
+
+  <div class="glow-divider"></div>
+  <div class="class-nav-strip">
+    <a href="/classes/tyrant/" class="class-nav-item class-nav-current" style="--class-color:#8B0000;--class-glow:rgba(139,0,0,0.3);">
+      <div class="class-nav-thumb"><img src="/assets/art/tyrant_splash.webp" alt="Tyrant"></div>
+      <div class="class-nav-label">TYRANT</div>
+    </a>
+    <a href="/classes/wraith/" class="class-nav-item">
+      <div class="class-nav-thumb"><img src="/assets/art/wraith_splash.webp" alt="Wraith"></div>
+      <div class="class-nav-label">WRAITH</div>
+    </a>
+    <a href="/classes/infernal/" class="class-nav-item">
+      <div class="class-nav-thumb"><img src="/assets/art/infernal_splash.webp" alt="Infernal"></div>
+      <div class="class-nav-label">INFERNAL</div>
+    </a>
+    <a href="/classes/harbinger/" class="class-nav-item">
+      <div class="class-nav-thumb"><img src="/assets/art/harbinger_splash.webp" alt="Harbinger"></div>
+      <div class="class-nav-label">HARBINGER</div>
+    </a>
+    <a href="/classes/revenant/" class="class-nav-item">
+      <div class="class-nav-thumb"><img src="/assets/art/revenant_splash.webp" alt="Revenant"></div>
+      <div class="class-nav-label">REVENANT</div>
+    </a>
+  </div>
+
+  <div class="glow-divider"></div>
+  <div class="cta-section ember-corners section-glow-top">
+    <h2>READY TO FIGHT?</h2>
+    <p style="color:#555;font-size:13px;margin-bottom:24px;">Free to play. Browser or Steam (coming soon). Start fighting in seconds.</p>
+    <a href="/play/" class="cta-btn">PLAY FREE</a>
+  </div>
+
+  <div class="footer">&copy; 2026 Ebon Crucible. All rights reserved. <a href="/privacy/" style="color:#666;margin-left:12px;">Privacy Policy</a> <a href="/terms/" style="color:#666;margin-left:12px;">Terms of Service</a><div class="footer-alpha">Currently in Alpha — features and balance are actively evolving.</div></div>
+
+  <script>
+    (function() {
+      var c = document.querySelector('.hero');
+      for (var i = 0; i < 15; i++) {
+        var p = document.createElement('div');
+        var s = 2 + Math.random() * 4;
+        p.style.cssText = 'position:absolute;bottom:-10px;left:' + (Math.random()*100) + '%;width:' + s + 'px;height:' + s + 'px;border-radius:50%;background:rgba(200,168,96,0.6);opacity:0;pointer-events:none;animation:particleFloat ' + (6+Math.random()*6) + 's ' + (Math.random()*8) + 's ease-out infinite;';
+        c.appendChild(p);
+      }
+    })();
+  </script>
+<script>
+(function(){try{
+  var n=localStorage.getItem('ec_username');
+  if(n){
+    var el=document.getElementById('nav-auth');
+    if(el){
+      el.textContent=n+' \u25BE';
+      el.href='javascript:void(0)';
+      el.style.position='relative';
+      el.style.cursor='pointer';
+      var dd=document.createElement('div');
+      dd.style.cssText='display:none;position:absolute;top:100%;right:0;margin-top:8px;min-width:120px;background:rgba(12,12,22,0.98);border:1px solid #2a2a3a;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.5);overflow:hidden;z-index:9999;';
+      var profile=document.createElement('a');profile.href='/play/';profile.textContent='\u26E8 PROFILE';
+      profile.style.cssText='display:block;padding:10px 16px;font-size:9px;letter-spacing:2px;font-weight:700;color:#888;text-decoration:none;transition:background 0.2s;';
+      profile.onmouseenter=function(){this.style.background='rgba(255,255,255,0.04)'};profile.onmouseleave=function(){this.style.background='none'};
+      dd.appendChild(profile);
+      var logout=document.createElement('a');logout.href='javascript:void(0)';logout.textContent='\u23FB LOG OUT';
+      logout.style.cssText='display:block;padding:10px 16px;font-size:9px;letter-spacing:2px;font-weight:700;color:#cc6666;text-decoration:none;transition:background 0.2s;';
+      logout.onmouseenter=function(){this.style.background='rgba(255,255,255,0.04)'};logout.onmouseleave=function(){this.style.background='none'};
+      logout.onclick=function(e){e.stopPropagation();localStorage.removeItem('ec_username');localStorage.removeItem('CognitoIdentityServiceProvider.sn01blkd57e7oi7e7vq80mipv.LastAuthUser');var keys=Object.keys(localStorage);for(var i=0;i<keys.length;i++){if(keys[i].indexOf('CognitoIdentityServiceProvider')===0)localStorage.removeItem(keys[i]);}window.location.reload();};
+      dd.appendChild(logout);
+      el.appendChild(dd);
+      var open=false;
+      el.onclick=function(e){e.preventDefault();e.stopPropagation();open=!open;dd.style.display=open?'block':'none';};
+      document.addEventListener('click',function(){dd.style.display='none';open=false;});var pb=document.querySelector('.nav-play');if(pb)pb.textContent='PLAY NOW';
+    }
+  }
+}catch(e){}}());
+(function(){var tog=document.querySelector('.nav-toggle');var links=document.querySelector('.nav-links');if(tog)tog.onclick=function(){links.classList.toggle('open');};document.addEventListener('click',function(e){if(!e.target.closest('.nav'))links.classList.remove('open');});})();
+</script>
+<script src="/src/analytics/consent.js"></script>
+</body>
+</html>

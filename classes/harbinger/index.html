@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <title>Harbinger (Warlock) — Ebon Crucible Classes</title>
+  <meta name="description" content="Harbinger class guide. 15 abilities, Mana + Soul Shards. DoTs, life drain, and fear-based crowd control.">
+  <meta property="og:title" content="Harbinger (Warlock) — Ebon Crucible Classes">
+  <meta property="og:description" content="Harbinger class guide. 15 abilities, Mana + Soul Shards. DoTs, life drain, and fear-based crowd control.">
+  <meta property="og:image" content="/assets/art/harbinger_splash.webp">
+  <meta property="og:type" content="article">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://eboncrucible.com/classes/harbinger/">
+  <meta name="theme-color" content="#08080f">
+  <link rel="stylesheet" href="/src/styles/ebon-pages.css">
+</head>
+<body class="ambient-lines">
+  <div class="page-bg" style="background-image:url('/assets/art/harbinger_banner.webp');"></div>
+  <nav class="nav">
+    <a href="/" class="nav-brand">EBON CRUCIBLE <span class="alpha-badge">ALPHA</span></a>
+    <button class="nav-toggle" aria-label="Menu"><span></span><span></span><span></span></button>
+    <div class="nav-links">
+      <a href="/">HOME</a>
+      <a href="/classes/" class="active">CLASSES</a>
+      <a href="/gameplay/">GAME</a>
+      <a href="/rankings/">RANKINGS</a>
+      <a href="/news/">NEWS</a>
+      <a href="/community/">COMMUNITY</a>
+      <a href="/play/" class="nav-signin" id="nav-auth">SIGN IN</a>
+      <a href="/play/" class="nav-play">PLAY FREE</a>
+    </div>
+  </nav>
+
+  <div class="hero" style="min-height: 50vh;">
+    <div class="hero-bg" style="background-image: url('/assets/art/harbinger_banner.webp');"></div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <div style="font-size:10px;letter-spacing:3px;color:#888;">WARLOCK</div>
+      <h1 style="font-size: 48px; letter-spacing: 12px; color:#228B22;">HARBINGER</h1>
+      <div class="hero-line"></div>
+      <div class="class-resource">Mana + Soul Shards</div>
+    </div>
+    <div class="hero-scroll-arrow">&#9660;</div>
+  </div>
+
+  <div class="class-section ambient-grid">
+    <a href="/classes/" class="back-link">&larr; ALL CLASSES</a>
+
+    <div class="class-overview">
+      <div class="class-overview-portrait">
+        <img src="/assets/art/harbinger_splash.webp" alt="Harbinger">
+      </div>
+      <div class="class-overview-info">
+        <div class="class-badges">
+          <span class="class-badge class-badge--role" style="--class-color:#228B22;">WARLOCK</span>
+          <span class="class-badge">MANA + SOUL SHARDS</span>
+          <span class="class-badge">RANGED</span>
+        </div>
+        <p class="class-playstyle">A warlock who grinds enemies down through relentless DoTs and life drain. Stack multiple afflictions, then detonate them with Hex Rupture. Fear and Nether Slam provide crowd control. Your demon pet interrupts and provides emergency shields.</p>
+        <a href="/play/" class="class-play-btn" style="color:#228B22;border-color:#228B22;">PLAY AS HARBINGER</a>
+        <div class="class-strengths">
+          <div class="class-strengths-title">CLASS STRENGTHS</div>
+          <div class="strength-row"><div class="strength-label">DAMAGE</div><div class="strength-meter"><div class="strength-fill" style="width:70%;background:#228B22;color:#228B22;"></div></div></div>
+          <div class="strength-row"><div class="strength-label">DURABILITY</div><div class="strength-meter"><div class="strength-fill" style="width:55%;background:#228B22;color:#228B22;"></div></div></div>
+          <div class="strength-row"><div class="strength-label">MOBILITY</div><div class="strength-meter"><div class="strength-fill" style="width:40%;background:#228B22;color:#228B22;"></div></div></div>
+          <div class="strength-row"><div class="strength-label">CONTROL</div><div class="strength-meter"><div class="strength-fill" style="width:65%;background:#228B22;color:#228B22;"></div></div></div>
+          <div class="strength-row"><div class="strength-label">HEALING</div><div class="strength-meter"><div class="strength-fill" style="width:60%;background:#228B22;color:#228B22;"></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="builds-section ambient-wash section-glow-top">
+      <div class="builds-heading">STARTER BUILDS</div>
+      <div class="builds-subheading">4 BUILDS &bull; 3 CORE + 3 FLEX ABILITIES</div>
+      <div class="builds-grid">
+        <div class="build-card" style="animation-delay:0.1s;">
+          <div class="build-name" style="color:#228B22;">PLAGUE DOCTOR</div>
+          <div class="build-desc">Corruption incarnate. Layer curses until the body fails.</div>
+          <div class="build-loadout">
+            <span class="build-icon-wrap"><img class="build-icon" src="/assets/icons/hex_blight.png" alt="Hex Blight"><span class="build-tooltip"><span class="build-tooltip-name">Hex Blight <span class="build-tooltip-type">CORE</span></span><span class="build-tooltip-desc">9000 shadow DoT over 18s, slow 30% for 6s. DoT ticks generate Shards.</span><span class="build-tooltip-stats">CD: 0 · Range: 45yd · Cost: 200 Mana</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon" src="/assets/icons/creeping_torment.png" alt="Creeping Torment"><span class="build-tooltip"><span class="build-tooltip-name">Creeping Torment <span class="build-tooltip-type">CORE</span></span><span class="build-tooltip-desc">Escalating shadow DoT over 20s.</span><span class="build-tooltip-stats">CD: 0 · Range: 45yd · Cost: 250 Mana</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon" src="/assets/icons/hex_silence.png" alt="Hex Silence"><span class="build-tooltip"><span class="build-tooltip-name">Hex Silence <span class="build-tooltip-type">CORE</span></span><span class="build-tooltip-desc">Demon interrupts, locks school 5s. Doubled CD if pet dead.</span><span class="build-tooltip-stats">CD: 24s · Range: 45yd</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon build-icon--flex" src="/assets/icons/volatile_hex.png" alt="Volatile Hex"><span class="build-tooltip"><span class="build-tooltip-name">Volatile Hex <span class="build-tooltip-type">FLEX</span></span><span class="build-tooltip-desc">12000 shadow DoT over 8s, dispel deals 6000 instant. 1.5s cast.</span><span class="build-tooltip-stats">CD: 0 · Range: 45yd · Cost: 400 Mana · Cast: 1.5s</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon build-icon--flex" src="/assets/icons/hex_rupture.png" alt="Hex Rupture"><span class="build-tooltip"><span class="build-tooltip-name">Hex Rupture <span class="build-tooltip-type">FLEX</span></span><span class="build-tooltip-desc">5000 + 4000 per DoT active, extends DoTs 3s, +15% vuln. 1.5s cast.</span><span class="build-tooltip-stats">CD: 0 · Range: 45yd · Cost: 1 Shard · Cast: 1.5s</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon build-icon--flex" src="/assets/icons/warded_flesh.png" alt="Warded Flesh"><span class="build-tooltip"><span class="build-tooltip-name">Warded Flesh <span class="build-tooltip-type">FLEX</span></span><span class="build-tooltip-desc">Break CC, 40% damage reduction for 8s.</span><span class="build-tooltip-stats">CD: 90s</span></span></span>
+          </div>
+        </div>
+        <div class="build-card" style="animation-delay:0.15s;">
+          <div class="build-name" style="color:#228B22;">SOUL REAVER</div>
+          <div class="build-desc">Feast on their essence. Every wound you inflict sustains you.</div>
+          <div class="build-loadout">
+            <span class="build-icon-wrap"><img class="build-icon" src="/assets/icons/hex_blight.png" alt="Hex Blight"><span class="build-tooltip"><span class="build-tooltip-name">Hex Blight <span class="build-tooltip-type">CORE</span></span><span class="build-tooltip-desc">9000 shadow DoT over 18s, slow 30% for 6s. DoT ticks generate Shards.</span><span class="build-tooltip-stats">CD: 0 · Range: 45yd · Cost: 200 Mana</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon" src="/assets/icons/creeping_torment.png" alt="Creeping Torment"><span class="build-tooltip"><span class="build-tooltip-name">Creeping Torment <span class="build-tooltip-type">CORE</span></span><span class="build-tooltip-desc">Escalating shadow DoT over 20s.</span><span class="build-tooltip-stats">CD: 0 · Range: 45yd · Cost: 250 Mana</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon" src="/assets/icons/hex_silence.png" alt="Hex Silence"><span class="build-tooltip"><span class="build-tooltip-name">Hex Silence <span class="build-tooltip-type">CORE</span></span><span class="build-tooltip-desc">Demon interrupts, locks school 5s. Doubled CD if pet dead.</span><span class="build-tooltip-stats">CD: 24s · Range: 45yd</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon build-icon--flex" src="/assets/icons/soul_ignite.png" alt="Soul Ignite"><span class="build-tooltip"><span class="build-tooltip-name">Soul Ignite <span class="build-tooltip-type">FLEX</span></span><span class="build-tooltip-desc">Burns Shard: Siphon 50% faster, 2x dmg/heal for 15s.</span><span class="build-tooltip-stats">CD: 30s · Cost: 1 Shard</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon build-icon--flex" src="/assets/icons/siphon_essence.png" alt="Siphon Essence"><span class="build-tooltip"><span class="build-tooltip-name">Siphon Essence <span class="build-tooltip-type">FLEX</span></span><span class="build-tooltip-desc">Channel: 2000 dmg + 1700 heal/s for 5s.</span><span class="build-tooltip-stats">CD: 0 · Range: 45yd · Cost: 150 Mana · Channel: 5s</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon build-icon--flex" src="/assets/icons/warded_flesh.png" alt="Warded Flesh"><span class="build-tooltip"><span class="build-tooltip-name">Warded Flesh <span class="build-tooltip-type">FLEX</span></span><span class="build-tooltip-desc">Break CC, 40% damage reduction for 8s.</span><span class="build-tooltip-stats">CD: 90s</span></span></span>
+          </div>
+        </div>
+        <div class="build-card" style="animation-delay:0.2s;">
+          <div class="build-name" style="color:#228B22;">DREAD CALLER</div>
+          <div class="build-desc">Master of fear. Break their will before you break their body.</div>
+          <div class="build-loadout">
+            <span class="build-icon-wrap"><img class="build-icon" src="/assets/icons/hex_blight.png" alt="Hex Blight"><span class="build-tooltip"><span class="build-tooltip-name">Hex Blight <span class="build-tooltip-type">CORE</span></span><span class="build-tooltip-desc">9000 shadow DoT over 18s, slow 30% for 6s. DoT ticks generate Shards.</span><span class="build-tooltip-stats">CD: 0 · Range: 45yd · Cost: 200 Mana</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon" src="/assets/icons/creeping_torment.png" alt="Creeping Torment"><span class="build-tooltip"><span class="build-tooltip-name">Creeping Torment <span class="build-tooltip-type">CORE</span></span><span class="build-tooltip-desc">Escalating shadow DoT over 20s.</span><span class="build-tooltip-stats">CD: 0 · Range: 45yd · Cost: 250 Mana</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon" src="/assets/icons/hex_silence.png" alt="Hex Silence"><span class="build-tooltip"><span class="build-tooltip-name">Hex Silence <span class="build-tooltip-type">CORE</span></span><span class="build-tooltip-desc">Demon interrupts, locks school 5s. Doubled CD if pet dead.</span><span class="build-tooltip-stats">CD: 24s · Range: 45yd</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon build-icon--flex" src="/assets/icons/blood_tithe.png" alt="Blood Tithe"><span class="build-tooltip"><span class="build-tooltip-name">Blood Tithe <span class="build-tooltip-type">FLEX</span></span><span class="build-tooltip-desc">Sacrifice 25% pet HP for 200% absorb shield for 10s.</span><span class="build-tooltip-stats">CD: 60s</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon build-icon--flex" src="/assets/icons/dread_howl.png" alt="Dread Howl"><span class="build-tooltip"><span class="build-tooltip-name">Dread Howl <span class="build-tooltip-type">FLEX</span></span><span class="build-tooltip-desc">Fear 6s, breaks on 2000+ damage. 1.2s cast.</span><span class="build-tooltip-stats">CD: 24s · Range: 45yd · Cost: 300 Mana · Cast: 1.2s</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon build-icon--flex" src="/assets/icons/nether_slam.png" alt="Nether Slam"><span class="build-tooltip"><span class="build-tooltip-name">Nether Slam <span class="build-tooltip-type">FLEX</span></span><span class="build-tooltip-desc">4000 damage, 3s stun. 0.5s cast.</span><span class="build-tooltip-stats">CD: 30s · Range: 45yd · Cost: 300 Mana · Cast: 0.5s</span></span></span>
+          </div>
+        </div>
+        <div class="build-card" style="animation-delay:0.25s;">
+          <div class="build-name" style="color:#228B22;">VOID HERALD</div>
+          <div class="build-desc">Command the void. Warp space itself to your advantage.</div>
+          <div class="build-loadout">
+            <span class="build-icon-wrap"><img class="build-icon" src="/assets/icons/hex_blight.png" alt="Hex Blight"><span class="build-tooltip"><span class="build-tooltip-name">Hex Blight <span class="build-tooltip-type">CORE</span></span><span class="build-tooltip-desc">9000 shadow DoT over 18s, slow 30% for 6s. DoT ticks generate Shards.</span><span class="build-tooltip-stats">CD: 0 · Range: 45yd · Cost: 200 Mana</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon" src="/assets/icons/creeping_torment.png" alt="Creeping Torment"><span class="build-tooltip"><span class="build-tooltip-name">Creeping Torment <span class="build-tooltip-type">CORE</span></span><span class="build-tooltip-desc">Escalating shadow DoT over 20s.</span><span class="build-tooltip-stats">CD: 0 · Range: 45yd · Cost: 250 Mana</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon" src="/assets/icons/hex_silence.png" alt="Hex Silence"><span class="build-tooltip"><span class="build-tooltip-name">Hex Silence <span class="build-tooltip-type">CORE</span></span><span class="build-tooltip-desc">Demon interrupts, locks school 5s. Doubled CD if pet dead.</span><span class="build-tooltip-stats">CD: 24s · Range: 45yd</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon build-icon--flex" src="/assets/icons/shadowfury.png" alt="Shadowfury"><span class="build-tooltip"><span class="build-tooltip-name">Shadowfury <span class="build-tooltip-type">FLEX</span></span><span class="build-tooltip-desc">Ground AoE: after 1.5s, stun 3s + 5000 damage.</span><span class="build-tooltip-stats">CD: 25s · Range: 45yd · Cost: 350 Mana</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon build-icon--flex" src="/assets/icons/abyssal_ground.png" alt="Abyssal Ground"><span class="build-tooltip"><span class="build-tooltip-name">Abyssal Ground <span class="build-tooltip-type">FLEX</span></span><span class="build-tooltip-desc">Ground zone: 1500 shadow/s + 50% slow for 8s.</span><span class="build-tooltip-stats">CD: 20s · Range: 45yd · Cost: 400 Mana</span></span></span>
+            <span class="build-icon-wrap"><img class="build-icon build-icon--flex" src="/assets/icons/rift_anchor.png" alt="Rift Anchor"><span class="build-tooltip"><span class="build-tooltip-name">Rift Anchor <span class="build-tooltip-type">FLEX</span></span><span class="build-tooltip-desc">Place teleport / return. 2 charges.</span><span class="build-tooltip-stats">CD: 0 · 2 Charges</span></span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:40px;">
+      <div class="abilities-section-header">
+        <div class="abilities-heading">ABILITIES</div>
+        <div class="abilities-count">15 ABILITIES</div>
+        <div style="width:60px;height:1px;margin:0 auto;background:linear-gradient(90deg,transparent,#228B2280,transparent);"></div>
+      </div>
+      <div class="ability-grid" style="--class-color:#228B22;--class-glow:#228B2240;">
+
+        <div class="ability-card" style="animation-delay: 0s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/hex_blight.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#228B22;">Hex Blight</div>
+              <div class="ability-desc">9000 shadow DoT over 18s, slow 30% for 6s. DoT ticks generate Shards.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 0</span>
+                <span class="stat-badge">Range: 45yd</span>
+                <span class="stat-badge">Cost: 200 Mana</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ability-card" style="animation-delay: 0.05s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/creeping_torment.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#228B22;">Creeping Torment</div>
+              <div class="ability-desc">Escalating shadow DoT over 20s.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 0</span>
+                <span class="stat-badge">Range: 45yd</span>
+                <span class="stat-badge">Cost: 250 Mana</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ability-card" style="animation-delay: 0.1s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/volatile_hex.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#228B22;">Volatile Hex</div>
+              <div class="ability-desc">12000 shadow DoT over 8s, dispel deals 6000 instant. 1.5s cast.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 0</span>
+                <span class="stat-badge">Range: 45yd</span>
+                <span class="stat-badge">Cost: 400 Mana</span>
+                <span class="stat-badge">Cast: 1.5s</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ability-card" style="animation-delay: 0.15s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/siphon_essence.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#228B22;">Siphon Essence</div>
+              <div class="ability-desc">Channel: 2000 dmg + 1700 heal/s for 5s.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 0</span>
+                <span class="stat-badge">Range: 45yd</span>
+                <span class="stat-badge">Cost: 150 Mana</span>
+                <span class="stat-badge">Channel: 5s</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ability-card" style="animation-delay: 0.2s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/hex_rupture.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#228B22;">Hex Rupture</div>
+              <div class="ability-desc">5000 + 4000 per DoT active, extends DoTs 3s, +15% vuln. 1.5s cast.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 0</span>
+                <span class="stat-badge">Range: 45yd</span>
+                <span class="stat-badge">Cost: 1 Shard</span>
+                <span class="stat-badge">Cast: 1.5s</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ability-card" style="animation-delay: 0.25s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/dread_howl.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#228B22;">Dread Howl</div>
+              <div class="ability-desc">Fear 6s, breaks on 2000+ damage. 1.2s cast.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 24s</span>
+                <span class="stat-badge">Range: 45yd</span>
+                <span class="stat-badge">Cost: 300 Mana</span>
+                <span class="stat-badge">Cast: 1.2s</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ability-card" style="animation-delay: 0.3s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/wraith_bolt.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#228B22;">Wraith Bolt</div>
+              <div class="ability-desc">5000 damage, 3s disorient, heals 5000.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 45s</span>
+                <span class="stat-badge">Range: 30yd</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ability-card" style="animation-delay: 0.35s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/nether_slam.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#228B22;">Nether Slam</div>
+              <div class="ability-desc">4000 damage, 3s stun. 0.5s cast.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 30s</span>
+                <span class="stat-badge">Range: 45yd</span>
+                <span class="stat-badge">Cost: 300 Mana</span>
+                <span class="stat-badge">Cast: 0.5s</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ability-card" style="animation-delay: 0.4s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/blood_tithe.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#228B22;">Blood Tithe</div>
+              <div class="ability-desc">Sacrifice 25% pet HP for 200% absorb shield for 10s.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 60s</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ability-card" style="animation-delay: 0.45s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/warded_flesh.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#228B22;">Warded Flesh</div>
+              <div class="ability-desc">Break CC, 40% damage reduction for 8s.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 90s</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ability-card" style="animation-delay: 0.5s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/rift_anchor.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#228B22;">Rift Anchor</div>
+              <div class="ability-desc">Place teleport / return. 2 charges.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 0</span>
+                <span class="stat-badge">2 Charges</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ability-card" style="animation-delay: 0.55s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/hex_silence.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#228B22;">Hex Silence</div>
+              <div class="ability-desc">Demon interrupts, locks school 5s. Doubled CD if pet dead.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 24s</span>
+                <span class="stat-badge">Range: 45yd</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ability-card" style="animation-delay: 0.6s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/soul_ignite.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#228B22;">Soul Ignite</div>
+              <div class="ability-desc">Burns Shard: Siphon 50% faster, 2x dmg/heal for 15s.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 30s</span>
+                <span class="stat-badge">Cost: 1 Shard</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ability-card" style="animation-delay: 0.65s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/shadowfury.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#228B22;">Shadowfury</div>
+              <div class="ability-desc">Ground AoE: after 1.5s, stun 3s + 5000 damage.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 25s</span>
+                <span class="stat-badge">Range: 45yd</span>
+                <span class="stat-badge">Cost: 350 Mana</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ability-card" style="animation-delay: 0.7s;">
+          <div class="ability-card-inner">
+            <img class="ability-icon" src="/assets/icons/abyssal_ground.png" alt="">
+            <div class="ability-card-content">
+              <div class="ability-name" style="color:#228B22;">Abyssal Ground</div>
+              <div class="ability-desc">Ground zone: 1500 shadow/s + 50% slow for 8s.</div>
+              <div class="ability-stats">
+                <span class="stat-badge">CD: 20s</span>
+                <span class="stat-badge">Range: 45yd</span>
+                <span class="stat-badge">Cost: 400 Mana</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- BEGIN SKINS -->
+  <div class="glow-divider"></div>
+  <div class="skins-section ambient-wash section-glow-top">
+    <div class="skins-header">
+      <div class="skins-header-title">SKINS</div>
+      <div class="skins-header-count">1 SKIN AVAILABLE</div>
+      <div class="skins-header-line" style="background:linear-gradient(90deg,transparent,#228B2280,transparent);"></div>
+    </div>
+    <div class="skin-showcase">
+      <div class="skin-slide active" data-skin-idx="0">
+        <img class="skin-slide-img" src="/assets/art/harbinger_banner.webp" alt="Harbinger">
+        <div class="skin-slide-overlay">
+          <div class="skin-slide-rarity" style="color:#888;">DEFAULT</div>
+          <div class="skin-slide-name">HARBINGER</div>
+          <div class="skin-slide-desc">The original look. Free for all players.</div>
+          <a href="/play/" class="skin-slide-cta">PLAY NOW</a>
+        </div>
+      </div>
+      <div class="skin-slide" data-skin-idx="1">
+        <img class="skin-slide-img" src="/assets/art/skins/harbinger_frozen_ice_dragon_skeleton_warlock_banner.webp" alt="Frozen Ice Dragon Skeleton Warlock">
+        <div class="skin-slide-overlay">
+          <div class="skin-slide-rarity" style="color:#a855f7;">EPIC</div>
+          <div class="skin-slide-name">FROZEN ICE DRAGON SKELETON WARLOCK</div>
+          <div class="skin-slide-desc">Donning the icy remnants of a long-fallen dragon, the Frozen Ice Dragon Skeleton Warlock emerges as a chilling specter of forgotten legends. Cloaked in ethereal frost and adorned with jagged bone, this necromancer channels the frozen whispers of the abyss, bending death itself into a symphony of ice and shadows.</div>
+          <div class="skin-slide-price">&#x1FA99; 5000</div>
+          <a href="/play/" class="skin-slide-cta">GET IN SHOP</a>
+        </div>
+      </div>
+    </div>
+    <div class="skin-thumbs">
+      <div class="skin-thumb active" data-skin-idx="0" style="--thumb-color:#888;--thumb-glow:#88840;">
+        <img src="/assets/art/harbinger_portrait.webp" alt="Harbinger">
+        <div class="skin-thumb-label">DEFAULT</div>
+      </div>
+      <div class="skin-thumb" data-skin-idx="1" style="--thumb-color:#a855f7;--thumb-glow:#a855f740;">
+        <img src="/assets/art/skins/harbinger_frozen_ice_dragon_skeleton_warlock_portrait.webp" alt="Frozen Ice Dragon Skeleton Warlock">
+        <div class="skin-thumb-label">Frozen Ice Dragon Skeleton Warlock</div>
+      </div>
+    </div>
+  </div>
+  <script>
+  (function(){
+    var thumbs=document.querySelectorAll('.skin-thumb');
+    var slides=document.querySelectorAll('.skin-slide');
+    thumbs.forEach(function(t){
+      t.addEventListener('click',function(){
+        var idx=parseInt(t.dataset.skinIdx,10);
+        thumbs.forEach(function(th){th.classList.remove('active')});
+        slides.forEach(function(sl){sl.classList.remove('active')});
+        t.classList.add('active');
+        slides[idx].classList.add('active');
+      });
+    });
+  })();
+  </script>
+  <!-- END SKINS -->
+
+
+  <div class="glow-divider"></div>
+  <div class="class-nav-strip">
+    <a href="/classes/tyrant/" class="class-nav-item">
+      <div class="class-nav-thumb"><img src="/assets/art/tyrant_splash.webp" alt="Tyrant"></div>
+      <div class="class-nav-label">TYRANT</div>
+    </a>
+    <a href="/classes/wraith/" class="class-nav-item">
+      <div class="class-nav-thumb"><img src="/assets/art/wraith_splash.webp" alt="Wraith"></div>
+      <div class="class-nav-label">WRAITH</div>
+    </a>
+    <a href="/classes/infernal/" class="class-nav-item">
+      <div class="class-nav-thumb"><img src="/assets/art/infernal_splash.webp" alt="Infernal"></div>
+      <div class="class-nav-label">INFERNAL</div>
+    </a>
+    <a href="/classes/harbinger/" class="class-nav-item class-nav-current" style="--class-color:#228B22;--class-glow:rgba(34,139,34,0.3);">
+      <div class="class-nav-thumb"><img src="/assets/art/harbinger_splash.webp" alt="Harbinger"></div>
+      <div class="class-nav-label">HARBINGER</div>
+    </a>
+    <a href="/classes/revenant/" class="class-nav-item">
+      <div class="class-nav-thumb"><img src="/assets/art/revenant_splash.webp" alt="Revenant"></div>
+      <div class="class-nav-label">REVENANT</div>
+    </a>
+  </div>
+
+  <div class="glow-divider"></div>
+  <div class="cta-section ember-corners section-glow-top">
+    <h2>READY TO FIGHT?</h2>
+    <p style="color:#555;font-size:13px;margin-bottom:24px;">Free to play. Browser or Steam (coming soon). Start fighting in seconds.</p>
+    <a href="/play/" class="cta-btn">PLAY FREE</a>
+  </div>
+
+  <div class="footer">&copy; 2026 Ebon Crucible. All rights reserved. <a href="/privacy/" style="color:#666;margin-left:12px;">Privacy Policy</a> <a href="/terms/" style="color:#666;margin-left:12px;">Terms of Service</a><div class="footer-alpha">Currently in Alpha — features and balance are actively evolving.</div></div>
+
+  <script>
+    (function() {
+      var c = document.querySelector('.hero');
+      for (var i = 0; i < 15; i++) {
+        var p = document.createElement('div');
+        var s = 2 + Math.random() * 4;
+        p.style.cssText = 'position:absolute;bottom:-10px;left:' + (Math.random()*100) + '%;width:' + s + 'px;height:' + s + 'px;border-radius:50%;background:rgba(200,168,96,0.6);opacity:0;pointer-events:none;animation:particleFloat ' + (6+Math.random()*6) + 's ' + (Math.random()*8) + 's ease-out infinite;';
+        c.appendChild(p);
+      }
+    })();
+  </script>
+<script>
+(function(){try{
+  var n=localStorage.getItem('ec_username');
+  if(n){
+    var el=document.getElementById('nav-auth');
+    if(el){
+      el.textContent=n+' \u25BE';
+      el.href='javascript:void(0)';
+      el.style.position='relative';
+      el.style.cursor='pointer';
+      var dd=document.createElement('div');
+      dd.style.cssText='display:none;position:absolute;top:100%;right:0;margin-top:8px;min-width:120px;background:rgba(12,12,22,0.98);border:1px solid #2a2a3a;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.5);overflow:hidden;z-index:9999;';
+      var profile=document.createElement('a');profile.href='/play/';profile.textContent='\u26E8 PROFILE';
+      profile.style.cssText='display:block;padding:10px 16px;font-size:9px;letter-spacing:2px;font-weight:700;color:#888;text-decoration:none;transition:background 0.2s;';
+      profile.onmouseenter=function(){this.style.background='rgba(255,255,255,0.04)'};profile.onmouseleave=function(){this.style.background='none'};
+      dd.appendChild(profile);
+      var logout=document.createElement('a');logout.href='javascript:void(0)';logout.textContent='\u23FB LOG OUT';
+      logout.style.cssText='display:block;padding:10px 16px;font-size:9px;letter-spacing:2px;font-weight:700;color:#cc6666;text-decoration:none;transition:background 0.2s;';
+      logout.onmouseenter=function(){this.style.background='rgba(255,255,255,0.04)'};logout.onmouseleave=function(){this.style.background='none'};
+      logout.onclick=function(e){e.stopPropagation();localStorage.removeItem('ec_username');localStorage.removeItem('CognitoIdentityServiceProvider.sn01blkd57e7oi7e7vq80mipv.LastAuthUser');var keys=Object.keys(localStorage);for(var i=0;i<keys.length;i++){if(keys[i].indexOf('CognitoIdentityServiceProvider')===0)localStorage.removeItem(keys[i]);}window.location.reload();};
+      dd.appendChild(logout);
+      el.appendChild(dd);
+      var open=false;
+      el.onclick=function(e){e.preventDefault();e.stopPropagation();open=!open;dd.style.display=open?'block':'none';};
+      document.addEventListener('click',function(){dd.style.display='none';open=false;});var pb=document.querySelector('.nav-play');if(pb)pb.textContent='PLAY NOW';
+    }
+  }
+}catch(e){}}());
+(function(){var tog=document.querySelector('.nav-toggle');var links=document.querySelector('.nav-links');if(tog)tog.onclick=function(){links.classList.toggle('open');};document.addEventListener('click',function(e){if(!e.target.closest('.nav'))links.classList.remove('open');});})();
+</script>
+<script src="/src/analytics/consent.js"></script>
+</body>
+</html>

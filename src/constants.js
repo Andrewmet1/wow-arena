@@ -1,4 +1,4 @@
-// Core timing
+// Core timing — 10Hz simulation (100ms per tick)
 export const TICK_RATE = 100; // ms per tick
 export const TICKS_PER_SECOND = 1000 / TICK_RATE; // 10
 export const GCD_DURATION = 15; // 1.5s in ticks
@@ -15,11 +15,11 @@ export const ARMOR_CAP = 0.70;
 export const MAGIC_DR_CAP = 0.50;
 export const BASE_HP = 100000;
 export const CLASS_HP = {
-  tyrant: 130000,
-  revenant: 120000,
-  harbinger: 100000,
-  wraith: 85000,
-  infernal: 80000,
+  tyrant: 125000,
+  revenant: 115000,
+  harbinger: 112000,
+  wraith: 105000,
+  infernal: 115000,
 };
 export const PUSHBACK_AMOUNT_TICKS = 5; // 0.5s
 export const MAX_PUSHBACKS = 2;
@@ -83,6 +83,7 @@ export const ABILITY_FLAG = {
   REQUIRES_STEALTH: 'requires_stealth',
   USABLE_WHILE_CASTING: 'usable_while_casting',
   USABLE_WHILE_MOVING: 'usable_while_moving',
+  USABLE_WHILE_CC: 'usable_while_cc',
   BREAKS_ON_DAMAGE: 'breaks_on_damage',
   IGNORES_ARMOR: 'ignores_armor',
   IGNORES_GCD: 'ignores_gcd',
@@ -118,7 +119,7 @@ export const MOVE_SPEED_PER_TICK = BASE_MOVE_SPEED / TICKS_PER_SECOND;
 export const DODGE_ROLL_DISTANCE = 8;    // yards (increased for meaningful kiting)
 export const DODGE_ROLL_DURATION = 4;     // ticks (0.4s)
 export const DODGE_ROLL_COOLDOWN = 50;    // ticks (5s)
-export const DODGE_ROLL_IMMUNITY = 4;     // ticks (0.4s) of damage immunity
+export const DODGE_ROLL_IMMUNITY = 4;     // ticks (0.4s)
 export const DODGE_ROLL_SNARE = 0.5;      // 50% slow applied to nearby enemies
 export const DODGE_ROLL_SNARE_RANGE = 8;  // yards — enemies within this range get snared
 export const DODGE_ROLL_SNARE_DURATION = 20; // ticks (2s)
@@ -140,6 +141,12 @@ export const AI_DIFFICULTY = {
   HARD: 'hard',
   SIM: 'sim'
 };
+
+// Arena dampening (healing reduction over time)
+export const DAMPENING_START_TICK = 600;   // Starts at 60s
+export const DAMPENING_PER_INTERVAL = 0.02; // 2% per interval
+export const DAMPENING_INTERVAL_TICKS = 100; // Every 10s
+export const DAMPENING_CAP = 0.75;          // Max 75% healing reduction
 
 // Balance simulation
 export const BALANCE_MATCHES_PER_MATCHUP = 2000;

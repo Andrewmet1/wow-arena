@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Monster Animation Probe</title>
+<style>body{margin:0;background:#111;color:#eee;font-family:monospace}#log{padding:8px;font-size:12px;height:160px;overflow:auto;background:#000}#viewer{width:100%;height:calc(100vh - 160px)}</style>
+</head><body>
+<div id="log"></div>
+<div id="viewer"></div>
+<script type="importmap">
+{ "imports": { "three": "/node_modules/three/build/three.module.js", "three/addons/": "/node_modules/three/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const log = (msg) => { const d = document.getElementById('log'); d.innerHTML += msg + '<br>'; d.scrollTop = d.scrollHeight; console.log(msg); };
+
+const viewer = document.getElementById('viewer');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(viewer.clientWidth, viewer.clientHeight);
+viewer.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x222244);
+scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+const dir = new THREE.DirectionalLight(0xffffff, 1.2);
+dir.position.set(5, 10, 5); scene.add(dir);
+const camera = new THREE.PerspectiveCamera(45, viewer.clientWidth / viewer.clientHeight, 0.1, 100);
+camera.position.set(0, 6, 8); camera.lookAt(0, 3, 0);
+const loader = new GLTFLoader();
+
+async function load(url) {
+  return new Promise((res, rej) => loader.load(url, res, undefined, rej));
+}
+
+async function main() {
+  log('Loading monster GLB…');
+  const monGltf = await load('/assets/models/monsters/carrion_knight.glb');
+  const monScene = monGltf.scene;
+  monScene.scale.setScalar(2.5);
+  scene.add(monScene);
+  log('Monster scene added. Children: ' + monScene.children.length);
+
+  // Find skinned mesh
+  let skinned = null;
+  monScene.traverse(n => { if (n.isSkinnedMesh) skinned = n; });
+  log('SkinnedMesh found: ' + !!skinned);
+  log('Skeleton bones: ' + (skinned?.skeleton?.bones?.length || 0));
+  log('First 3 bones: ' + skinned?.skeleton?.bones?.slice(0,3).map(b => b.name).join(', '));
+
+  log('Loading idle.glb anim…');
+  const animGltf = await load('/assets/animations/shared/idle.glb');
+  log('Anim GLB has ' + animGltf.animations.length + ' clips');
+  const clip = animGltf.animations[0];
+  log('Clip: name="' + clip.name + '" duration=' + clip.duration.toFixed(2) + 's tracks=' + clip.tracks.length);
+  log('First track name: ' + (clip.tracks[0]?.name || 'NONE'));
+
+  // Create mixer + play
+  const mixer = new THREE.AnimationMixer(monScene);
+  const action = mixer.clipAction(clip);
+  action.play();
+  log('Mixer action playing. Watch for animation…');
+
+  const clock = new THREE.Clock();
+  function animate() {
+    requestAnimationFrame(animate);
+    mixer.update(clock.getDelta());
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  // After 2 seconds, dump bone positions to verify motion
+  setTimeout(() => {
+    const hipsB = skinned.skeleton.bones.find(b => b.name === 'Hips');
+    log('After 2s: Hips quaternion = (' + hipsB.quaternion.x.toFixed(2) + ', ' + hipsB.quaternion.y.toFixed(2) + ', ' + hipsB.quaternion.z.toFixed(2) + ', ' + hipsB.quaternion.w.toFixed(2) + ')');
+    log('Hips position = (' + hipsB.position.x.toFixed(2) + ', ' + hipsB.position.y.toFixed(2) + ', ' + hipsB.position.z.toFixed(2) + ')');
+    log('action.time = ' + action.time.toFixed(2));
+    log('action.isRunning = ' + action.isRunning());
+  }, 2000);
+}
+
+main().catch(e => log('ERROR: ' + e.message + '\n' + e.stack));
+</script>
+</body></html>

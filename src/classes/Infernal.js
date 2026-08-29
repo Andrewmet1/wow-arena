@@ -15,12 +15,12 @@ const infernoBolt = defineAbility({
   school: SCHOOL.FIRE,
   cost: { [RESOURCE_TYPE.MANA]: 300 },
   cooldown: 0,
-  castTime: 20, // 2.0s
+  castTime: 15, // 1.5s (faster to get off under pressure)
   range: 45,
   slot: 1,
-  description: 'Hurls a ball of fire at the target, dealing 6500 damage and generating 1 Cinder stack.',
+  description: 'Hurls a ball of fire at the target, dealing 7000 damage and generating 1 Cinder stack.',
   execute(engine, source, target, currentTick) {
-    engine.dealDamage(source, target, 6500, SCHOOL.FIRE, 'inferno_bolt', currentTick);
+    engine.dealDamage(source, target, 7000, SCHOOL.FIRE, 'inferno_bolt', currentTick);
 
     // Generate cinder stack (double during Pyroclasm)
     const hasPyroclasm = source.auras.has('pyroclasm_buff');
@@ -38,17 +38,37 @@ const cataclysmFlare = defineAbility({
   castTime: 35, // 3.5s
   range: 45,
   slot: 2,
-  description: 'Launches an immense bolt of fire at the target. Deals 22000 damage if 4 Cinder stacks are consumed, otherwise 14000. Applies Pyre.',
+  description: 'Launches an immense bolt of fire at the target. Deals 22000 damage if 4 Cinder stacks are consumed, otherwise 14000. Empowered cast grants Ignition (next fire spell is instant). Applies Pyre.',
   execute(engine, source, target, currentTick) {
     // Check cinder stacks for empowered Cataclysm Flare — 3.5s cast rewarded with massive damage
     const cinderCount = source.resources.getCurrent(RESOURCE_TYPE.CINDER_STACKS);
     let damage = 14000;
+    let empowered = false;
     if (cinderCount >= 4) {
       damage = 22000;
+      empowered = true;
       source.resources.set(RESOURCE_TYPE.CINDER_STACKS, 0);
     }
 
     engine.dealDamage(source, target, damage, SCHOOL.FIRE, 'cataclysm_flare', currentTick);
+
+    // Empowered bonus: Ignition proc — next fire spell is instant cast
+    if (empowered) {
+      source.auras.apply(new Aura({
+        id: 'ignition_proc',
+        name: 'Ignition',
+        type: AURA_TYPE.BUFF,
+        sourceId: source.id,
+        targetId: source.id,
+        school: SCHOOL.FIRE,
+        duration: 100, // 10s to use it
+        appliedTick: currentTick,
+        isMagic: false,
+        isDispellable: false,
+        onApply(unit) { unit.classData.ignitionProc = true; },
+        onRemove(unit) { unit.classData.ignitionProc = false; }
+      }));
+    }
 
     // Apply Pyre DoT: 8s, ticking every 1s for 500 damage (4000 total)
     const pyre = new Aura({
@@ -81,12 +101,18 @@ const searingPulse = defineAbility({
   flags: [ABILITY_FLAG.IGNORES_GCD, ABILITY_FLAG.GUARANTEED_CRIT, ABILITY_FLAG.USABLE_WHILE_CASTING],
   charges: { max: 2, rechargeTicks: 80 },
   slot: 3,
-  description: 'Blasts the target with fire for 5000 damage. Always crits. Generates 1 Cinder stack. Usable while casting.',
+  description: 'Blasts the target with fire for 5000 damage. Always crits. Generates 1 Cinder stack. Refreshes Pyre if active. Usable while casting.',
   execute(engine, source, target, currentTick) {
     engine.dealDamage(source, target, 5000, SCHOOL.FIRE, 'searing_pulse', currentTick);
 
     // Generate cinder stack
     source.resources.gain(RESOURCE_TYPE.CINDER_STACKS, 1);
+
+    // Refresh Pyre DoT if active (rewards weaving Searing Pulse to maintain DoT uptime)
+    const pyre = target.auras.getAura('pyre_dot');
+    if (pyre) {
+      pyre.appliedTick = currentTick;
+    }
   }
 });
 
@@ -126,16 +152,16 @@ const permafrostBurst = defineAbility({
   name: 'Permafrost Burst',
   school: SCHOOL.FROST,
   cost: { [RESOURCE_TYPE.MANA]: 200 },
-  cooldown: 180, // 18s
+  cooldown: 120, // 12s (down from 18s — main melee defense)
   castTime: 0,
   range: 45,
   slot: 5,
-  description: 'Blasts the target with frost, dealing 3000 damage and rooting them for 4s.',
+  description: 'Blasts the target with frost, dealing 5000 damage and rooting them for 5s.',
   execute(engine, source, target, currentTick) {
-    engine.dealDamage(source, target, 3000, SCHOOL.FROST, 'permafrost_burst', currentTick);
+    engine.dealDamage(source, target, 5000, SCHOOL.FROST, 'permafrost_burst', currentTick);
 
-    // Apply 4s root
-    CrowdControlSystem.applyCC(source, target, CC_TYPE.ROOT, 40, currentTick);
+    // Apply 5s root (up from 4s)
+    CrowdControlSystem.applyCC(source, target, CC_TYPE.ROOT, 50, currentTick);
   }
 });
 
@@ -150,14 +176,25 @@ const phaseShift = defineAbility({
   flags: [ABILITY_FLAG.IGNORES_GCD, ABILITY_FLAG.USABLE_WHILE_CASTING],
   charges: { max: 2, rechargeTicks: 200 },
   slot: 6,
-  description: 'Teleport 20 yards forward, breaking stuns and roots. 2 charges.',
+  description: 'Teleport 20 yards forward, breaking stuns and roots. Roots enemies within 8 yards of your departure point for 2s. 2 charges.',
   execute(engine, source, target, currentTick) {
-    // Break stuns and roots
-    CrowdControlSystem.breakStuns(source);
-    CrowdControlSystem.breakRoots(source);
+    // Break stuns, roots, and fear
+    CrowdControlSystem.removeAllCC(source);
 
     // Look up the enemy directly (target=self for range:0 abilities)
     const enemy = engine.match.getOpponent(source.id);
+
+    // Frost nova: root enemies within 8 yards of cast location before blinking
+    const castX = source.position.x;
+    const castZ = source.position.z;
+    for (const unit of engine.match.units) {
+      if (!unit.isAlive || !engine.match.isEnemy(source, unit)) continue;
+      const ddx = unit.position.x - castX;
+      const ddz = unit.position.z - castZ;
+      if (ddx * ddx + ddz * ddz <= 64) { // 8yd radius
+        CrowdControlSystem.applyCC(source, unit, CC_TYPE.ROOT, 30, currentTick); // 3s root
+      }
+    }
 
     // Teleport 20yd — use movement direction if moving, otherwise away from enemy
     let dx, dz;
@@ -235,7 +272,7 @@ const crystallineWard = defineAbility({
   name: 'Crystalline Ward',
   school: SCHOOL.FROST,
   cost: null,
-  cooldown: 1800, // 180s
+  cooldown: 1500, // 150s
   castTime: 0,
   range: 0,
   flags: [ABILITY_FLAG.IGNORES_GCD, ABILITY_FLAG.USABLE_WHILE_CASTING],
@@ -276,16 +313,16 @@ const cauterize = defineAbility({
   name: 'Cauterize',
   school: SCHOOL.FIRE,
   cost: { [RESOURCE_TYPE.MANA]: 800 },
-  cooldown: 450, // 45s
+  cooldown: 350, // 35s
   castTime: 0,
   range: 0,
   flags: [ABILITY_FLAG.IGNORES_GCD, ABILITY_FLAG.USABLE_WHILE_CASTING],
   slot: 13,
-  description: 'Cauterize your wounds with flame. Instantly heals 8000 HP and applies a heal-over-time for 4000 over 8s.',
+  description: 'Cauterize your wounds with flame. Instantly heals 12000 HP and applies a heal-over-time for 8000 over 8s.',
   execute(engine, source, target, currentTick) {
-    engine.healUnit(source, source, 8000, currentTick);
+    engine.healUnit(source, source, 12000, currentTick);
 
-    // HoT: 500 per tick for 8 ticks (4000 total over 8s)
+    // HoT: 1000 per tick for 8 ticks (8000 total over 8s)
     const hot = new Aura({
       id: 'cauterize_hot',
       name: 'Cauterize',
@@ -297,7 +334,7 @@ const cauterize = defineAbility({
       appliedTick: currentTick,
       isPeriodic: true,
       tickInterval: 10, // 1s
-      tickHealing: 500,
+      tickHealing: 1000,
       isMagic: false,
       isDispellable: true
     });
@@ -315,10 +352,10 @@ const arcaneBulwark = defineAbility({
   range: 0,
   flags: [ABILITY_FLAG.IGNORES_GCD, ABILITY_FLAG.USABLE_WHILE_CASTING],
   slot: 9,
-  description: 'Shields you with an arcane barrier, absorbing 20000 damage and reducing physical damage taken by 15% for 15s.',
+  description: 'Shields you with an arcane barrier, absorbing 28000 damage and reducing physical damage taken by 15% for 15s.',
   execute(engine, source, target, currentTick) {
     // Add absorb shield
-    source.addAbsorb(20000, currentTick + 150, 'arcane_bulwark');
+    source.addAbsorb(28000, currentTick + 150, 'arcane_bulwark');
 
     // Apply Arcane Bulwark buff (15% less physical damage)
     const aura = new Aura({
@@ -364,15 +401,33 @@ const scaldwind = defineAbility({
   castTime: 0,
   range: 12,
   slot: 11,
-  description: 'Breathes a cone of fire at the target, dealing 6000 damage and disorienting for 4s. Breaks on heavy damage.',
+  description: 'Breathes a cone of fire toward the target, dealing 6000 damage to every enemy in the cone (12yd) and disorienting them for 4s. Breaks on heavy damage.',
   execute(engine, source, target, currentTick) {
-    engine.dealDamage(source, target, 6000, SCHOOL.FIRE, 'scaldwind', currentTick);
+    // True cone — 12yd range, 60° half-angle. Hits all enemies in the wedge.
+    const dirX = target.position.x - source.position.x;
+    const dirZ = target.position.z - source.position.z;
+    engine.dealConeDamage(source, { x: dirX, z: dirZ }, 6000, SCHOOL.FIRE, 'scaldwind', currentTick, 12, Math.PI / 3);
 
-    // Apply 4s disorient (breaks on damage above 2000 threshold)
-    CrowdControlSystem.applyCC(source, target, CC_TYPE.DISORIENT, 40, currentTick, {
-      breakOnDamage: true,
-      damageThreshold: 2000
-    });
+    // Apply disorient to every enemy hit by the cone
+    const r2 = 144;
+    const dirLen = Math.hypot(dirX, dirZ) || 1;
+    const nx = dirX / dirLen, nz = dirZ / dirLen;
+    const cosHalf = Math.cos(Math.PI / 3);
+    for (const u of engine.match.units) {
+      if (!u.isAlive) continue;
+      if (u.id === source.id) continue;
+      if (u.team != null && source.team != null && u.team === source.team) continue;
+      const ux = u.position.x - source.position.x;
+      const uz = u.position.z - source.position.z;
+      const d2 = ux * ux + uz * uz;
+      if (d2 > r2 || d2 < 0.01) continue;
+      const dLen = Math.sqrt(d2);
+      if ((ux / dLen) * nx + (uz / dLen) * nz < cosHalf) continue;
+      CrowdControlSystem.applyCC(source, u, CC_TYPE.DISORIENT, 40, currentTick, {
+        breakOnDamage: true,
+        damageThreshold: 2000,
+      });
+    }
   }
 });
 
@@ -386,9 +441,9 @@ const emberBrand = defineAbility({
   range: 45,
   flags: [ABILITY_FLAG.USABLE_WHILE_MOVING],
   slot: 12,
-  description: 'Scorches the target for 3500 damage. Castable while moving. Generates 1 Cinder stack.',
+  description: 'Scorches the target for 5000 damage. Castable while moving. Generates 1 Cinder stack.',
   execute(engine, source, target, currentTick) {
-    engine.dealDamage(source, target, 3500, SCHOOL.FIRE, 'ember_brand', currentTick);
+    engine.dealDamage(source, target, 5000, SCHOOL.FIRE, 'ember_brand', currentTick);
 
     // Generate cinder stack
     source.resources.gain(RESOURCE_TYPE.CINDER_STACKS, 1);
@@ -435,7 +490,7 @@ const scorchedEarth = defineAbility({
         lastTickAt = tick;
 
         for (const unit of engine.match.units) {
-          if (unit.id === source.id || !unit.isAlive) continue;
+          if (!unit.isAlive || !engine.match.isEnemy(source, unit)) continue;
           const dx = unit.position.x - zonePos.x;
           const dz = unit.position.z - zonePos.z;
           if (dx * dx + dz * dz <= ZONE_RADIUS * ZONE_RADIUS) {
@@ -502,7 +557,7 @@ const ringOfFrost = defineAbility({
         if (tick < armTick) return;
 
         for (const unit of engine.match.units) {
-          if (unit.id === source.id || !unit.isAlive) continue;
+          if (!unit.isAlive || !engine.match.isEnemy(source, unit)) continue;
           if (frozenUnits.has(unit.id)) continue; // Already triggered on this unit
 
           const dx = unit.position.x - zonePos.x;
@@ -528,12 +583,12 @@ export const InfernalClass = new ClassBase({
   color: '#FF4500',
   accentColor: '#FFD700',
   isRanged: true,
-  physicalArmor: 0.12,
-  magicDR: 0.20,
+  physicalArmor: 0.20,
+  magicDR: 0.25,
   moveSpeed: 1.0,
   autoAttackDamage: 0,
   swingTimer: 20,
-  classData: { cauterize: true },
+  classData: { cauterize: true, moltenArmor: true },
   resourcePools: [
     {
       type: RESOURCE_TYPE.MANA,
@@ -570,5 +625,27 @@ export const InfernalClass = new ClassBase({
     { abilityId: 'phase_shift', maxCharges: 2, rechargeTicks: 200 }
   ],
   coreAbilityIds: ['inferno_bolt', 'searing_pulse', 'phase_shift'],
-  defaultLoadout: ['inferno_bolt', 'glacial_lance', 'searing_pulse', 'ember_brand', 'phase_shift', 'pyroclasm']
+  defaultLoadout: ['inferno_bolt', 'searing_pulse', 'phase_shift', 'cataclysm_flare', 'pyroclasm', 'ember_brand'],
+  builds: [
+    {
+      id: 'pyroclast', name: 'Pyroclast',
+      description: 'Pure devastation. Channel the flame and unleash catastrophe.',
+      loadout: ['inferno_bolt', 'searing_pulse', 'phase_shift', 'cataclysm_flare', 'pyroclasm', 'ember_brand']
+    },
+    {
+      id: 'frostweaver', name: 'Frostweaver',
+      description: 'Frozen dominion. Keep your distance, freeze what gets close.',
+      loadout: ['inferno_bolt', 'searing_pulse', 'phase_shift', 'glacial_lance', 'permafrost_burst', 'crystalline_ward']
+    },
+    {
+      id: 'spellblade', name: 'Spellblade',
+      description: 'Battle-mage discipline. Balance destruction with self-preservation.',
+      loadout: ['inferno_bolt', 'searing_pulse', 'phase_shift', 'pyroclasm', 'cauterize', 'arcane_bulwark']
+    },
+    {
+      id: 'hellstorm', name: 'Hellstorm',
+      description: 'The arena itself becomes your weapon. Nowhere is safe.',
+      loadout: ['inferno_bolt', 'searing_pulse', 'phase_shift', 'scorched_earth', 'ring_of_frost', 'scaldwind']
+    }
+  ]
 });

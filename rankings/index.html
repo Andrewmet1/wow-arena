@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <title>Rankings — Ebon Crucible</title>
+  <meta name="description" content="Ebon Crucible ranked leaderboard. Five tiers of blood — climb from The Broken to The Ascended. View the top-rated arena fighters and the Crucible Champion.">
+  <link rel="canonical" href="https://eboncrucible.com/rankings/">
+  <link rel="stylesheet" href="/src/styles/ebon-pages.css">
+  <style>
+    /* ── How Ranked Works ── */
+    .ranked-how-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      max-width: 900px;
+      margin: 0 auto 60px;
+    }
+    .ranked-how-card {
+      background: rgba(12,12,22,0.6);
+      backdrop-filter: blur(8px);
+      border: 1px solid #1a1a2a;
+      border-radius: 10px;
+      padding: 32px 24px;
+      text-align: center;
+      transition: all 0.3s;
+      animation: cardReveal 0.5s ease-out both;
+    }
+    .ranked-how-card:hover {
+      border-color: rgba(200,168,96,0.2);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+    }
+    .ranked-how-num {
+      font-size: 36px;
+      font-weight: 900;
+      color: rgba(200,168,96,0.12);
+      letter-spacing: -2px;
+      margin-bottom: 8px;
+      line-height: 1;
+    }
+    .ranked-how-title {
+      font-size: 13px;
+      letter-spacing: 3px;
+      color: #c8a860;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .ranked-how-desc {
+      font-size: 12px;
+      color: #777;
+      line-height: 1.7;
+    }
+
+    /* ── Tier Grid ── */
+    .tier-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+      max-width: 1100px;
+      margin: 0 auto 60px;
+    }
+    .tier-card {
+      background: rgba(12,12,22,0.6);
+      backdrop-filter: blur(8px);
+      border-radius: 10px;
+      padding: 28px 16px 24px;
+      text-align: center;
+      transition: all 0.3s;
+      animation: cardReveal 0.5s ease-out both;
+      position: relative;
+      overflow: hidden;
+    }
+    .tier-card:hover {
+      transform: translateY(-6px);
+    }
+    .tier-card-number {
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: #777;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .tier-card .tier-emblem-wrap {
+      position: relative;
+      display: inline-block;
+      margin-bottom: 14px;
+    }
+    .tier-card .tier-emblem-glow {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 120px; height: 120px;
+      border-radius: 50%;
+      pointer-events: none;
+      opacity: 0.4;
+      transition: opacity 0.3s;
+    }
+    .tier-card:hover .tier-emblem-glow { opacity: 0.7; }
+    .tier-card img {
+      width: 96px; height: 96px;
+      object-fit: contain;
+      mix-blend-mode: screen;
+      position: relative;
+      z-index: 1;
+      transition: transform 0.3s;
+    }
+    .tier-card:hover img { transform: scale(1.08); }
+    .tier-card .tier-card-name {
+      font-size: 13px;
+      letter-spacing: 3px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .tier-card .tier-card-elo {
+      font-size: 10px;
+      color: #888;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+    .tier-card .tier-card-desc {
+      font-size: 11px;
+      color: #999;
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+    .tier-card .tier-card-reward {
+      font-size: 9px;
+      letter-spacing: 1px;
+      padding: 3px 10px;
+      border-radius: 3px;
+      display: inline-block;
+    }
+    .tier-card-bar {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 2px;
+    }
+
+    /* ── Champion Cards Grid ── */
+    .champions-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+      max-width: 1100px;
+      margin: 0 auto 60px;
+    }
+    .champion-card {
+      background: rgba(12,12,22,0.6);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(200,168,96,0.1);
+      border-radius: 10px;
+      padding: 24px 16px 20px;
+      text-align: center;
+      transition: all 0.3s;
+      animation: cardReveal 0.5s ease-out both;
+      position: relative;
+      overflow: hidden;
+    }
+    .champion-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 36px rgba(0,0,0,0.5);
+    }
+    .champion-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--class-color, #333);
+      opacity: 0.6;
+      transition: opacity 0.3s;
+    }
+    .champion-card:hover::before { opacity: 1; }
+    .champion-card-bar {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--class-color, #333);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .champion-card:hover .champion-card-bar { opacity: 0.6; }
+    .champion-card-class {
+      font-size: 9px; letter-spacing: 3px;
+      color: #666; font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .champion-card-crown {
+      font-size: 22px;
+      margin-bottom: 8px;
+      filter: drop-shadow(0 0 6px var(--class-color));
+    }
+    .champion-card-name {
+      font-size: 14px; letter-spacing: 2px;
+      font-weight: 700;
+      color: var(--class-color, #c8a860);
+      margin-bottom: 6px;
+      min-height: 20px;
+    }
+    .champion-card-stats {
+      font-size: 10px; color: #666;
+      letter-spacing: 1px;
+      line-height: 1.7;
+    }
+    .champion-card-vacant {
+      font-size: 11px; color: #444;
+      letter-spacing: 1px;
+      font-style: italic;
+      padding: 8px 0;
+    }
+
+    /* ── Leaderboard ── */
+    .leaderboard {
+      max-width: 800px;
+      margin: 0 auto 60px;
+    }
+    .leaderboard-header {
+      display: grid;
+      grid-template-columns: 60px 1fr 120px 100px;
+      gap: 16px;
+      padding: 12px 20px;
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: #555;
+      font-weight: 700;
+      border-bottom: 1px solid #1a1a2a;
+    }
+    .leaderboard-row {
+      display: grid;
+      grid-template-columns: 60px 1fr 120px 100px;
+      gap: 16px;
+      padding: 14px 20px;
+      align-items: center;
+      border-bottom: 1px solid rgba(26,26,42,0.5);
+      animation: cardReveal 0.4s ease-out both;
+      opacity: 0.5;
+    }
+    .leaderboard-row .rank-num {
+      font-size: 14px;
+      font-weight: 900;
+      color: #777;
+      letter-spacing: 1px;
+    }
+    .leaderboard-row .player-name {
+      font-size: 13px;
+      color: #888;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+    .leaderboard-row .player-class {
+      font-size: 11px;
+      color: #777;
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .class-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .leaderboard-row .player-elo {
+      font-size: 13px;
+      color: #888;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+    .leaderboard-example-tag {
+      font-size: 8px;
+      letter-spacing: 1px;
+      color: #666;
+      padding: 2px 6px;
+      border: 1px solid #1a1a2a;
+      border-radius: 2px;
+      margin-left: 8px;
+    }
+    .leaderboard-empty {
+      padding: 36px 20px;
+      text-align: center;
+      background: rgba(12,12,22,0.4);
+      border: 1px solid #1a1a2a;
+      border-radius: 0 0 8px 8px;
+      animation: cardReveal 0.5s 0.4s ease-out both;
+    }
+    .leaderboard-empty .empty-title {
+      font-size: 13px;
+      letter-spacing: 3px;
+      color: #c8a860;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .leaderboard-empty .empty-desc {
+      font-size: 11px;
+      color: #555;
+      line-height: 1.6;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+
+    /* ── Season Rewards ── */
+    .rewards-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+      max-width: 1100px;
+      margin: 0 auto 60px;
+    }
+    .reward-card {
+      background: rgba(12,12,22,0.5);
+      border: 1px solid #1a1a2a;
+      border-radius: 10px;
+      padding: 24px 16px 20px;
+      text-align: center;
+      transition: all 0.3s;
+      animation: cardReveal 0.5s ease-out both;
+      position: relative;
+      overflow: hidden;
+    }
+    .reward-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 36px rgba(0,0,0,0.5);
+    }
+    .reward-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--rank-color, #333);
+      opacity: 0.6;
+      transition: opacity 0.3s;
+    }
+    .reward-card:hover::before { opacity: 1; }
+    /* ── Portrait Border Preview ── */
+    .rank-portrait-frame {
+      width: 80px; height: 80px;
+      margin: 0 auto 14px;
+      position: relative;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .rank-portrait-inner {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      background: rgba(8,8,15,0.8);
+      display: flex; align-items: center; justify-content: center;
+      position: relative; z-index: 2;
+      overflow: hidden;
+    }
+    .rank-portrait-inner img {
+      width: 100%; height: 100%;
+      object-fit: contain;
+      mix-blend-mode: screen;
+      filter: brightness(1.2);
+    }
+    .rank-portrait-ring {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      border-radius: 50%;
+      z-index: 1;
+    }
+    /* Tier I: Cinder — simple dull ring */
+    .rank-border-cinder .rank-portrait-ring {
+      border: 3px solid #4a4a4a;
+      box-shadow: 0 0 8px rgba(122,122,122,0.2);
+    }
+    /* Tier II: Crimson — silver glow ring */
+    .rank-border-crimson .rank-portrait-ring {
+      border: 3px solid #8a8a8a;
+      box-shadow: 0 0 12px rgba(192,192,192,0.3), inset 0 0 8px rgba(192,192,192,0.1);
+    }
+    /* Tier III: Dreadforge — gold animated ring */
+    .rank-border-dreadforge .rank-portrait-ring {
+      border: 3px solid #b89f3a;
+      box-shadow: 0 0 16px rgba(255,215,0,0.3), inset 0 0 8px rgba(255,215,0,0.15);
+      animation: rankGlowGold 3s ease-in-out infinite alternate;
+    }
+    /* Tier IV: Soulfire — teal animated ring with pulse */
+    .rank-border-soulfire .rank-portrait-ring {
+      border: 3px solid #7ec4b0;
+      box-shadow: 0 0 20px rgba(160,230,212,0.4), 0 0 40px rgba(160,230,212,0.15), inset 0 0 10px rgba(160,230,212,0.2);
+      animation: rankGlowTeal 2.5s ease-in-out infinite alternate;
+    }
+    /* Tier V: Abyssal — ice blue animated ring with double glow */
+    .rank-border-abyssal .rank-portrait-ring {
+      border: 3px solid #8cd4e6;
+      box-shadow: 0 0 24px rgba(185,242,255,0.5), 0 0 48px rgba(185,242,255,0.2), inset 0 0 12px rgba(185,242,255,0.25);
+      animation: rankGlowIce 2s ease-in-out infinite alternate;
+    }
+    .rank-border-abyssal .rank-portrait-inner {
+      box-shadow: inset 0 0 20px rgba(185,242,255,0.1);
+    }
+    /* Animated corner runes for high tiers */
+    .rank-portrait-runes {
+      position: absolute; top: -4px; left: -4px;
+      width: calc(100% + 8px); height: calc(100% + 8px);
+      border-radius: 50%;
+      border: 1px dashed var(--rank-color, transparent);
+      opacity: 0.3;
+      animation: rankRuneSpin 20s linear infinite;
+      z-index: 0;
+    }
+    @keyframes rankGlowGold {
+      0% { box-shadow: 0 0 12px rgba(255,215,0,0.2), inset 0 0 6px rgba(255,215,0,0.1); }
+      100% { box-shadow: 0 0 24px rgba(255,215,0,0.5), inset 0 0 12px rgba(255,215,0,0.2); }
+    }
+    @keyframes rankGlowTeal {
+      0% { box-shadow: 0 0 16px rgba(160,230,212,0.3), inset 0 0 8px rgba(160,230,212,0.1); }
+      100% { box-shadow: 0 0 32px rgba(160,230,212,0.6), 0 0 48px rgba(160,230,212,0.2), inset 0 0 14px rgba(160,230,212,0.3); }
+    }
+    @keyframes rankGlowIce {
+      0% { box-shadow: 0 0 20px rgba(185,242,255,0.3), inset 0 0 10px rgba(185,242,255,0.15); }
+      100% { box-shadow: 0 0 36px rgba(185,242,255,0.6), 0 0 56px rgba(185,242,255,0.25), inset 0 0 16px rgba(185,242,255,0.3); }
+    }
+    @keyframes rankRuneSpin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .reward-card .reward-tier {
+      font-size: 10px;
+      letter-spacing: 2px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .reward-card .reward-label {
+      font-size: 8px;
+      letter-spacing: 1px;
+      color: #444;
+      margin-bottom: 10px;
+    }
+    .reward-card .reward-items {
+      font-size: 10px;
+      color: #555;
+      line-height: 1.7;
+    }
+
+    /* ── Season Banner ── */
+    .season-banner {
+      max-width: 500px;
+      margin: 0 auto 40px;
+      padding: 16px 24px;
+      background: rgba(200,168,96,0.06);
+      border: 1px solid rgba(200,168,96,0.15);
+      border-radius: 8px;
+      text-align: center;
+      animation: cardReveal 0.5s 0.2s ease-out both;
+    }
+    .season-banner .season-name {
+      font-size: 12px;
+      letter-spacing: 3px;
+      color: #c8a860;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .season-banner .season-date {
+      font-size: 10px;
+      color: #555;
+      letter-spacing: 1px;
+    }
+
+    @media (max-width: 768px) {
+      .ranked-how-grid { grid-template-columns: 1fr; gap: 12px; }
+      .tier-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+      .tier-grid .tier-card:last-child { grid-column: 1 / -1; max-width: 250px; margin: 0 auto; }
+      .champions-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .champions-grid .champion-card:last-child { grid-column: 1 / -1; max-width: 200px; margin: 0 auto; }
+      .leaderboard-header { display: none; }
+      .leaderboard-row { grid-template-columns: 40px 1fr 100px; }
+      .leaderboard-row .player-class { display: none; }
+      .leaderboard { margin: 0 20px 40px; }
+      .rewards-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+      .rewards-grid .reward-card:last-child { grid-column: 1 / -1; max-width: 200px; margin: 0 auto; }
+    }
+    @media (max-width: 480px) {
+      .tier-grid { grid-template-columns: 1fr; gap: 10px; }
+      .tier-grid .tier-card:last-child { grid-column: auto; max-width: none; }
+      .tier-card { padding: 14px 10px; }
+      .champions-grid { grid-template-columns: 1fr; gap: 8px; }
+      .champions-grid .champion-card:last-child { grid-column: auto; max-width: none; }
+      .leaderboard-row { grid-template-columns: 30px 1fr 80px; font-size: 11px; }
+      .leaderboard { margin: 0 12px 32px; }
+      .rewards-grid { grid-template-columns: 1fr; gap: 10px; }
+      .rewards-grid .reward-card:last-child { grid-column: auto; max-width: none; }
+    }
+  </style>
+</head>
+<body class="ambient-lines">
+  <div class="page-bg" style="background-image:url('/assets/art/rankings_hero_bg.webp');"></div>
+  <!-- Navigation -->
+  <nav class="nav">
+    <a href="/" class="nav-brand">EBON CRUCIBLE <span class="alpha-badge">ALPHA</span></a>
+    <button class="nav-toggle" aria-label="Menu"><span></span><span></span><span></span></button>
+    <div class="nav-links">
+      <a href="/">HOME</a>
+      <a href="/classes/">CLASSES</a>
+      <a href="/gameplay/">GAME</a>
+      <a href="/rankings/" class="active">RANKINGS</a>
+      <a href="/news/">NEWS</a>
+      <a href="/community/">COMMUNITY</a>
+      <a href="/play/" class="nav-signin" id="nav-auth">SIGN IN</a>
+      <a href="/play/" class="nav-play">PLAY FREE</a>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-bg" style="background-image:url('/assets/art/rankings_hero_bg.webp');"></div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <h1>RANKINGS</h1>
+      <div class="hero-line"></div>
+      <p>Five tiers of blood. Every rank is earned. Every loss is felt.</p>
+    </div>
+    <div class="hero-scroll-arrow">&#9660;</div>
+  </section>
+
+    <div class="glow-divider"></div>
+    <!-- Season Banner -->
+  <section style="padding: 40px 40px 0;">
+    <div class="season-banner">
+      <div class="season-name">SEASON 1</div>
+      <div class="season-date">February 2026 &mdash; Present</div>
+    </div>
+  </section>
+
+    <div class="glow-divider"></div>
+    <!-- How Ranked Works -->
+  <section class="ambient-wash section-glow-top" style="padding: 40px 40px;">
+    <div style="text-align:center; margin-bottom:32px;">
+      <h2 style="font-size:18px; letter-spacing:6px; color:#c8a860; margin-bottom:8px; font-weight:700;">HOW RANKED WORKS</h2>
+      <div style="width:60px; height:1px; margin:0 auto; background:linear-gradient(90deg, transparent, #c8a86060, transparent);"></div>
+    </div>
+
+    <div class="ranked-how-grid">
+      <div class="ranked-how-card" style="animation-delay:0.1s;">
+        <div class="ranked-how-num">01</div>
+        <div class="ranked-how-title">QUEUE UP</div>
+        <div class="ranked-how-desc">Select your class and enter the ranked queue. Our matchmaking system pairs you against opponents of similar skill rating for fair, competitive fights.</div>
+      </div>
+      <div class="ranked-how-card" style="animation-delay:0.2s;">
+        <div class="ranked-how-num">02</div>
+        <div class="ranked-how-title">WIN TO CLIMB</div>
+        <div class="ranked-how-desc">Victory earns rating. Defeat costs it. Your tier reflects your current rating in real time &mdash; there is no rank decay or placement matches. Pure performance.</div>
+      </div>
+      <div class="ranked-how-card" style="animation-delay:0.3s;">
+        <div class="ranked-how-num">03</div>
+        <div class="ranked-how-title">SEIZE THE CROWN</div>
+        <div class="ranked-how-desc">Reach the top of the ladder to claim the title of <strong style="color:#c8a860;">Crucible Champion</strong>. The entire server is notified when the crown changes hands.</div>
+      </div>
+    </div>
+  </section>
+
+    <div class="glow-divider"></div>
+    <!-- Tier Breakdown -->
+  <section class="ambient-grid" style="padding: 0 40px 40px;">
+    <div style="text-align:center; margin-bottom:32px;">
+      <h2 style="font-size:18px; letter-spacing:6px; color:#c8a860; margin-bottom:8px; font-weight:700;">THE FIVE TIERS</h2>
+      <p style="font-size:12px; color:#555; letter-spacing:1px;">Climb from iron to diamond. Each tier represents a new level of mastery.</p>
+    </div>
+
+    <div class="tier-grid">
+      <div class="tier-card" style="border:1px solid rgba(122,122,122,0.15); animation-delay:0.1s;">
+        <div class="tier-card-number">TIER I</div>
+        <div class="tier-emblem-wrap">
+          <div class="tier-emblem-glow" style="background:radial-gradient(circle, rgba(122,122,122,0.3) 0%, transparent 70%);"></div>
+          <img src="/assets/art/rank_cinder.webp" alt="The Broken" style="filter:drop-shadow(0 0 12px rgba(122,122,122,0.5));" loading="lazy">
+        </div>
+        <div class="tier-card-name" style="color:#7a7a7a;">THE BROKEN</div>
+        <div class="tier-card-elo">&lt; 100 RATING</div>
+        <div class="tier-card-desc">Where all warriors begin. The proving grounds test your resolve before the real climb starts.</div>
+        <div class="tier-card-reward" style="color:#555;background:rgba(122,122,122,0.08);border:1px solid rgba(122,122,122,0.15);">Cinder Border</div>
+        <div class="tier-card-bar" style="background:#7a7a7a;"></div>
+      </div>
+      <div class="tier-card" style="border:1px solid rgba(192,192,192,0.15); animation-delay:0.2s;">
+        <div class="tier-card-number">TIER II</div>
+        <div class="tier-emblem-wrap">
+          <div class="tier-emblem-glow" style="background:radial-gradient(circle, rgba(192,192,192,0.3) 0%, transparent 70%);"></div>
+          <img src="/assets/art/rank_crimson.webp" alt="The Proven" style="filter:drop-shadow(0 0 12px rgba(192,192,192,0.5));" loading="lazy">
+        </div>
+        <div class="tier-card-name" style="color:#c0c0c0;">THE PROVEN</div>
+        <div class="tier-card-elo">100+ RATING</div>
+        <div class="tier-card-desc">You've earned your place. Skilled combatants who know their class and can read their opponent.</div>
+        <div class="tier-card-reward" style="color:#888;background:rgba(192,192,192,0.08);border:1px solid rgba(192,192,192,0.15);">Crimson Border</div>
+        <div class="tier-card-bar" style="background:#c0c0c0;"></div>
+      </div>
+      <div class="tier-card" style="border:1px solid rgba(255,215,0,0.15); animation-delay:0.3s;">
+        <div class="tier-card-number">TIER III</div>
+        <div class="tier-emblem-wrap">
+          <div class="tier-emblem-glow" style="background:radial-gradient(circle, rgba(255,215,0,0.3) 0%, transparent 70%);"></div>
+          <img src="/assets/art/rank_dreadforge.webp" alt="The Exalted" style="filter:drop-shadow(0 0 12px rgba(255,215,0,0.5));" loading="lazy">
+        </div>
+        <div class="tier-card-name" style="color:#ffd700;">THE EXALTED</div>
+        <div class="tier-card-elo">300+ RATING</div>
+        <div class="tier-card-desc">Masters of their craft. Your name is known across the crucible. Feared and respected in equal measure.</div>
+        <div class="tier-card-reward" style="color:#b89f3a;background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.15);">Dreadforge Border + Title</div>
+        <div class="tier-card-bar" style="background:linear-gradient(90deg,#ffd700,#b89f3a);"></div>
+      </div>
+      <div class="tier-card" style="border:1px solid rgba(160,230,212,0.15); animation-delay:0.4s;">
+        <div class="tier-card-number">TIER IV</div>
+        <div class="tier-emblem-wrap">
+          <div class="tier-emblem-glow" style="background:radial-gradient(circle, rgba(160,230,212,0.3) 0%, transparent 70%);"></div>
+          <img src="/assets/art/rank_soulfire.webp" alt="The Dread" style="filter:drop-shadow(0 0 12px rgba(160,230,212,0.5));" loading="lazy">
+        </div>
+        <div class="tier-card-name" style="color:#a0e6d4;">THE DREAD</div>
+        <div class="tier-card-elo">600+ RATING</div>
+        <div class="tier-card-desc">The elite few. Dread follows in your wake. Every opponent knows your name before the gates open.</div>
+        <div class="tier-card-reward" style="color:#7ec4b0;background:rgba(160,230,212,0.08);border:1px solid rgba(160,230,212,0.15);">Soulfire Border + Title + Cosmetic</div>
+        <div class="tier-card-bar" style="background:linear-gradient(90deg,#a0e6d4,#7ec4b0);"></div>
+      </div>
+      <div class="tier-card" style="border:1px solid rgba(185,242,255,0.15); animation-delay:0.5s;">
+        <div class="tier-card-number">TIER V</div>
+        <div class="tier-emblem-wrap">
+          <div class="tier-emblem-glow" style="background:radial-gradient(circle, rgba(185,242,255,0.3) 0%, transparent 70%);"></div>
+          <img src="/assets/art/rank_abyssal.webp" alt="The Ascended" style="filter:drop-shadow(0 0 12px rgba(185,242,255,0.5));" loading="lazy">
+        </div>
+        <div class="tier-card-name" style="color:#b9f2ff;">THE ASCENDED</div>
+        <div class="tier-card-elo">900+ RATING</div>
+        <div class="tier-card-desc">Beyond mortal rank. Legends of the crucible. Only the most dedicated and skilled warriors reach this pinnacle.</div>
+        <div class="tier-card-reward" style="color:#8cd4e6;background:rgba(185,242,255,0.08);border:1px solid rgba(185,242,255,0.15);">Abyssal Border + Title + Exclusive Cosmetic</div>
+        <div class="tier-card-bar" style="background:linear-gradient(90deg,#b9f2ff,#8cd4e6);"></div>
+      </div>
+    </div>
+  </section>
+
+    <div class="glow-divider"></div>
+    <!-- Class Champions -->
+  <section class="ambient-wash section-glow-top" style="padding: 40px 40px;">
+    <div style="text-align:center; margin-bottom:32px;">
+      <h2 style="font-size:18px; letter-spacing:6px; color:#c8a860; margin-bottom:8px; font-weight:700;">CLASS CHAMPIONS</h2>
+      <div style="width:60px; height:1px; margin:0 auto 12px; background:linear-gradient(90deg, transparent, #c8a86060, transparent);"></div>
+      <p style="font-size:11px; color:#888; letter-spacing:1px;">The most dominant player per class. Win the most games to claim the crown.</p>
+    </div>
+
+    <div class="champions-grid" id="champions-grid">
+      <div class="champion-card" style="--class-color:#8B0000; animation-delay:0.1s;" id="champ-tyrant">
+        <div class="champion-card-class">TYRANT</div>
+        <div class="champion-card-crown">&#9813;</div>
+        <div class="champion-card-name">---</div>
+        <div class="champion-card-stats">Loading...</div>
+        <div class="champion-card-bar"></div>
+      </div>
+      <div class="champion-card" style="--class-color:#6B2FA0; animation-delay:0.15s;" id="champ-wraith">
+        <div class="champion-card-class">WRAITH</div>
+        <div class="champion-card-crown">&#9813;</div>
+        <div class="champion-card-name">---</div>
+        <div class="champion-card-stats">Loading...</div>
+        <div class="champion-card-bar"></div>
+      </div>
+      <div class="champion-card" style="--class-color:#FF4500; animation-delay:0.2s;" id="champ-infernal">
+        <div class="champion-card-class">INFERNAL</div>
+        <div class="champion-card-crown">&#9813;</div>
+        <div class="champion-card-name">---</div>
+        <div class="champion-card-stats">Loading...</div>
+        <div class="champion-card-bar"></div>
+      </div>
+      <div class="champion-card" style="--class-color:#228B22; animation-delay:0.25s;" id="champ-harbinger">
+        <div class="champion-card-class">HARBINGER</div>
+        <div class="champion-card-crown">&#9813;</div>
+        <div class="champion-card-name">---</div>
+        <div class="champion-card-stats">Loading...</div>
+        <div class="champion-card-bar"></div>
+      </div>
+      <div class="champion-card" style="--class-color:#C8B560; animation-delay:0.3s;" id="champ-revenant">
+        <div class="champion-card-class">REVENANT</div>
+        <div class="champion-card-crown">&#9813;</div>
+        <div class="champion-card-name">---</div>
+        <div class="champion-card-stats">Loading...</div>
+        <div class="champion-card-bar"></div>
+      </div>
+    </div>
+  </section>
+
+    <div class="glow-divider"></div>
+    <!-- Leaderboard -->
+  <section class="ambient-grid" style="padding: 0 40px 40px;">
+    <div style="text-align:center; margin-bottom:24px;">
+      <h2 style="font-size:18px; letter-spacing:6px; color:#c8a860; margin-bottom:8px; font-weight:700;">LEADERBOARD</h2>
+      <div style="width:60px; height:1px; margin:0 auto 12px; background:linear-gradient(90deg, transparent, #c8a86060, transparent);"></div>
+      <p style="font-size:11px; color:#888; letter-spacing:1px;">Top ranked players this season</p>
+    </div>
+
+    <div class="leaderboard" id="leaderboard">
+      <div class="leaderboard-header">
+        <span>RANK</span>
+        <span>PLAYER</span>
+        <span>CLASS</span>
+        <span>RATING</span>
+      </div>
+      <div id="leaderboard-rows">
+        <div class="leaderboard-empty">
+          <div class="empty-title">LOADING...</div>
+          <div class="empty-desc">Connecting to the arena server to fetch live rankings.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+    <div class="glow-divider"></div>
+    <!-- Season Rewards -->
+  <section class="ambient-wash section-glow-top" style="padding: 0 40px 40px;">
+    <div style="text-align:center; margin-bottom:32px;">
+      <h2 style="font-size:18px; letter-spacing:6px; color:#c8a860; margin-bottom:8px; font-weight:700;">SEASON REWARDS</h2>
+      <div style="width:60px; height:1px; margin:0 auto 12px; background:linear-gradient(90deg, transparent, #c8a86060, transparent);"></div>
+      <p style="font-size:12px; color:#555; letter-spacing:1px;">Rewards are granted based on your peak tier at season end.</p>
+    </div>
+
+    <div class="rewards-grid">
+      <div class="reward-card" style="--rank-color:#7a7a7a; animation-delay:0.1s;">
+        <div class="rank-portrait-frame rank-border-cinder">
+          <div class="rank-portrait-ring"></div>
+          <div class="rank-portrait-inner"><img src="/assets/art/rank_cinder.webp" alt="Cinder" loading="lazy"></div>
+        </div>
+        <div class="reward-tier" style="color:#7a7a7a;">THE BROKEN</div>
+        <div class="reward-label">CINDER BORDER</div>
+        <div class="reward-items">Portrait Border</div>
+      </div>
+      <div class="reward-card" style="--rank-color:#c0c0c0; animation-delay:0.15s;">
+        <div class="rank-portrait-frame rank-border-crimson">
+          <div class="rank-portrait-ring"></div>
+          <div class="rank-portrait-inner"><img src="/assets/art/rank_crimson.webp" alt="Crimson" loading="lazy"></div>
+        </div>
+        <div class="reward-tier" style="color:#c0c0c0;">THE PROVEN</div>
+        <div class="reward-label">CRIMSON BORDER</div>
+        <div class="reward-items">Portrait Border<br>Proven Title</div>
+      </div>
+      <div class="reward-card" style="--rank-color:#ffd700; animation-delay:0.2s;">
+        <div class="rank-portrait-frame rank-border-dreadforge">
+          <div class="rank-portrait-ring"></div>
+          <div class="rank-portrait-runes" style="--rank-color:#ffd700;"></div>
+          <div class="rank-portrait-inner"><img src="/assets/art/rank_dreadforge.webp" alt="Dreadforge" loading="lazy"></div>
+        </div>
+        <div class="reward-tier" style="color:#ffd700;">THE EXALTED</div>
+        <div class="reward-label">DREADFORGE BORDER</div>
+        <div class="reward-items">Animated Border<br>Exalted Title<br>Arena Tabard</div>
+      </div>
+      <div class="reward-card" style="--rank-color:#a0e6d4; animation-delay:0.25s;">
+        <div class="rank-portrait-frame rank-border-soulfire">
+          <div class="rank-portrait-ring"></div>
+          <div class="rank-portrait-runes" style="--rank-color:#a0e6d4;"></div>
+          <div class="rank-portrait-inner"><img src="/assets/art/rank_soulfire.webp" alt="Soulfire" loading="lazy"></div>
+        </div>
+        <div class="reward-tier" style="color:#a0e6d4;">THE DREAD</div>
+        <div class="reward-label">SOULFIRE BORDER</div>
+        <div class="reward-items">Animated Border + Pulse<br>Dread Title<br>Spectral Weapon FX</div>
+      </div>
+      <div class="reward-card" style="--rank-color:#b9f2ff; animation-delay:0.3s;">
+        <div class="rank-portrait-frame rank-border-abyssal">
+          <div class="rank-portrait-ring"></div>
+          <div class="rank-portrait-runes" style="--rank-color:#b9f2ff;"></div>
+          <div class="rank-portrait-inner"><img src="/assets/art/rank_abyssal.webp" alt="Abyssal" loading="lazy"></div>
+        </div>
+        <div class="reward-tier" style="color:#b9f2ff;">THE ASCENDED</div>
+        <div class="reward-label">ABYSSAL BORDER</div>
+        <div class="reward-items">Animated Border + Double Glow<br>Ascended Title<br>Legendary Weapon Skin</div>
+      </div>
+    </div>
+  </section>
+
+    <div class="glow-divider"></div>
+    <!-- CTA -->
+  <section class="cta-section ember-corners section-glow-top">
+    <h2>CLAIM YOUR RANK</h2>
+    <p style="color:#666; font-size:13px; letter-spacing:1px; margin-bottom:24px;">
+      Free to play. Browser or Steam (coming soon). Prove yourself in the arena.
+    </p>
+    <a href="/play/" class="cta-btn">ENTER THE ARENA</a>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    &copy; 2026 Ebon Crucible. All rights reserved. <a href="/privacy/" style="color:#666;margin-left:12px;">Privacy Policy</a> <a href="/terms/" style="color:#666;margin-left:12px;">Terms of Service</a><div class="footer-alpha">Currently in Alpha — features and balance are actively evolving.</div>
+  </footer>
+
+  <!-- Particles -->
+  <script>
+    (function() {
+      const container = document.querySelector('.hero');
+      if (!container) return;
+      for (let i = 0; i < 15; i++) {
+        const p = document.createElement('div');
+        p.style.cssText = `position:absolute;width:2px;height:2px;background:#c8a86040;border-radius:50%;pointer-events:none;z-index:1;left:${Math.random()*100}%;bottom:0;animation:particleFloat ${8+Math.random()*12}s linear ${Math.random()*8}s infinite;`;
+        container.appendChild(p);
+      }
+    })();
+  </script>
+<script>
+(function(){try{
+  var n=localStorage.getItem('ec_username');
+  if(n){
+    var el=document.getElementById('nav-auth');
+    if(el){
+      el.textContent=n+' \u25BE';
+      el.href='javascript:void(0)';
+      el.style.position='relative';
+      el.style.cursor='pointer';
+      var dd=document.createElement('div');
+      dd.style.cssText='display:none;position:absolute;top:100%;right:0;margin-top:8px;min-width:120px;background:rgba(12,12,22,0.98);border:1px solid #2a2a3a;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.5);overflow:hidden;z-index:9999;';
+      var profile=document.createElement('a');profile.href='/play/';profile.textContent='\u26E8 PROFILE';
+      profile.style.cssText='display:block;padding:10px 16px;font-size:9px;letter-spacing:2px;font-weight:700;color:#888;text-decoration:none;transition:background 0.2s;';
+      profile.onmouseenter=function(){this.style.background='rgba(255,255,255,0.04)'};profile.onmouseleave=function(){this.style.background='none'};
+      dd.appendChild(profile);
+      var logout=document.createElement('a');logout.href='javascript:void(0)';logout.textContent='\u23FB LOG OUT';
+      logout.style.cssText='display:block;padding:10px 16px;font-size:9px;letter-spacing:2px;font-weight:700;color:#cc6666;text-decoration:none;transition:background 0.2s;';
+      logout.onmouseenter=function(){this.style.background='rgba(255,255,255,0.04)'};logout.onmouseleave=function(){this.style.background='none'};
+      logout.onclick=function(e){e.stopPropagation();localStorage.removeItem('ec_username');localStorage.removeItem('CognitoIdentityServiceProvider.sn01blkd57e7oi7e7vq80mipv.LastAuthUser');var keys=Object.keys(localStorage);for(var i=0;i<keys.length;i++){if(keys[i].indexOf('CognitoIdentityServiceProvider')===0)localStorage.removeItem(keys[i]);}window.location.reload();};
+      dd.appendChild(logout);
+      el.appendChild(dd);
+      var open=false;
+      el.onclick=function(e){e.preventDefault();e.stopPropagation();open=!open;dd.style.display=open?'block':'none';};
+      document.addEventListener('click',function(){dd.style.display='none';open=false;});var pb=document.querySelector('.nav-play');if(pb)pb.textContent='PLAY NOW';
+    }
+  }
+}catch(e){}}());
+(function(){var tog=document.querySelector('.nav-toggle');var links=document.querySelector('.nav-links');if(tog)tog.onclick=function(){links.classList.toggle('open');};document.addEventListener('click',function(e){if(!e.target.closest('.nav'))links.classList.remove('open');});})();
+</script>
+<script>
+(function(){
+  var CLASS_META = {
+    tyrant:    { label: 'Tyrant',    color: '#8B0000' },
+    wraith:    { label: 'Wraith',    color: '#6B2FA0' },
+    infernal:  { label: 'Infernal',  color: '#FF4500' },
+    harbinger: { label: 'Harbinger', color: '#228B22' },
+    revenant:  { label: 'Revenant',  color: '#C8B560' }
+  };
+
+  var TITLE_NAMES = { title_slayer: 'Slayer', title_phantom: 'Phantom', title_doomcaller: 'Doomcaller', title_ebon_lord: 'Ebon Lord' };
+
+  var wsUrl = window.location.hostname === 'localhost'
+    ? 'ws://localhost:3001'
+    : 'wss://' + window.location.hostname + '/ws';
+
+  var ws;
+  try { ws = new WebSocket(wsUrl); } catch(e) { showFallback(); return; }
+
+  var timeout = setTimeout(function(){ showFallback(); try{ws.close();}catch(e){} }, 6000);
+
+  ws.onopen = function() {
+    ws.send(JSON.stringify({ type: 'get_class_champions' }));
+    ws.send(JSON.stringify({ type: 'get_leaderboard' }));
+  };
+
+  ws.onerror = function() { clearTimeout(timeout); showFallback(); };
+
+  ws.onmessage = function(event) {
+    var msg;
+    try { msg = JSON.parse(event.data); } catch(e) { return; }
+
+    if (msg.type === 'class_champions') {
+      clearTimeout(timeout);
+      renderChampions(msg.champions || {});
+    }
+
+    if (msg.type === 'leaderboard') {
+      clearTimeout(timeout);
+      renderLeaderboard(msg.entries || []);
+      try { ws.close(); } catch(e) {}
+    }
+  };
+
+  function renderChampions(champions) {
+    var classIds = ['tyrant','wraith','infernal','harbinger','revenant'];
+    for (var i = 0; i < classIds.length; i++) {
+      var cid = classIds[i];
+      var card = document.getElementById('champ-' + cid);
+      if (!card) continue;
+      var champ = champions[cid];
+      var nameEl = card.querySelector('.champion-card-name');
+      var statsEl = card.querySelector('.champion-card-stats');
+      if (champ && champ.username) {
+        nameEl.textContent = champ.username;
+        statsEl.innerHTML = champ.wins + ' WINS &middot; ' + champ.winRate + '% WR';
+      } else {
+        nameEl.textContent = 'VACANT';
+        nameEl.style.color = '#444';
+        statsEl.innerHTML = '<span style="color:#444;font-style:italic;">Unclaimed</span>';
+      }
+    }
+  }
+
+  function renderLeaderboard(entries) {
+    var container = document.getElementById('leaderboard-rows');
+    if (!container) return;
+
+    // Filter out players with no ranked games
+    entries = entries.filter(function(e) { return (e.wins || 0) + (e.losses || 0) > 0; });
+
+    if (!entries.length) {
+      container.innerHTML =
+        '<div class="leaderboard-empty">' +
+          '<div class="empty-title">NO RANKINGS YET</div>' +
+          '<div class="empty-desc">The leaderboard populates as players complete ranked matches. Enter the arena to claim your spot.</div>' +
+        '</div>';
+      return;
+    }
+
+    var html = '';
+    for (var i = 0; i < entries.length; i++) {
+      var e = entries[i];
+      // Find best class by highest ELO
+      var bestClass = e.avatarClass || 'tyrant';
+      if (e.classElos) {
+        var bestElo = 0;
+        for (var cid in e.classElos) {
+          var ce = e.classElos[cid];
+          if (ce && ce.elo > bestElo) { bestElo = ce.elo; bestClass = cid; }
+        }
+      }
+      var meta = CLASS_META[bestClass] || CLASS_META.tyrant;
+      var delay = (0.05 * (i + 1)).toFixed(2);
+      html += '<div class="leaderboard-row" style="animation-delay:' + delay + 's;opacity:1;">' +
+        '<div class="rank-num">' + (i + 1) + '</div>' +
+        '<div class="player-name">' + (e.activeTitle && TITLE_NAMES[e.activeTitle] ? '<span style="color:#c8a860;font-size:0.85em;margin-right:4px">' + escHtml(TITLE_NAMES[e.activeTitle]) + '</span>' : '') + escHtml(e.username) + '</div>' +
+        '<div class="player-class"><span class="class-dot" style="background:' + meta.color + ';"></span> ' + meta.label + '</div>' +
+        '<div class="player-elo">' + (e.rating != null ? e.rating : Math.max(0, Math.round((e.elo || 1500) - 1500))) + '</div>' +
+      '</div>';
+    }
+    container.innerHTML = html;
+  }
+
+  function showFallback() {
+    var container = document.getElementById('leaderboard-rows');
+    if (container) {
+      container.innerHTML =
+        '<div class="leaderboard-empty">' +
+          '<div class="empty-title">SEASON 1 IN PROGRESS</div>' +
+          '<div class="empty-desc">Could not connect to the arena server. Play a ranked match to appear on the leaderboard.</div>' +
+        '</div>';
+    }
+    var classIds = ['tyrant','wraith','infernal','harbinger','revenant'];
+    for (var i = 0; i < classIds.length; i++) {
+      var card = document.getElementById('champ-' + classIds[i]);
+      if (!card) continue;
+      var statsEl = card.querySelector('.champion-card-stats');
+      if (statsEl) statsEl.innerHTML = '<span style="color:#444;font-style:italic;">Unavailable</span>';
+    }
+  }
+
+  function escHtml(s) {
+    var d = document.createElement('div');
+    d.appendChild(document.createTextNode(s || ''));
+    return d.innerHTML;
+  }
+})();
+</script>
+<script src="/src/analytics/consent.js"></script>
+</body>
+</html>
