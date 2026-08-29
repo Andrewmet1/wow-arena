@@ -2,35 +2,1095 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ebon Crucible</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <title>Ebon Crucible — Dark Fantasy Arena Combat</title>
+  <meta name="description" content="Ebon Crucible is a dark fantasy 1v1 arena combat game. Five classes, 63 abilities, ranked matchmaking. Free to play in your browser.">
+  <meta property="og:title" content="Ebon Crucible — Dark Fantasy Arena Combat">
+  <meta property="og:description" content="Choose a deadly class. Master 63 abilities. Fight real players in ranked 1v1 arena combat.">
+  <meta property="og:image" content="/assets/art/home_bg.webp">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://eboncrucible.com/">
+  <meta name="theme-color" content="#08080f">
+  <link rel="stylesheet" href="/src/styles/ebon-pages.css">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0a; }
-    #game-canvas { width: 100%; height: 100%; display: block; }
-    #game-canvas { position: absolute; top: 0; left: 0; }
-    #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #e0d8c8; }
-    #hud button, #hud .ability-slot { pointer-events: auto; }
-    #loading-screen {
-      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      background: #0a0a0a; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; z-index: 1000;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #e0d8c8;
+    /* ── Homepage Hero (full viewport) ── */
+    .home-hero {
+      min-height: 100vh;
+      padding: 120px 40px 80px;
     }
-    #loading-screen h1 { font-size: 48px; letter-spacing: 8px; text-transform: uppercase; color: #8b0000; margin-bottom: 20px; }
-    #loading-screen .subtitle { font-size: 14px; letter-spacing: 4px; text-transform: uppercase; color: #666; }
-    #loading-bar-container { width: 300px; height: 4px; background: #1a1a1a; margin-top: 40px; border-radius: 2px; }
-    #loading-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #8b0000, #cc0000); border-radius: 2px; transition: width 0.3s; }
+    .home-hero .hero-content h1 {
+      font-size: 48px;
+      letter-spacing: 16px;
+    }
+    .home-hero .hero-subtitle {
+      font-size: 14px;
+      letter-spacing: 6px;
+      color: #888;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    .home-hero .hero-tagline {
+      font-size: 13px;
+      color: #999;
+      max-width: 560px;
+      margin: 0 auto 32px;
+      line-height: 1.7;
+    }
+    .home-hero-buttons {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .home-btn-primary {
+      display: inline-block;
+      padding: 14px 44px;
+      font-size: 14px;
+      letter-spacing: 5px;
+      font-weight: 700;
+      background: linear-gradient(180deg, #8b0000, #5a0000);
+      border: 2px solid #c8a860;
+      color: #c8a860;
+      border-radius: 4px;
+      transition: all 0.3s;
+      animation: playBtnPulse 2s ease-in-out infinite;
+    }
+    .home-btn-primary:hover {
+      background: linear-gradient(180deg, #a00000, #700000);
+      box-shadow: 0 0 50px rgba(139,0,0,0.8), 0 0 80px rgba(200,168,96,0.3);
+      transform: scale(1.05);
+      color: #e0c878;
+    }
+    .home-btn-secondary {
+      display: inline-block;
+      padding: 14px 44px;
+      font-size: 14px;
+      letter-spacing: 5px;
+      font-weight: 700;
+      background: rgba(12,12,22,0.6);
+      border: 1px solid #2a2a3a;
+      color: #888;
+      border-radius: 4px;
+      transition: all 0.3s;
+    }
+    .home-btn-secondary:hover {
+      border-color: rgba(200,168,96,0.3);
+      color: #c8a860;
+      background: rgba(12,12,22,0.8);
+      transform: scale(1.03);
+    }
+
+    /* ── News Grid ── */
+    .news-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .news-card {
+      position: relative;
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-end;
+      transition: all 0.3s;
+      animation: cardReveal 0.5s ease-out both;
+      text-decoration: none;
+    }
+    .news-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+    }
+    .news-card--featured {
+      grid-row: 1 / 3;
+      min-height: 420px;
+    }
+    .news-card--side {
+      min-height: 200px;
+    }
+    .news-card-bg {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+    }
+    .news-card-bg img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      filter: brightness(0.45) saturate(1.1);
+      transition: all 0.4s;
+    }
+    .news-card:hover .news-card-bg img {
+      filter: brightness(0.6) saturate(1.3);
+      transform: scale(1.03);
+    }
+    .news-card-overlay {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: linear-gradient(180deg, transparent 30%, rgba(8,8,15,0.7) 100%);
+    }
+    .news-card-content {
+      position: relative; z-index: 2;
+      padding: 24px;
+    }
+    .news-card-badge {
+      display: inline-block;
+      font-size: 9px; letter-spacing: 2px;
+      font-weight: 700; padding: 3px 10px;
+      border-radius: 3px; margin-bottom: 8px;
+    }
+    .news-card-date {
+      font-size: 10px; color: #888;
+      letter-spacing: 1px; margin-bottom: 6px;
+    }
+    .news-card-title {
+      font-size: 18px; font-weight: 700;
+      color: #e0d8c8; letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+    .news-card--side .news-card-title {
+      font-size: 15px;
+    }
+    .news-card-excerpt {
+      font-size: 12px; color: #999;
+      line-height: 1.6; max-width: 400px;
+    }
+
+    /* ── Champion Cards (compact, 5 in a row) ── */
+    .champ-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .champ-card {
+      position: relative;
+      height: 360px;
+      border-radius: 10px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      animation: cardReveal 0.6s ease-out both;
+      text-decoration: none;
+      display: block;
+    }
+    .champ-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      z-index: 2;
+    }
+    .champ-card-bg {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+    }
+    .champ-card-bg img {
+      width: 100%; height: 100%;
+      object-fit: cover; object-position: top center;
+      filter: brightness(0.55) saturate(1.1);
+      transition: all 0.5s;
+    }
+    .champ-card:hover .champ-card-bg img {
+      filter: brightness(0.7) saturate(1.3);
+      transform: scale(1.05);
+    }
+    .champ-card-overlay {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: linear-gradient(180deg, transparent 30%, rgba(8,8,15,0.5) 60%, rgba(8,8,15,0.85) 100%);
+    }
+    .champ-card-content {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      padding: 20px 16px;
+      z-index: 2;
+    }
+    .champ-card-role {
+      font-size: 9px; letter-spacing: 3px;
+      color: #888; font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .champ-card-name {
+      font-size: 18px; letter-spacing: 5px;
+      font-weight: 900; margin-bottom: 6px;
+    }
+    .champ-card-resource {
+      font-size: 9px; letter-spacing: 1px;
+      color: #888;
+    }
+    .champ-card-bar {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      height: 3px; opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .champ-card:hover .champ-card-bar { opacity: 1; }
+
+    /* ── Ranked Flow Steps ── */
+    .ranked-flow {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      max-width: 900px;
+      margin: 0 auto 40px;
+    }
+    .ranked-step {
+      background: rgba(12,12,22,0.6);
+      border: 1px solid #1a1a2a;
+      border-radius: 10px;
+      padding: 28px 16px;
+      text-align: center;
+      transition: all 0.3s;
+      animation: cardReveal 0.5s ease-out both;
+      position: relative;
+    }
+    .ranked-step:hover {
+      border-color: rgba(200,168,96,0.2);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+    }
+    .ranked-step-num {
+      font-size: 28px; font-weight: 900;
+      color: rgba(200,168,96,0.15);
+      margin-bottom: 8px;
+      letter-spacing: 2px;
+    }
+    .ranked-step-title {
+      font-size: 11px; letter-spacing: 3px;
+      color: #c8a860; font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .ranked-step-arrow {
+      position: absolute;
+      right: -14px; top: 50%;
+      transform: translateY(-50%);
+      color: rgba(200,168,96,0.2);
+      font-size: 14px;
+      z-index: 3;
+    }
+
+    /* ── Rank Tier Emblems ── */
+    .rank-tiers {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .rank-tier {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: rgba(12,12,22,0.6);
+      border: 1px solid #1a1a2a;
+      border-radius: 8px;
+      transition: all 0.3s;
+      min-width: 120px;
+      animation: cardReveal 0.5s ease-out both;
+    }
+    .rank-tier:hover {
+      border-color: rgba(200,168,96,0.15);
+      transform: translateY(-3px);
+    }
+    .rank-tier img {
+      width: 48px; height: 48px;
+      object-fit: contain;
+      mix-blend-mode: screen;
+    }
+    .rank-tier-name {
+      font-size: 10px; letter-spacing: 2px;
+      font-weight: 700;
+    }
+    .rank-tier-range {
+      font-size: 9px; color: #555;
+    }
+
+    /* ── Game Modes (homepage, 3 columns) ── */
+    .home-modes-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .home-community-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .home-metagame-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .home-mode-card {
+      position: relative;
+      border-radius: 10px;
+      overflow: hidden;
+      min-height: 260px;
+      display: flex;
+      align-items: flex-end;
+      transition: all 0.3s;
+      animation: cardReveal 0.5s ease-out both;
+      text-decoration: none;
+    }
+    .home-mode-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+    }
+    .home-mode-card-bg {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+    }
+    .home-mode-card-bg img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      filter: brightness(0.5) saturate(1.1);
+      transition: all 0.4s;
+    }
+    .home-mode-card:hover .home-mode-card-bg img {
+      filter: brightness(0.65) saturate(1.3);
+      transform: scale(1.03);
+    }
+    .home-mode-card-overlay {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: linear-gradient(180deg, transparent 40%, rgba(8,8,15,0.75) 100%);
+    }
+    .home-mode-card-content {
+      position: relative; z-index: 2;
+      padding: 24px;
+    }
+    .home-mode-card-name {
+      font-size: 16px; letter-spacing: 4px;
+      font-weight: 900; color: #e0d8c8;
+      margin-bottom: 6px;
+    }
+    .home-mode-card-desc {
+      font-size: 11px; color: #888;
+      line-height: 1.6;
+    }
+
+    /* ── Video Showcase ── */
+    .video-showcase {
+      max-width: 900px;
+      margin: 0 auto;
+      position: relative;
+    }
+    .video-frame {
+      position: relative;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 0 60px rgba(139,0,0,0.3), 0 0 120px rgba(0,0,0,0.6);
+    }
+    .video-frame::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 8px;
+      padding: 3px;
+      background: linear-gradient(135deg, #c8a860, #8b0000, #c8a860, #5a0000, #c8a860);
+      background-size: 300% 300%;
+      animation: frameBorderShift 6s ease-in-out infinite;
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .video-frame::after {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 10px;
+      box-shadow: inset 0 0 30px rgba(200,168,96,0.1), inset 0 0 60px rgba(139,0,0,0.1);
+      pointer-events: none;
+      z-index: 3;
+    }
+    @keyframes frameBorderShift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+    .video-frame video {
+      display: block;
+      width: 100%;
+      border-radius: 6px;
+      background: #0a0a0a;
+    }
+    .video-frame-corners {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 4;
+    }
+    .video-frame-corners span {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      border-color: #c8a860;
+      border-style: solid;
+      border-width: 0;
+    }
+    .video-frame-corners span:nth-child(1) { top: 6px; left: 6px; border-top-width: 2px; border-left-width: 2px; }
+    .video-frame-corners span:nth-child(2) { top: 6px; right: 6px; border-top-width: 2px; border-right-width: 2px; }
+    .video-frame-corners span:nth-child(3) { bottom: 6px; left: 6px; border-bottom-width: 2px; border-left-width: 2px; }
+    .video-frame-corners span:nth-child(4) { bottom: 6px; right: 6px; border-bottom-width: 2px; border-right-width: 2px; }
+    .video-glow {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 110%; height: 110%;
+      background: radial-gradient(ellipse, rgba(139,0,0,0.15) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    /* ── CTA dual-button ── */
+    .home-cta-buttons {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 24px;
+    }
+
+    /* ── Early Access feature strip ── */
+    .ea-strip {
+      position: relative;
+      padding: 28px 24px;
+      background:
+        linear-gradient(180deg, rgba(8,8,15,0.85), rgba(8,8,15,0.95)),
+        url('/assets/art/launch_early_access_banner.webp') center/cover no-repeat;
+      border-top: 1px solid rgba(200,168,96,0.25);
+      border-bottom: 1px solid rgba(200,168,96,0.25);
+      box-shadow: 0 0 60px rgba(139,0,0,0.18) inset;
+      overflow: hidden;
+    }
+    .ea-strip::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse at center, rgba(200,168,96,0.08), transparent 70%);
+      pointer-events: none;
+    }
+    .ea-strip-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      position: relative;
+      z-index: 2;
+    }
+    .ea-strip-text { flex: 1 1 auto; min-width: 0; }
+    .ea-strip-eyebrow {
+      display: inline-block;
+      font-size: 9px; letter-spacing: 4px;
+      font-weight: 800; color: #c8a860;
+      padding: 4px 12px;
+      background: rgba(200,168,96,0.1);
+      border: 1px solid rgba(200,168,96,0.35);
+      border-radius: 3px;
+      margin-bottom: 10px;
+      animation: eaBadgePulse 2.4s ease-in-out infinite;
+    }
+    @keyframes eaBadgePulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(200,168,96,0.0); }
+      50%     { box-shadow: 0 0 16px 0 rgba(200,168,96,0.35); }
+    }
+    .ea-strip-headline {
+      font-size: 18px;
+      letter-spacing: 4px;
+      color: #e0d8c8;
+      font-weight: 900;
+      margin-bottom: 6px;
+    }
+    .ea-strip-sub {
+      font-size: 12px;
+      color: #999;
+      letter-spacing: 1px;
+    }
+    .ea-strip-platforms {
+      display: flex;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .ea-platform-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: rgba(12,12,22,0.85);
+      border: 1px solid rgba(200,168,96,0.25);
+      border-radius: 6px;
+      text-decoration: none;
+      transition: all 0.25s;
+      min-width: 120px;
+    }
+    .ea-platform-btn:hover {
+      border-color: rgba(200,168,96,0.7);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.5), 0 0 16px rgba(200,168,96,0.18);
+      background: rgba(20,20,32,0.95);
+    }
+    .ea-platform-btn svg { width: 22px; height: 22px; fill: #c8a860; flex-shrink: 0; }
+    .ea-platform-btn-text { line-height: 1.1; }
+    .ea-platform-btn-eyebrow { font-size: 8px; letter-spacing: 1.5px; color: #888; font-weight: 700; }
+    .ea-platform-btn-name { font-size: 12px; letter-spacing: 2px; color: #e0d8c8; font-weight: 800; margin-top: 2px; }
+    @media (max-width: 1100px) {
+      .ea-strip-inner { flex-direction: column; align-items: flex-start; gap: 18px; }
+      .ea-strip-platforms { width: 100%; flex-wrap: wrap; }
+    }
+    @media (max-width: 768px) {
+      .ea-strip { padding: 22px 16px; }
+      .ea-strip-headline { font-size: 14px; letter-spacing: 3px; }
+      .ea-strip-sub { font-size: 11px; }
+      .ea-platform-btn { min-width: 0; flex: 1 1 calc(50% - 5px); padding: 10px 10px; }
+      .ea-platform-btn-name { font-size: 11px; letter-spacing: 1.5px; }
+    }
+    @media (max-width: 480px) {
+      .ea-platform-btn { flex: 1 1 100%; }
+    }
+
+    /* Hero EA badge */
+    .hero-ea-badge {
+      display: inline-block;
+      font-size: 11px; letter-spacing: 4px;
+      font-weight: 800;
+      padding: 6px 16px;
+      border-radius: 3px;
+      background: linear-gradient(180deg, rgba(200,168,96,0.18), rgba(200,168,96,0.06));
+      border: 1px solid rgba(200,168,96,0.45);
+      color: #e0c878;
+      margin-bottom: 14px;
+      animation: eaBadgePulse 2.4s ease-in-out infinite;
+    }
+
+    /* ── Responsive overrides for homepage ── */
+    @media (max-width: 1024px) and (min-width: 769px) {
+      .champ-grid { grid-template-columns: repeat(3, 1fr); }
+      .champ-card { height: 320px; }
+      .home-metagame-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    @media (max-width: 768px) {
+      .video-showcase { margin: 0 8px; }
+      .video-frame-corners span { width: 16px; height: 16px; }
+      .home-hero { min-height: 90vh; padding: 80px 20px 60px; }
+      .home-hero .hero-content h1 { font-size: 28px; letter-spacing: 10px; }
+      .home-hero .hero-subtitle { font-size: 11px; letter-spacing: 4px; }
+      .home-hero .hero-tagline { font-size: 12px; margin-bottom: 24px; }
+      .home-btn-primary, .home-btn-secondary { padding: 12px 28px; font-size: 12px; letter-spacing: 3px; }
+      .news-grid { grid-template-columns: 1fr; }
+      .news-card--featured { grid-row: auto; min-height: 280px; }
+      .news-card--side { min-height: 180px; }
+      .news-card-content { padding: 16px; }
+      .news-card-title { font-size: 15px; }
+      .champ-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .champ-card { height: 240px; }
+      .champ-card-name { font-size: 14px; letter-spacing: 3px; }
+      .ranked-flow { grid-template-columns: repeat(2, 1fr); }
+      .ranked-step-arrow { display: none; }
+      .ranked-step { padding: 20px 12px; }
+      .home-modes-grid { grid-template-columns: 1fr 1fr; }
+      .home-mode-card { min-height: 180px; }
+      .home-mode-card-content { padding: 16px; }
+      .home-mode-card-name { font-size: 13px; letter-spacing: 3px; }
+      .home-community-grid { grid-template-columns: repeat(2, 1fr); }
+      .home-metagame-grid { grid-template-columns: repeat(2, 1fr); }
+      .rank-tiers { gap: 10px; }
+      .rank-tier { min-width: 90px; padding: 10px 12px; }
+      .rank-tier img { width: 36px; height: 36px; }
+      .rank-tier-name { font-size: 8px; }
+      .home-cta-buttons { flex-direction: column; align-items: center; }
+      .gp-section { padding: 40px 16px; }
+      .cta-section { padding: 40px 20px; }
+      .cta-section h2 { font-size: 18px; letter-spacing: 4px; }
+    }
+
+    @media (max-width: 480px) {
+      .home-hero { min-height: 85vh; padding: 70px 16px 50px; }
+      .home-hero .hero-content h1 { font-size: 20px; letter-spacing: 6px; }
+      .home-hero .hero-subtitle { font-size: 9px; letter-spacing: 3px; }
+      .home-hero .hero-tagline { font-size: 11px; }
+      .home-btn-primary, .home-btn-secondary { padding: 10px 20px; font-size: 11px; letter-spacing: 2px; width: 100%; text-align: center; box-sizing: border-box; }
+      .news-card--featured { min-height: 220px; }
+      .news-card--side { min-height: 150px; }
+      .news-card-title { font-size: 13px; }
+      .champ-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+      .champ-card { height: 180px; }
+      .champ-card-name { font-size: 10px; letter-spacing: 2px; }
+      .champ-card-role { font-size: 7px; }
+      .ranked-flow { gap: 10px; }
+      .ranked-step { padding: 16px 10px; }
+      .ranked-step-num { font-size: 22px; }
+      .ranked-step-title { font-size: 9px; letter-spacing: 2px; }
+      .home-modes-grid { grid-template-columns: 1fr; }
+      .home-mode-card { min-height: 160px; }
+      .home-community-grid { grid-template-columns: 1fr; }
+      .home-metagame-grid { grid-template-columns: 1fr; }
+      .rank-tiers { gap: 6px; }
+      .rank-tier { min-width: 60px; padding: 8px 8px; }
+      .rank-tier img { width: 28px; height: 28px; }
+      .rank-tier-name { font-size: 7px; letter-spacing: 1px; }
+      .rank-tier-range { font-size: 7px; }
+      .gp-section { padding: 32px 12px; }
+      .gp-section-title { font-size: 13px; letter-spacing: 4px; }
+      .gp-section-line { margin-bottom: 24px; }
+      .cta-section { padding: 32px 16px; }
+      .cta-section h2 { font-size: 16px; letter-spacing: 3px; }
+    }
   </style>
 </head>
-<body>
-  <div id="loading-screen">
-    <h1>Ebon Crucible</h1>
-    <div class="subtitle">Blood. Steel. Magic.</div>
-    <div id="loading-bar-container"><div id="loading-bar"></div></div>
+<body class="ambient-lines">
+  <div class="page-bg" style="background-image:url('/assets/art/home_bg.webp');"></div>
+  <nav class="nav">
+    <a href="/" class="nav-brand">EBON CRUCIBLE <span class="alpha-badge">EARLY ACCESS</span></a>
+    <button class="nav-toggle" aria-label="Menu"><span></span><span></span><span></span></button>
+    <div class="nav-links">
+      <a href="/" class="active">HOME</a>
+      <a href="/classes/">CLASSES</a>
+      <a href="/gameplay/">GAME</a>
+      <a href="/rankings/">RANKINGS</a>
+      <a href="/news/">NEWS</a>
+      <a href="/community/">COMMUNITY</a>
+      <a href="/play/" class="nav-signin" id="nav-auth">SIGN IN</a>
+      <a href="/play/" class="nav-play">PLAY FREE</a>
+    </div>
+  </nav>
+
+  <!-- ════════════════════════════════════════════════════════════
+       HERO — Full viewport
+       ════════════════════════════════════════════════════════════ -->
+  <div class="hero home-hero">
+    <div class="hero-bg" style="background-image: url('/assets/art/home_bg.webp');"></div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <h1>EBON CRUCIBLE</h1>
+      <div class="hero-subtitle">DARK FANTASY ARENA COMBAT</div>
+      <div class="hero-ea-badge">NOW IN EARLY ACCESS</div>
+      <div class="hero-line"></div>
+      <p class="hero-tagline">Five deadly classes. One arena. Pick your rival. Stake your claim. Now playable on Steam, iOS, Android, and the web.</p>
+      <div class="home-hero-buttons">
+        <a href="/play/" class="home-btn-primary">PLAY FREE</a>
+        <a href="/news/now-in-early-access/" class="home-btn-secondary">LAUNCH NOTES</a>
+      </div>
+    </div>
+    <div class="hero-scroll-arrow">&#9660;</div>
   </div>
-  <canvas id="game-canvas"></canvas>
-  <div id="hud"></div>
-  <script type="module" src="/src/main.js"></script>
+
+  <!-- ════════════════════════════════════════════════════════════
+       EARLY ACCESS PLATFORM STRIP
+       ════════════════════════════════════════════════════════════ -->
+  <div class="ea-strip">
+    <div class="ea-strip-inner">
+      <div class="ea-strip-text">
+        <div class="ea-strip-eyebrow">NOW IN EARLY ACCESS</div>
+        <div class="ea-strip-headline">PLAY HOW YOU WANT</div>
+        <div class="ea-strip-sub">Cross-progression on every platform. One account, every device. Free to play.</div>
+      </div>
+      <div class="ea-strip-platforms">
+        <a href="https://store.steampowered.com/app/4620190/Ebon_Crucible/" class="ea-platform-btn" target="_blank" rel="noopener" aria-label="Download on Steam">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0C5.6 0 .3 4.7 0 10.7l6.3 2.6a3.4 3.4 0 0 1 1.9-.6l2.9-4.2v-.1a4.5 4.5 0 1 1 4.5 4.5h-.1l-4.1 3a3.4 3.4 0 0 1-3.4 3.4 3.4 3.4 0 0 1-3.3-2.6L0 14.8C1.4 20 6.3 24 12 24c6.6 0 12-5.4 12-12S18.6 0 12 0zM7.5 18.2l-1.4-.6a2.6 2.6 0 0 0 1.3 1.2 2.6 2.6 0 0 0 2-4.7l1.5.6a3.4 3.4 0 0 1-2 4.4 3.4 3.4 0 0 1-1.4-.9zm12.6-7.2a3 3 0 1 1-3-3 3 3 0 0 1 3 3zm-5.3 0a2.3 2.3 0 1 0 2.3-2.3 2.3 2.3 0 0 0-2.3 2.3z"/></svg>
+          <div class="ea-platform-btn-text">
+            <div class="ea-platform-btn-eyebrow">DOWNLOAD ON</div>
+            <div class="ea-platform-btn-name">STEAM</div>
+          </div>
+        </a>
+        <a href="https://apps.apple.com/us/app/ebon-crucible/id6762164827" class="ea-platform-btn" target="_blank" rel="noopener" aria-label="Download on the App Store">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.05 12.04c-.03-3.05 2.5-4.5 2.62-4.58-1.43-2.09-3.66-2.38-4.45-2.41-1.9-.19-3.7 1.12-4.66 1.12-.97 0-2.45-1.09-4.03-1.06-2.07.03-3.98 1.2-5.05 3.06-2.16 3.74-.55 9.27 1.55 12.31 1.03 1.49 2.25 3.16 3.85 3.1 1.55-.06 2.13-1 4-1 1.86 0 2.4 1 4.03.97 1.66-.03 2.72-1.51 3.74-3.01 1.18-1.73 1.66-3.4 1.69-3.49-.04-.02-3.24-1.24-3.27-4.91zM14.4 4.49c.85-1.04 1.43-2.48 1.27-3.92-1.23.05-2.72.82-3.6 1.85-.79.92-1.48 2.39-1.3 3.81 1.37.11 2.78-.7 3.63-1.74z"/></svg>
+          <div class="ea-platform-btn-text">
+            <div class="ea-platform-btn-eyebrow">DOWNLOAD ON</div>
+            <div class="ea-platform-btn-name">APP STORE</div>
+          </div>
+        </a>
+        <a href="https://play.google.com/store/apps/details?id=com.eboncrucible.arena" class="ea-platform-btn" target="_blank" rel="noopener" aria-label="Get it on Google Play">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.6 1.3c-.4.3-.6.7-.6 1.3v18.9c0 .5.2 1 .6 1.3l10.8-10.8L3.6 1.3zm12 9.3l3.5-2c.6-.4.6-1.2 0-1.6L15 4.6 11.7 8l3.9 2.6zm-2 1.4l-10.7 10.7c.4.2.9.2 1.3 0L17 16.2l-3.4-4.2zM4.2.6c-.3 0-.6 0-.8.2L13.6 11l3.4-4.2L4.5.7C4.4.6 4.3.6 4.2.6z"/></svg>
+          <div class="ea-platform-btn-text">
+            <div class="ea-platform-btn-eyebrow">GET IT ON</div>
+            <div class="ea-platform-btn-name">GOOGLE PLAY</div>
+          </div>
+        </a>
+        <a href="/play/" class="ea-platform-btn" aria-label="Play in Browser">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm-1 17.93A8 8 0 0 1 4.07 13H7c.34 1.93.94 3.65 1.7 4.93zm0-8.93H4.07A8 8 0 0 1 11 4.07V11zm0 8.93C9.74 18.65 9.14 16.93 8.8 15H11v4.93zM11 13H7c-.05-.66-.05-1.34 0-2h4v2zm9.93 0h-2.93c.05-.66.05-1.34 0-2h2.93a8 8 0 0 1 0 2zM13 4.07A8 8 0 0 1 19.93 11H17c-.34-1.93-.94-3.65-1.7-4.93A8 8 0 0 1 13 4.07zm0 15.86V15h2.2c-.34 1.93-.94 3.65-1.7 4.93z"/></svg>
+          <div class="ea-platform-btn-text">
+            <div class="ea-platform-btn-eyebrow">PLAY FREE IN</div>
+            <div class="ea-platform-btn-name">BROWSER</div>
+          </div>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       TRAILER VIDEO
+       ════════════════════════════════════════════════════════════ -->
+  <div class="gp-section ambient-wash section-glow-top">
+    <div class="gp-section-title">SEE IT IN ACTION</div>
+    <div class="gp-section-line"></div>
+    <div class="video-showcase">
+      <div class="video-glow"></div>
+      <div class="video-frame">
+        <video controls playsinline preload="metadata" poster="/assets/art/launch_early_access_banner.webp">
+          <source src="/assets/art/launch_trailer.mp4" type="video/mp4">
+          <source src="/assets/art/trailer.mp4" type="video/mp4">
+        </video>
+        <div class="video-frame-corners">
+          <span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="glow-divider"></div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       NEWS — Featured + 2 side articles
+       ════════════════════════════════════════════════════════════ -->
+  <div class="gp-section ambient-wash section-glow-top">
+    <div class="gp-section-title">LATEST NEWS</div>
+    <div class="gp-section-line"></div>
+    <div class="news-grid" id="home-news-grid"></div>
+    <script>
+    (function(){
+      var grid=document.getElementById('home-news-grid');
+      fetch('/news/feed.json?_t='+Date.now()).then(function(r){return r.json()}).then(function(items){
+        var top3=items.slice(0,3);
+        top3.forEach(function(item,i){
+          var slug=item.id.replace(/\./g,'-');
+          var cls=i===0?'news-card news-card--featured':'news-card news-card--side';
+          var delay=(0.1+i*0.05).toFixed(2);
+          var c=item.badgeColor||'#c8a860';
+          // Parse hex to rgba
+          var r2=parseInt(c.slice(1,3),16),g2=parseInt(c.slice(3,5),16),b2=parseInt(c.slice(5,7),16);
+          var bg='rgba('+r2+','+g2+','+b2+',0.12)';
+          var bd='rgba('+r2+','+g2+','+b2+',0.25)';
+          var html='<a href="/news/'+slug+'/" class="'+cls+'" style="animation-delay:'+delay+'s;">'
+            +'<div class="news-card-bg"><img src="'+(item.bgImage||'')+'" alt="'+item.title+'" loading="lazy"></div>'
+            +'<div class="news-card-overlay"></div>'
+            +'<div class="news-card-content">'
+            +'<div class="news-card-badge" style="color:'+c+';background:'+bg+';border:1px solid '+bd+';">'+item.badge+'</div>'
+            +'<div class="news-card-date">'+item.date.toUpperCase()+'</div>'
+            +'<div class="news-card-title">'+item.title+'</div>'
+            +(i===0?'<div class="news-card-excerpt">'+item.excerpt+'</div>':'')
+            +'</div></a>';
+          grid.insertAdjacentHTML('beforeend',html);
+        });
+      }).catch(function(){});
+    })();
+    </script>
+  </div>
+
+  <div class="glow-divider"></div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       CHAMPIONS — 5 class cards
+       ════════════════════════════════════════════════════════════ -->
+  <div class="gp-section ambient-wash section-glow-top">
+    <div class="gp-section-title">CHOOSE YOUR CHAMPION</div>
+    <div class="gp-section-line"></div>
+    <div class="champ-grid">
+      <a href="/classes/tyrant/" class="champ-card" style="animation-delay:0.1s;">
+        <div class="champ-card-bg"><img src="/assets/art/tyrant_splash.webp" alt="Tyrant" loading="lazy"></div>
+        <div class="champ-card-overlay"></div>
+        <div class="champ-card-content">
+          <div class="champ-card-role">WARRIOR</div>
+          <div class="champ-card-name" style="color:#8B0000;">TYRANT</div>
+          <div class="champ-card-resource">RAGE</div>
+        </div>
+        <div class="champ-card-bar" style="background:#8B0000;"></div>
+      </a>
+      <a href="/classes/wraith/" class="champ-card" style="animation-delay:0.15s;">
+        <div class="champ-card-bg"><img src="/assets/art/wraith_splash.webp" alt="Wraith" loading="lazy"></div>
+        <div class="champ-card-overlay"></div>
+        <div class="champ-card-content">
+          <div class="champ-card-role">ASSASSIN</div>
+          <div class="champ-card-name" style="color:#6B2FA0;">WRAITH</div>
+          <div class="champ-card-resource">ENERGY</div>
+        </div>
+        <div class="champ-card-bar" style="background:#6B2FA0;"></div>
+      </a>
+      <a href="/classes/infernal/" class="champ-card" style="animation-delay:0.2s;">
+        <div class="champ-card-bg"><img src="/assets/art/infernal_splash.webp" alt="Infernal" loading="lazy"></div>
+        <div class="champ-card-overlay"></div>
+        <div class="champ-card-content">
+          <div class="champ-card-role">MAGE</div>
+          <div class="champ-card-name" style="color:#FF4500;">INFERNAL</div>
+          <div class="champ-card-resource">MANA</div>
+        </div>
+        <div class="champ-card-bar" style="background:#FF4500;"></div>
+      </a>
+      <a href="/classes/harbinger/" class="champ-card" style="animation-delay:0.25s;">
+        <div class="champ-card-bg"><img src="/assets/art/harbinger_splash.webp" alt="Harbinger" loading="lazy"></div>
+        <div class="champ-card-overlay"></div>
+        <div class="champ-card-content">
+          <div class="champ-card-role">WARLOCK</div>
+          <div class="champ-card-name" style="color:#228B22;">HARBINGER</div>
+          <div class="champ-card-resource">SOUL SHARDS</div>
+        </div>
+        <div class="champ-card-bar" style="background:#228B22;"></div>
+      </a>
+      <a href="/classes/revenant/" class="champ-card" style="animation-delay:0.3s;">
+        <div class="champ-card-bg"><img src="/assets/art/revenant_splash.webp" alt="Revenant" loading="lazy"></div>
+        <div class="champ-card-overlay"></div>
+        <div class="champ-card-content">
+          <div class="champ-card-role">PALADIN</div>
+          <div class="champ-card-name" style="color:#C8B560;">REVENANT</div>
+          <div class="champ-card-resource">HOLY POWER</div>
+        </div>
+        <div class="champ-card-bar" style="background:#C8B560;"></div>
+      </a>
+    </div>
+  </div>
+
+  <div class="glow-divider"></div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       RANKED ARENA — Flow steps + rank tiers
+       ════════════════════════════════════════════════════════════ -->
+  <div class="gp-section ambient-wash section-glow-top">
+    <div class="gp-section-title">THE RANKED ARENA</div>
+    <div class="gp-section-line"></div>
+    <div class="gp-section-text">Prove yourself against real opponents</div>
+
+    <div class="ranked-flow">
+      <div class="ranked-step" style="animation-delay:0.1s;">
+        <div class="ranked-step-num">1</div>
+        <div class="ranked-step-title">CHOOSE YOUR CLASS</div>
+        <div class="ranked-step-arrow">&rarr;</div>
+      </div>
+      <div class="ranked-step" style="animation-delay:0.15s;">
+        <div class="ranked-step-num">2</div>
+        <div class="ranked-step-title">QUEUE UP</div>
+        <div class="ranked-step-arrow">&rarr;</div>
+      </div>
+      <div class="ranked-step" style="animation-delay:0.2s;">
+        <div class="ranked-step-num">3</div>
+        <div class="ranked-step-title">WIN TO CLIMB</div>
+        <div class="ranked-step-arrow">&rarr;</div>
+      </div>
+      <div class="ranked-step" style="animation-delay:0.25s;">
+        <div class="ranked-step-num">4</div>
+        <div class="ranked-step-title">SEIZE THE CROWN</div>
+      </div>
+    </div>
+
+    <div class="rank-tiers">
+      <div class="rank-tier" style="animation-delay:0.1s;">
+        <img src="/assets/art/rank_cinder.webp" alt="The Broken" loading="lazy">
+        <div class="rank-tier-name" style="color:#7a7a7a;">THE BROKEN</div>
+        <div class="rank-tier-range">&lt;1300</div>
+      </div>
+      <div class="rank-tier" style="animation-delay:0.15s;">
+        <img src="/assets/art/rank_crimson.webp" alt="The Proven" loading="lazy">
+        <div class="rank-tier-name" style="color:#c0c0c0;">THE PROVEN</div>
+        <div class="rank-tier-range">1300+</div>
+      </div>
+      <div class="rank-tier" style="animation-delay:0.2s;">
+        <img src="/assets/art/rank_dreadforge.webp" alt="The Exalted" loading="lazy">
+        <div class="rank-tier-name" style="color:#ffd700;">THE EXALTED</div>
+        <div class="rank-tier-range">1500+</div>
+      </div>
+      <div class="rank-tier" style="animation-delay:0.25s;">
+        <img src="/assets/art/rank_soulfire.webp" alt="The Dread" loading="lazy">
+        <div class="rank-tier-name" style="color:#a0e6d4;">THE DREAD</div>
+        <div class="rank-tier-range">1800+</div>
+      </div>
+      <div class="rank-tier" style="animation-delay:0.3s;">
+        <img src="/assets/art/rank_abyssal.webp" alt="The Ascended" loading="lazy">
+        <div class="rank-tier-name" style="color:#b9f2ff;">THE ASCENDED</div>
+        <div class="rank-tier-range">2000+</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="glow-divider"></div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       GAME MODES — Three ways to play
+       ════════════════════════════════════════════════════════════ -->
+  <div class="gp-section ambient-wash section-glow-top">
+    <div class="gp-section-title">FOUR WAYS TO PLAY</div>
+    <div class="gp-section-line"></div>
+    <div class="home-modes-grid">
+      <div class="home-mode-card" style="animation-delay:0.1s;">
+        <div class="home-mode-card-bg"><img src="/assets/art/mode_ranked.webp" alt="Ranked Arena" loading="lazy"></div>
+        <div class="home-mode-card-overlay"></div>
+        <div class="home-mode-card-content">
+          <div class="home-mode-card-name">RANKED ARENA</div>
+          <div class="home-mode-card-desc">1v1 and 2v2 ranked. Queue solo or party up. 3v3 coming soon.</div>
+        </div>
+      </div>
+      <div class="home-mode-card" style="animation-delay:0.15s;">
+        <div class="home-mode-card-bg"><img src="/assets/art/news_wager_duels.webp" alt="Wager Duels" loading="lazy"></div>
+        <div class="home-mode-card-overlay"></div>
+        <div class="home-mode-card-content">
+          <div class="home-mode-card-name" style="color:#e05555;">WAGER DUELS</div>
+          <div class="home-mode-card-desc">Challenge anyone. Stake your coins. Winner takes all.</div>
+        </div>
+      </div>
+      <div class="home-mode-card" style="animation-delay:0.2s;">
+        <div class="home-mode-card-bg"><img src="/assets/art/mode_custom.webp" alt="Custom Game" loading="lazy"></div>
+        <div class="home-mode-card-overlay"></div>
+        <div class="home-mode-card-content">
+          <div class="home-mode-card-name">CUSTOM GAME</div>
+          <div class="home-mode-card-desc">Create a room. Share the code. Challenge anyone.</div>
+        </div>
+      </div>
+      <div class="home-mode-card" style="animation-delay:0.25s;">
+        <div class="home-mode-card-bg"><img src="/assets/art/mode_ai.webp" alt="VS AI" loading="lazy"></div>
+        <div class="home-mode-card-overlay"></div>
+        <div class="home-mode-card-content">
+          <div class="home-mode-card-name">VS AI</div>
+          <div class="home-mode-card-desc">Learn your class. Try new combos. Three difficulty levels.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="glow-divider"></div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       SOCIAL — Party, Spectating, Chat, Battle Pass
+       ════════════════════════════════════════════════════════════ -->
+  <div class="gp-section ambient-wash section-glow-top">
+    <div class="gp-section-title">THE COMMUNITY</div>
+    <div class="gp-section-line"></div>
+    <div class="home-community-grid">
+      <div class="ranked-step" style="animation-delay:0.1s;">
+        <div class="ranked-step-num" style="font-size:22px;color:#4a90d9;">&#x1F91D;</div>
+        <div class="ranked-step-title">PARTY UP</div>
+        <div style="font-size:11px;color:#999;margin-top:4px;">Invite friends and queue together for ranked 2v2. Coordinate your comp.</div>
+      </div>
+      <div class="ranked-step" style="animation-delay:0.15s;">
+        <div class="ranked-step-num" style="font-size:22px;color:#a0e6d4;">&#x1F441;</div>
+        <div class="ranked-step-title">SPECTATE LIVE</div>
+        <div style="font-size:11px;color:#999;margin-top:4px;">Watch champion matches live. See the LIVE badge on the leaderboard and click to spectate.</div>
+      </div>
+      <div class="ranked-step" style="animation-delay:0.2s;">
+        <div class="ranked-step-num" style="font-size:22px;color:#e0c855;">&#x1F4AC;</div>
+        <div class="ranked-step-title">CHAT</div>
+        <div style="font-size:11px;color:#999;margin-top:4px;">Global chat, duel chat, and direct messages. Build rivalries and talk trash.</div>
+      </div>
+      <div class="ranked-step" style="animation-delay:0.25s;">
+        <div class="ranked-step-num" style="font-size:22px;color:#c8a860;">&#x1F3C6;</div>
+        <div class="ranked-step-title">BATTLE PASS</div>
+        <div style="font-size:11px;color:#999;margin-top:4px;">50 tiers of exclusive cosmetics. Earn season XP from every ranked match.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="glow-divider"></div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       CHAMPION BETTING — Metagame economy
+       ════════════════════════════════════════════════════════════ -->
+  <div class="gp-section ambient-wash section-glow-top">
+    <div class="gp-section-title">THE METAGAME</div>
+    <div class="gp-section-line"></div>
+    <div style="max-width:800px;margin:0 auto 32px;text-align:center;">
+      <p style="font-size:13px;color:#888;line-height:1.8;">
+        Every ranked match earns coins. Spend them on cosmetics, wager them on champions &mdash; or stake them in personal duels.
+      </p>
+    </div>
+
+    <div class="home-metagame-grid">
+      <div class="ranked-step" style="animation-delay:0.1s;">
+        <div class="ranked-step-num" style="font-size:22px;"><img src="/assets/art/icons/icon_earn_coins.png" width="40" height="40" style="border-radius:6px;" alt="Earn Coins" loading="lazy"></div>
+        <div class="ranked-step-title">EARN COINS</div>
+        <div style="font-size:11px;color:#999;margin-top:4px;">Win ranked matches to earn coins. Win streaks and higher tiers multiply rewards.</div>
+      </div>
+      <div class="ranked-step" style="animation-delay:0.15s;">
+        <div class="ranked-step-num" style="font-size:22px;color:#e05555;">&#x2694;</div>
+        <div class="ranked-step-title">WAGER DUELS</div>
+        <div style="font-size:11px;color:#999;margin-top:4px;">Challenge higher-rated players for coins. Winner takes all with amplified ELO stakes.</div>
+      </div>
+      <div class="ranked-step" style="animation-delay:0.2s;">
+        <div class="ranked-step-num" style="font-size:22px;"><img src="/assets/art/icons/icon_champion_bets.png" width="40" height="40" style="border-radius:6px;" alt="Champion Bets" loading="lazy"></div>
+        <div class="ranked-step-title">CHAMPION BETS</div>
+        <div style="font-size:11px;color:#999;margin-top:4px;">Wager coins on whether class champions hold or fall. Losers fund winners; surplus feeds the Jackpot.</div>
+      </div>
+      <div class="ranked-step" style="animation-delay:0.25s;">
+        <div class="ranked-step-num" style="font-size:22px;"><img src="/assets/art/icons/icon_champions_cut.png" width="40" height="40" style="border-radius:6px;" alt="Champions Cut" loading="lazy"></div>
+        <div class="ranked-step-title">CHAMPION'S CUT</div>
+        <div style="font-size:11px;color:#999;margin-top:4px;">Champions earn 15% of the surplus. Hold your throne, profit from every doubter.</div>
+      </div>
+      <div class="ranked-step" style="animation-delay:0.3s;">
+        <div class="ranked-step-num" style="font-size:22px;color:#50b464;"><img src="/assets/art/icons/icon_weekly_quests.png" width="40" height="40" style="border-radius:6px;" alt="Weekly Quests" loading="lazy"></div>
+        <div class="ranked-step-title">WEEKLY QUESTS</div>
+        <div style="font-size:11px;color:#999;margin-top:4px;">AI-generated weekly challenges funded by the Jackpot. New objectives every Sunday.</div>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:24px;">
+      <a href="/news/wager-duels/" style="font-size:10px;letter-spacing:3px;font-weight:700;">LEARN MORE &rarr;</a>
+    </div>
+  </div>
+
+  <div class="glow-divider"></div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       CTA — Enter the Crucible
+       ════════════════════════════════════════════════════════════ -->
+  <div class="cta-section ember-corners section-glow-top">
+    <h2>ENTER THE CRUCIBLE</h2>
+    <div class="home-cta-buttons">
+      <a href="/play/" class="home-btn-primary">PLAY FREE</a>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       FOOTER
+       ════════════════════════════════════════════════════════════ -->
+  <div class="footer">&copy; 2026 Ebon Crucible. All rights reserved. <a href="/privacy/" style="color:#666;margin-left:12px;">Privacy Policy</a> <a href="/terms/" style="color:#666;margin-left:12px;">Terms of Service</a><div class="footer-alpha">Now in Early Access on Steam, App Store, Google Play, and the web — features and balance evolve every week.</div></div>
+
+  <script>
+    (function() {
+      var c = document.querySelector('.hero');
+      for (var i = 0; i < 15; i++) {
+        var p = document.createElement('div');
+        var s = 2 + Math.random() * 4;
+        p.style.cssText = 'position:absolute;bottom:-10px;left:' + (Math.random()*100) + '%;width:' + s + 'px;height:' + s + 'px;border-radius:50%;background:rgba(200,168,96,0.6);opacity:0;pointer-events:none;animation:particleFloat ' + (6+Math.random()*6) + 's ' + (Math.random()*8) + 's ease-out infinite;';
+        c.appendChild(p);
+      }
+    })();
+  </script>
+<script>
+(function(){try{
+  var n=localStorage.getItem('ec_username');
+  if(n){
+    var el=document.getElementById('nav-auth');
+    if(el){
+      el.textContent=n+' \u25BE';
+      el.href='javascript:void(0)';
+      el.style.position='relative';
+      el.style.cursor='pointer';
+      var dd=document.createElement('div');
+      dd.style.cssText='display:none;position:absolute;top:100%;right:0;margin-top:8px;min-width:120px;background:rgba(12,12,22,0.98);border:1px solid #2a2a3a;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.5);overflow:hidden;z-index:9999;';
+      var profile=document.createElement('a');profile.href='/play/';profile.textContent='\u26E8 PROFILE';
+      profile.style.cssText='display:block;padding:10px 16px;font-size:9px;letter-spacing:2px;font-weight:700;color:#888;text-decoration:none;transition:background 0.2s;';
+      profile.onmouseenter=function(){this.style.background='rgba(255,255,255,0.04)'};profile.onmouseleave=function(){this.style.background='none'};
+      dd.appendChild(profile);
+      var logout=document.createElement('a');logout.href='javascript:void(0)';logout.textContent='\u23FB LOG OUT';
+      logout.style.cssText='display:block;padding:10px 16px;font-size:9px;letter-spacing:2px;font-weight:700;color:#cc6666;text-decoration:none;transition:background 0.2s;';
+      logout.onmouseenter=function(){this.style.background='rgba(255,255,255,0.04)'};logout.onmouseleave=function(){this.style.background='none'};
+      logout.onclick=function(e){e.stopPropagation();localStorage.removeItem('ec_username');localStorage.removeItem('CognitoIdentityServiceProvider.sn01blkd57e7oi7e7vq80mipv.LastAuthUser');var keys=Object.keys(localStorage);for(var i=0;i<keys.length;i++){if(keys[i].indexOf('CognitoIdentityServiceProvider')===0)localStorage.removeItem(keys[i]);}window.location.reload();};
+      dd.appendChild(logout);
+      el.appendChild(dd);
+      var open=false;
+      el.onclick=function(e){e.preventDefault();e.stopPropagation();open=!open;dd.style.display=open?'block':'none';};
+      document.addEventListener('click',function(){dd.style.display='none';open=false;});var pb=document.querySelector('.nav-play');if(pb)pb.textContent='PLAY NOW';
+    }
+  }
+}catch(e){}}());
+(function(){var tog=document.querySelector('.nav-toggle');var links=document.querySelector('.nav-links');if(tog)tog.onclick=function(){links.classList.toggle('open');};document.addEventListener('click',function(e){if(!e.target.closest('.nav'))links.classList.remove('open');});})();
+</script>
+<script src="/src/analytics/consent.js"></script>
 </body>
 </html>

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <title>Contact — Ebon Crucible</title>
+  <meta name="description" content="Contact Ebon Crucible. Get support, report bugs, or submit privacy and data requests.">
+  <meta property="og:title" content="Contact — Ebon Crucible">
+  <meta property="og:type" content="website">
+  <link rel="canonical" href="https://eboncrucible.com/contact/">
+  <meta name="theme-color" content="#08080f">
+  <link rel="stylesheet" href="/src/styles/ebon-pages.css">
+  <style>
+    .contact-wrap { max-width: 600px; margin: 0 auto; padding: 40px 24px; }
+    .contact-wrap h2 { color: #c8a860; font-size: 14px; letter-spacing: 2px; margin: 0 0 24px; text-transform: uppercase; }
+    .contact-wrap label { display: block; color: #888; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; font-weight: 700; }
+    .contact-wrap input, .contact-wrap textarea, .contact-wrap select {
+      width: 100%; padding: 12px 14px; margin-bottom: 16px; background: rgba(255,255,255,0.04);
+      border: 1px solid #2a2a3a; border-radius: 6px; color: #e0d8c8; font-size: 13px; font-family: inherit;
+      transition: border-color 0.2s;
+    }
+    .contact-wrap input:focus, .contact-wrap textarea:focus, .contact-wrap select:focus {
+      outline: none; border-color: #c8a860;
+    }
+    .contact-wrap select { appearance: none; cursor: pointer; }
+    .contact-wrap select option { background: #0a0a14; color: #e0d8c8; }
+    .contact-wrap textarea { min-height: 140px; resize: vertical; }
+    .contact-btn {
+      display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #c8a860, #8b6914);
+      color: #0a0a0a; font-size: 11px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase;
+      border: none; border-radius: 4px; cursor: pointer; transition: opacity 0.2s;
+    }
+    .contact-btn:hover { opacity: 0.85; }
+    .contact-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .contact-status { margin-top: 16px; font-size: 12px; letter-spacing: 1px; }
+    .contact-status.success { color: #6fcc6f; }
+    .contact-status.error { color: #cc6666; }
+    .gdpr-note { color: #666; font-size: 11px; line-height: 1.6; margin-top: 20px; }
+    .gdpr-note a { color: #c8a860; }
+  </style>
+</head>
+<body class="ambient-lines">
+  <nav class="nav">
+    <a href="/" class="nav-brand">EBON CRUCIBLE <span class="alpha-badge">ALPHA</span></a>
+    <button class="nav-toggle" aria-label="Menu"><span></span><span></span><span></span></button>
+    <div class="nav-links">
+      <a href="/">HOME</a>
+      <a href="/classes/">CLASSES</a>
+      <a href="/gameplay/">GAME</a>
+      <a href="/rankings/">RANKINGS</a>
+      <a href="/news/">NEWS</a>
+      <a href="/community/">COMMUNITY</a>
+      <a href="/play/" class="nav-signin" id="nav-auth">SIGN IN</a>
+      <a href="/play/" class="nav-play">PLAY FREE</a>
+    </div>
+  </nav>
+
+  <div class="hero" style="min-height:200px;">
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <h1>CONTACT</h1>
+      <div class="hero-line"></div>
+      <p>Support, feedback, and data requests.</p>
+    </div>
+  </div>
+
+  <div class="glow-divider"></div>
+
+  <div class="content section-panel">
+    <div class="contact-wrap">
+      <h2>Send Us a Message</h2>
+      <form id="contact-form">
+        <label for="contact-type">Request Type</label>
+        <select id="contact-type" name="type" required>
+          <option value="general">General Inquiry</option>
+          <option value="support">Game Support / Bug Report</option>
+          <option value="privacy">Privacy / Data Request (GDPR/CCPA)</option>
+          <option value="account">Account Deletion Request</option>
+          <option value="feedback">Feedback</option>
+        </select>
+
+        <label for="contact-name">Name</label>
+        <input type="text" id="contact-name" name="name" placeholder="Optional">
+
+        <label for="contact-email">Email *</label>
+        <input type="email" id="contact-email" name="email" required placeholder="your@email.com">
+
+        <label for="contact-subject">Subject *</label>
+        <input type="text" id="contact-subject" name="subject" required placeholder="What is this about?" maxlength="200">
+
+        <label for="contact-message">Message *</label>
+        <textarea id="contact-message" name="message" required placeholder="Describe your request..." maxlength="5000"></textarea>
+
+        <button type="submit" class="contact-btn" id="contact-submit">Submit</button>
+        <div class="contact-status" id="contact-status"></div>
+      </form>
+
+      <div class="gdpr-note">
+        By submitting this form, you agree to our <a href="/privacy/">Privacy Policy</a>. For data access, correction, deletion, or portability requests under GDPR or CCPA, select "Privacy / Data Request" above. We will respond within 30 days.
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">&copy; 2026 Ebon Crucible. All rights reserved. <a href="/privacy/" style="color:#666;margin-left:12px;">Privacy Policy</a> <a href="/terms/" style="color:#666;margin-left:12px;">Terms of Service</a><div class="footer-alpha">Currently in Alpha — features and balance are actively evolving.</div></div>
+
+<script>
+document.getElementById('contact-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  var btn = document.getElementById('contact-submit');
+  var status = document.getElementById('contact-status');
+  btn.disabled = true;
+  btn.textContent = 'SENDING...';
+  status.textContent = '';
+  status.className = 'contact-status';
+  try {
+    var res = await fetch('https://eboncrucible.com/api/contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: document.getElementById('contact-type').value,
+        name: document.getElementById('contact-name').value,
+        email: document.getElementById('contact-email').value,
+        subject: document.getElementById('contact-subject').value,
+        message: document.getElementById('contact-message').value,
+      }),
+    });
+    var data = await res.json();
+    if (data.ok) {
+      status.textContent = 'Message sent successfully. We will respond within 30 days.';
+      status.className = 'contact-status success';
+      document.getElementById('contact-form').reset();
+    } else {
+      throw new Error(data.error || 'Failed to send');
+    }
+  } catch (err) {
+    status.textContent = 'Failed to send message. Please try again later.';
+    status.className = 'contact-status error';
+  }
+  btn.disabled = false;
+  btn.textContent = 'SUBMIT';
+});
+</script>
+<script>
+(function(){try{
+  var n=localStorage.getItem('ec_username');
+  if(n){
+    var el=document.getElementById('nav-auth');
+    if(el){
+      el.textContent=n+' \u25BE';el.href='javascript:void(0)';el.style.position='relative';el.style.cursor='pointer';
+      var dd=document.createElement('div');dd.style.cssText='display:none;position:absolute;top:100%;right:0;margin-top:8px;min-width:120px;background:rgba(12,12,22,0.98);border:1px solid #2a2a3a;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.5);overflow:hidden;z-index:9999;';
+      var profile=document.createElement('a');profile.href='/play/';profile.textContent='\u26E8 PROFILE';profile.style.cssText='display:block;padding:10px 16px;font-size:9px;letter-spacing:2px;font-weight:700;color:#888;text-decoration:none;transition:background 0.2s;';
+      profile.onmouseenter=function(){this.style.background='rgba(255,255,255,0.04)'};profile.onmouseleave=function(){this.style.background='none'};dd.appendChild(profile);
+      var logout=document.createElement('a');logout.href='javascript:void(0)';logout.textContent='\u23FB LOG OUT';logout.style.cssText='display:block;padding:10px 16px;font-size:9px;letter-spacing:2px;font-weight:700;color:#cc6666;text-decoration:none;transition:background 0.2s;';
+      logout.onmouseenter=function(){this.style.background='rgba(255,255,255,0.04)'};logout.onmouseleave=function(){this.style.background='none'};
+      logout.onclick=function(e){e.stopPropagation();localStorage.removeItem('ec_username');localStorage.removeItem('CognitoIdentityServiceProvider.sn01blkd57e7oi7e7vq80mipv.LastAuthUser');var keys=Object.keys(localStorage);for(var i=0;i<keys.length;i++){if(keys[i].indexOf('CognitoIdentityServiceProvider')===0)localStorage.removeItem(keys[i]);}window.location.reload();};
+      dd.appendChild(logout);el.appendChild(dd);var open=false;
+      el.onclick=function(e){e.preventDefault();e.stopPropagation();open=!open;dd.style.display=open?'block':'none';};
+      document.addEventListener('click',function(){dd.style.display='none';open=false;});var pb=document.querySelector('.nav-play');if(pb)pb.textContent='PLAY NOW';
+    }
+  }
+}catch(e){}}());
+(function(){var tog=document.querySelector('.nav-toggle');var links=document.querySelector('.nav-links');if(tog)tog.onclick=function(){links.classList.toggle('open');};document.addEventListener('click',function(e){if(!e.target.closest('.nav'))links.classList.remove('open');});})();
+</script>
+<script src="/src/analytics/consent.js"></script>
+</body>
+</html>

@@ -3,7 +3,7 @@
  * Stores keybindings, gamepad config, and other user preferences.
  */
 
-const STORAGE_KEY = 'ebon_crucible_settings';
+let STORAGE_KEY = 'ebon_crucible_settings';
 
 const DEFAULT_GAMEPAD_MAPPING = {
   0: 'ability_1',   // A
@@ -46,12 +46,60 @@ const DEFAULTS = {
     keyboardMode: 'classic',   // 'classic' (WoW-style) or 'action' (auto-follow)
     controllerMode: 'action',  // 'classic' or 'action'
   },
+  nameplates: {
+    showCCIndicators: true,    // Stun/Root/Silence/Fear icons
+    showDebuffs: true,         // Important debuffs (DoTs, mortal strike, vulnerability)
+    showBuffs: true,           // Important buffs (defensives, offensive CDs)
+    showCooldowns: true,       // Enemy interrupt/defensive/trinket CD tracking
+  },
+  graphics: {
+    showFps: false,            // FPS counter overlay
+    quality: 'medium',         // 'low' | 'medium' | 'high'
+    hudScale: 100,             // HUD scale percentage (50-150)
+  },
 };
 
 export class SettingsManager {
   constructor() {
+    // Restore per-user storage key immediately so we load the correct settings
+    // before auth completes (prevents flash of default settings on page reload)
+    try {
+      const lastSub = localStorage.getItem('ebon_crucible_settings_sub');
+      if (lastSub) {
+        STORAGE_KEY = `ebon_crucible_settings_${lastSub}`;
+      }
+    } catch (_) {}
     this._settings = this._load();
     this._listeners = [];
+  }
+
+  /**
+   * Switch settings to a per-user key. Call after login with the user's Cognito sub.
+   * Loads that user's saved settings (or migrates anonymous settings on first login).
+   */
+  setUserKey(sub) {
+    if (!sub) return;
+    // Persist the sub so next page load uses the per-user key immediately
+    try { localStorage.setItem('ebon_crucible_settings_sub', sub); } catch (_) {}
+    const userKey = `ebon_crucible_settings_${sub}`;
+    if (userKey === STORAGE_KEY) return; // already set
+    const oldKey = STORAGE_KEY;
+    STORAGE_KEY = userKey;
+    try {
+      const existing = localStorage.getItem(userKey);
+      if (existing) {
+        // User has saved settings — load them
+        this._settings = this._deepMerge(structuredClone(DEFAULTS), JSON.parse(existing));
+      } else {
+        // First login — migrate current anonymous settings to user key
+        this._save();
+      }
+    } catch (e) {
+      console.warn('SettingsManager: failed to switch user key', e);
+    }
+    // Close stale settings panel so it re-reads correct values when reopened
+    try { document.getElementById('settings-panel')?.remove(); } catch (_) {}
+    this._notify('all', this._settings);
   }
 
   _load() {

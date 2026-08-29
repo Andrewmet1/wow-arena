@@ -17,10 +17,12 @@ const hallowedStrike = defineAbility({
   castTime: 0,
   range: 5,
   slot: 1,
-  description: 'Strikes the target for 5500 physical damage. Generates 1 Holy Power.',
+  description: 'Strikes the target for 5500 physical damage. Generates 1 Holy Power (2 during Ember Wrath).',
   execute(engine, source, target, currentTick) {
     engine.dealDamage(source, target, 5500, SCHOOL.PHYSICAL, 'hallowed_strike', currentTick);
-    source.resources.gain(RESOURCE_TYPE.HOLY_POWER, 1);
+    // Ember Wrath synergy: generate 2 HP during burst window (rewards using Ember Wake before building)
+    const hpGain = source.auras.has('ember_wake_buff') ? 2 : 1;
+    source.resources.gain(RESOURCE_TYPE.HOLY_POWER, hpGain);
   }
 });
 
@@ -33,12 +35,12 @@ const divineReckoning = defineAbility({
   castTime: 0,
   range: 30,
   slot: 2,
-  description: 'Judges the target for 8000 holy damage. Generates 1 Holy Power. Target takes 15% more holy damage for 8s.',
+  description: 'Judges the target for 10000 holy damage. Generates 1 Holy Power. Target takes 15% more holy damage and 25% less healing for 8s.',
   execute(engine, source, target, currentTick) {
-    engine.dealDamage(source, target, 8000, SCHOOL.HOLY, 'divine_reckoning', currentTick);
+    engine.dealDamage(source, target, 10000, SCHOOL.HOLY, 'divine_reckoning', currentTick);
     source.resources.gain(RESOURCE_TYPE.HOLY_POWER, 1);
 
-    // Apply Divine Reckoning debuff (15% increased holy damage taken)
+    // Apply Divine Reckoning debuff (15% increased holy damage taken + 25% healing reduction)
     const aura = new Aura({
       id: 'divine_reckoning_debuff',
       name: 'Divine Reckoning',
@@ -48,6 +50,7 @@ const divineReckoning = defineAbility({
       school: SCHOOL.HOLY,
       duration: 80, // 8s
       appliedTick: currentTick,
+      healingReduction: 0.25,
       isMagic: true,
       isDispellable: true
     });
@@ -64,7 +67,7 @@ const radiantVerdict = defineAbility({
   castTime: 0,
   range: 5,
   slot: 3,
-  description: 'Consumes all Holy Power to deliver a devastating holy strike. Deals 5000 + 2500 per Holy Power spent.',
+  description: 'Consumes all Holy Power to deliver a devastating holy strike. Deals 5000 + 3500 per Holy Power spent. 25% bonus if target is judged.',
   execute(engine, source, target, currentTick) {
     const holyPower = source.resources.getCurrent(RESOURCE_TYPE.HOLY_POWER);
     if (holyPower < 3) {
@@ -72,7 +75,11 @@ const radiantVerdict = defineAbility({
       return;
     }
 
-    const damage = 5000 + (2500 * holyPower);
+    let damage = 5000 + (3500 * holyPower);
+    // Judgment combo: +25% damage if Divine Reckoning debuff is active (rewards Judge → build → finisher rotation)
+    if (target.auras.hasAura('divine_reckoning_debuff')) {
+      damage = Math.round(damage * 1.25);
+    }
     source.resources.set(RESOURCE_TYPE.HOLY_POWER, 0);
     engine.dealDamage(source, target, damage, SCHOOL.HOLY, 'radiant_verdict', currentTick);
   }
@@ -87,7 +94,7 @@ const sanctifiedGale = defineAbility({
   castTime: 0,
   range: 8,
   slot: 4,
-  description: 'Consumes all Holy Power to unleash a divine tempest dealing 10000 holy damage and healing self for 5000.',
+  description: 'Consumes all Holy Power to unleash a divine tempest, dealing 12000 holy damage to all enemies within 8 yards and healing self for 3000.',
   execute(engine, source, target, currentTick) {
     const holyPower = source.resources.getCurrent(RESOURCE_TYPE.HOLY_POWER);
     if (holyPower < 3) {
@@ -96,8 +103,10 @@ const sanctifiedGale = defineAbility({
     }
 
     source.resources.set(RESOURCE_TYPE.HOLY_POWER, 0);
-    engine.dealDamage(source, target, 10000, SCHOOL.HOLY, 'sanctified_gale', currentTick);
-    engine.healUnit(source, source, 5000, currentTick);
+    // True tempest — AoE around the source itself, 8yd radius. Primary target
+    // (if in range) is hit first via dealAoeDamage's primaryTarget option.
+    engine.dealAoeDamage(source, source.position, 12000, SCHOOL.HOLY, 'sanctified_gale', currentTick, 8, { primaryTarget: target });
+    engine.healUnit(source, source, 3000, currentTick);
   }
 });
 
@@ -110,13 +119,13 @@ const emberWake = defineAbility({
   castTime: 0,
   range: 12,
   slot: 5,
-  description: 'Lashes out with holy energy for 10000 damage. Generates 3 Holy Power. Slows target by 50% for 4s.',
+  description: 'Lashes out with holy energy for 12000 damage. Generates 3 Holy Power. Slows target by 50% for 4s. Increases your damage by 30% for 10s.',
   execute(engine, source, target, currentTick) {
-    engine.dealDamage(source, target, 10000, SCHOOL.HOLY, 'ember_wake', currentTick);
+    engine.dealDamage(source, target, 12000, SCHOOL.HOLY, 'ember_wake', currentTick);
     source.resources.gain(RESOURCE_TYPE.HOLY_POWER, 3);
 
     // Apply slow debuff
-    const aura = new Aura({
+    const slowAura = new Aura({
       id: 'ember_wake_slow',
       name: 'Ember Wake',
       type: AURA_TYPE.DEBUFF,
@@ -129,7 +138,23 @@ const emberWake = defineAbility({
       isMagic: true,
       isDispellable: true
     });
-    target.auras.apply(aura);
+    target.auras.apply(slowAura);
+
+    // Apply damage amplification buff (like Avenging Wrath)
+    const damageBuff = new Aura({
+      id: 'ember_wake_buff',
+      name: 'Ember Wrath',
+      type: AURA_TYPE.BUFF,
+      sourceId: source.id,
+      targetId: source.id,
+      school: SCHOOL.HOLY,
+      duration: 100, // 10s
+      appliedTick: currentTick,
+      statMods: { damageDealtMod: 1.30 },
+      isMagic: false,
+      isDispellable: false
+    });
+    source.auras.apply(damageBuff);
   }
 });
 
@@ -142,9 +167,9 @@ const gavelOfLight = defineAbility({
   castTime: 0,
   range: 10,
   slot: 6,
-  description: 'Stuns the target for 5s.',
+  description: 'Stuns the target for 4s.',
   execute(engine, source, target, currentTick) {
-    CrowdControlSystem.applyCC(source, target, CC_TYPE.STUN, 50, currentTick);
+    CrowdControlSystem.applyCC(source, target, CC_TYPE.STUN, 40, currentTick);
   }
 });
 
@@ -153,11 +178,11 @@ const bindingPrayer = defineAbility({
   name: 'Binding Prayer',
   school: SCHOOL.HOLY,
   cost: { [RESOURCE_TYPE.MANA]: 500 },
-  cooldown: 150, // 15s
+  cooldown: 300, // 30s
   castTime: 15, // 1.5s
   range: 30,
   slot: 7,
-  description: 'Incapacitates the target for 6s. Any damage breaks the effect.',
+  description: 'Incapacitates the target for 6s. Any damage breaks the effect. 30s cooldown.',
   execute(engine, source, target, currentTick) {
     CrowdControlSystem.applyCC(source, target, CC_TYPE.INCAPACITATE, 60, currentTick, {
       breakOnDamage: true,
@@ -174,9 +199,9 @@ const aegisOfDawn = defineAbility({
   cooldown: 3000, // 300s / 5min
   castTime: 0,
   range: 0,
-  flags: [ABILITY_FLAG.IGNORES_GCD, ABILITY_FLAG.USABLE_WHILE_CASTING],
+  flags: [ABILITY_FLAG.IGNORES_GCD, ABILITY_FLAG.USABLE_WHILE_CASTING, ABILITY_FLAG.USABLE_WHILE_CC],
   slot: 8,
-  description: 'Grants immunity to all damage and effects for 8s. Removes all debuffs and CC. Causes Forbearance (30s).',
+  description: 'Grants immunity to all damage and effects for 4s. Removes magic debuffs and CC. Physical wounds persist. Causes Forbearance (45s).',
   execute(engine, source, target, currentTick) {
     // Check Forbearance
     if (source.classData.hasForbearance && currentTick < source.classData.forbearanceEndTick) {
@@ -184,8 +209,8 @@ const aegisOfDawn = defineAbility({
       return;
     }
 
-    // Remove all debuffs and CC
-    source.auras.removeAllDebuffs();
+    // Remove magic debuffs and CC (physical debuffs like wound poison/mortal strike persist)
+    source.auras.removeAllMagicDebuffs();
     CrowdControlSystem.removeAllCC(source);
 
     // Apply Aegis of Dawn buff (Divine Shield — can still act)
@@ -196,7 +221,7 @@ const aegisOfDawn = defineAbility({
       sourceId: source.id,
       targetId: source.id,
       school: SCHOOL.HOLY,
-      duration: 80, // 8s
+      duration: 40, // 4s
       appliedTick: currentTick,
       isMagic: false,
       isDispellable: false,
@@ -211,9 +236,9 @@ const aegisOfDawn = defineAbility({
     });
     source.auras.apply(aura);
 
-    // Apply Forbearance
+    // Apply Forbearance (45s)
     source.classData.hasForbearance = true;
-    source.classData.forbearanceEndTick = currentTick + 300; // 30s
+    source.classData.forbearanceEndTick = currentTick + 450; // 45s
   }
 });
 
@@ -227,7 +252,7 @@ const sovereignMend = defineAbility({
   range: 0,
   flags: [ABILITY_FLAG.IGNORES_GCD],
   slot: 9,
-  description: 'Heals yourself to full health. Causes Forbearance (30s).',
+  description: 'Heals yourself for 35% of your maximum health. Causes Forbearance (45s).',
   execute(engine, source, target, currentTick) {
     // Check Forbearance
     if (source.classData.hasForbearance && currentTick < source.classData.forbearanceEndTick) {
@@ -235,12 +260,12 @@ const sovereignMend = defineAbility({
       return;
     }
 
-    // Heal self to full HP
-    engine.healUnit(source, source, source.maxHp, currentTick);
+    // Heal self for 35% max HP
+    engine.healUnit(source, source, source.maxHp * 0.35, currentTick);
 
-    // Apply Forbearance
+    // Apply Forbearance (45s)
     source.classData.hasForbearance = true;
-    source.classData.forbearanceEndTick = currentTick + 300; // 30s
+    source.classData.forbearanceEndTick = currentTick + 450; // 45s
   }
 });
 
@@ -253,7 +278,7 @@ const holyRestoration = defineAbility({
   castTime: 0,
   range: 0,
   slot: 10,
-  description: 'Consumes all Holy Power to heal yourself for 4000 + 3000 per Holy Power spent.',
+  description: 'Consumes all Holy Power to heal yourself for 3000 + 2500 per Holy Power spent.',
   execute(engine, source, target, currentTick) {
     const holyPower = source.resources.getCurrent(RESOURCE_TYPE.HOLY_POWER);
     if (holyPower < 3) {
@@ -261,7 +286,7 @@ const holyRestoration = defineAbility({
       return;
     }
 
-    const healing = 4000 + (3000 * holyPower);
+    const healing = 3000 + (2500 * holyPower);
     source.resources.set(RESOURCE_TYPE.HOLY_POWER, 0);
     engine.healUnit(source, source, healing, currentTick);
   }
@@ -281,7 +306,7 @@ const unchainedGrace = defineAbility({
     // Remove roots
     CrowdControlSystem.breakRoots(source);
 
-    // Remove known slow auras
+    // Remove known slow auras (NOT healing reduction — mortal strike should stick)
     source.auras.remove('crippling_strike_debuff');
     source.auras.remove('glacial_chill_debuff');
     source.auras.remove('crushing_descent_slow');
@@ -333,9 +358,10 @@ const valiantCharge = defineAbility({
   cost: null,
   cooldown: 300, // 30s
   castTime: 0,
-  range: 0,
+  range: 25,
+  minRange: 8,
   slot: 0,
-  description: 'Increases movement speed by 100% for 4s. Breaks roots and slows on activation.',
+  description: 'Charge to an enemy, dealing 3000 holy damage and generating 1 Holy Power. Breaks roots and slows on activation.',
   execute(engine, source, target, currentTick) {
     // Break roots and slows on activation
     CrowdControlSystem.breakRoots(source);
@@ -344,21 +370,22 @@ const valiantCharge = defineAbility({
     source.auras.remove('crushing_descent_slow');
     source.auras.remove('ember_wake_slow');
 
-    // Apply Valiant Charge buff
-    const aura = new Aura({
-      id: 'valiant_charge_buff',
-      name: 'Valiant Charge',
-      type: AURA_TYPE.BUFF,
-      sourceId: source.id,
-      targetId: source.id,
-      school: SCHOOL.HOLY,
-      duration: 40, // 4s
-      appliedTick: currentTick,
-      statMods: { moveSpeedMultiplier: 2.0 },
-      isMagic: false,
-      isDispellable: false
-    });
-    source.auras.apply(aura);
+    // Teleport to within 3 yards of target
+    const dx = source.position.x - target.position.x;
+    const dz = source.position.z - target.position.z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    if (dist > 0) {
+      const nx = dx / dist;
+      const nz = dz / dist;
+      source.position.x = target.position.x + nx * 3;
+      source.position.z = target.position.z + nz * 3;
+    }
+
+    // Deal damage
+    engine.dealDamage(source, target, 3000, SCHOOL.HOLY, 'valiant_charge', currentTick);
+
+    // Generate 1 Holy Power
+    source.resources.gain(RESOURCE_TYPE.HOLY_POWER, 1);
   }
 });
 
@@ -418,5 +445,27 @@ export const RevenantClass = new ClassBase({
     valiantCharge
   ],
   coreAbilityIds: ['hallowed_strike', 'radiant_verdict', 'sanctified_rebuff'],
-  defaultLoadout: ['hallowed_strike', 'radiant_verdict', 'sanctified_rebuff', 'divine_reckoning', 'gavel_of_light', 'aegis_of_dawn']
+  defaultLoadout: ['hallowed_strike', 'radiant_verdict', 'sanctified_rebuff', 'divine_reckoning', 'ember_wake', 'aegis_of_dawn'],
+  builds: [
+    {
+      id: 'dawn_knight', name: 'Dawn Knight',
+      description: 'Righteous fury. Burn bright and strike with holy vengeance.',
+      loadout: ['hallowed_strike', 'radiant_verdict', 'sanctified_rebuff', 'divine_reckoning', 'ember_wake', 'aegis_of_dawn']
+    },
+    {
+      id: 'sanctuary', name: 'Sanctuary',
+      description: 'Eternal guardian. The light mends what the enemy breaks.',
+      loadout: ['hallowed_strike', 'radiant_verdict', 'sanctified_rebuff', 'holy_restoration', 'gavel_of_light', 'sovereign_mend']
+    },
+    {
+      id: 'zealot', name: 'Zealot',
+      description: 'Righteous pursuit. Chase down the wicked, corner the coward.',
+      loadout: ['hallowed_strike', 'radiant_verdict', 'sanctified_rebuff', 'divine_reckoning', 'ember_wake', 'valiant_charge']
+    },
+    {
+      id: 'inquisitor', name: 'Inquisitor',
+      description: 'Judgment is absolute. Lock them down and pass sentence.',
+      loadout: ['hallowed_strike', 'radiant_verdict', 'sanctified_rebuff', 'gavel_of_light', 'binding_prayer', 'aegis_of_dawn']
+    }
+  ]
 });

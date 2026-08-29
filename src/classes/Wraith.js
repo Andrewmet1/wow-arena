@@ -15,9 +15,11 @@ const viperLash = defineAbility({
   castTime: 0,
   range: 5,
   slot: 1,
-  description: 'A quick strike that deals 5000 damage and generates 1 combo point (25% chance for 2).',
+  description: 'A quick strike that deals 6000 damage and generates 1 combo point (25% chance for 2). Deals 30% more if target is bleeding.',
   execute(engine, source, target, currentTick) {
-    engine.dealDamage(source, target, 5000, SCHOOL.PHYSICAL, 'viper_lash', currentTick);
+    // Bleed synergy: +30% damage if Serrated Wound is ticking (rewards maintaining bleed)
+    const damage = target.auras.hasAura('serrated_wound_dot') ? 7800 : 6000;
+    engine.dealDamage(source, target, damage, SCHOOL.PHYSICAL, 'viper_lash', currentTick);
     const points = engine.match.rng.chance(0.25) ? 2 : 1;
     source.resources.gain(RESOURCE_TYPE.COMBO_POINTS, points);
   }
@@ -33,10 +35,10 @@ const throatOpener = defineAbility({
   range: 5,
   flags: [ABILITY_FLAG.REQUIRES_STEALTH],
   slot: 2,
-  description: 'A powerful strike from stealth dealing 10000 damage and generating 2 combo points.',
+  description: 'A powerful strike from stealth dealing 14000 damage and generating 2 combo points.',
   execute(engine, source, target, currentTick) {
     engine.breakStealth(source, currentTick);
-    engine.dealDamage(source, target, 10000, SCHOOL.PHYSICAL, 'throat_opener', currentTick);
+    engine.dealDamage(source, target, 14000, SCHOOL.PHYSICAL, 'throat_opener', currentTick);
     source.resources.gain(RESOURCE_TYPE.COMBO_POINTS, 2);
   }
 });
@@ -50,10 +52,14 @@ const grimFlurry = defineAbility({
   castTime: 0,
   range: 5,
   slot: 3,
-  description: 'A devastating finishing move. Deals 2500 + 2500 per combo point consumed.',
+  description: 'A devastating finishing move. Deals 3000 + 3000 per combo point consumed. 20% bonus if target is bleeding.',
   execute(engine, source, target, currentTick) {
     const comboPoints = source.resources.getCurrent(RESOURCE_TYPE.COMBO_POINTS);
-    const damage = 2500 + (2500 * comboPoints);
+    let damage = 3000 + (3000 * comboPoints);
+    // Bleed synergy: +20% damage if Serrated Wound is ticking (rewards bleed → build → finisher rotation)
+    if (target.auras.hasAura('serrated_wound_dot')) {
+      damage = Math.round(damage * 1.20);
+    }
     engine.dealDamage(source, target, damage, SCHOOL.PHYSICAL, 'grim_flurry', currentTick);
     source.resources.set(RESOURCE_TYPE.COMBO_POINTS, 0);
   }
@@ -89,7 +95,7 @@ const serratedWound = defineAbility({
   description: 'A finishing move that causes the target to bleed for 12 seconds. Damage scales with combo points.',
   execute(engine, source, target, currentTick) {
     const comboPoints = source.resources.getCurrent(RESOURCE_TYPE.COMBO_POINTS);
-    const tickDamage = 150 * comboPoints;
+    const tickDamage = 300 * comboPoints;
     target.auras.apply(new Aura({
       id: 'serrated_wound_dot',
       name: 'Serrated Wound',
@@ -135,7 +141,7 @@ const veilOfNight = defineAbility({
   cooldown: 1200,
   castTime: 0,
   range: 0,
-  flags: [ABILITY_FLAG.IGNORES_GCD],
+  flags: [ABILITY_FLAG.IGNORES_GCD, ABILITY_FLAG.USABLE_WHILE_CC],
   slot: 6,
   description: 'Vanish from sight, removing all DoTs and CC effects and entering stealth.',
   execute(engine, source, target, currentTick) {
@@ -155,12 +161,17 @@ const shadeShift = defineAbility({
   range: 25,
   flags: [ABILITY_FLAG.IGNORES_GCD],
   slot: 5,
-  description: 'Teleport behind the target and gain a buff that makes the next ability a guaranteed crit.',
+  description: 'Teleport behind the target, breaking roots and gaining 3s root immunity. Generate 2 combo points and gain a guaranteed crit buff.',
   execute(engine, source, target, currentTick) {
+    // Break roots before teleporting (helps vs kiting classes)
+    CrowdControlSystem.breakRoots(source);
+
     // Teleport behind target (2 yards behind their facing direction)
     source.position.x = target.position.x - Math.sin(target.facing) * 2;
     source.position.z = target.position.z - Math.cos(target.facing) * 2;
-    // Apply shade shift buff for guaranteed crit
+    // Generate 2 combo points for burst setup
+    source.resources.gain(RESOURCE_TYPE.COMBO_POINTS, 2);
+    // Apply shade shift buff for guaranteed crit + root immunity
     source.auras.apply(new Aura({
       id: 'shade_shift_buff',
       name: 'Shade Shift',
@@ -168,14 +179,16 @@ const shadeShift = defineAbility({
       sourceId: source.id,
       targetId: source.id,
       school: SCHOOL.PHYSICAL,
-      duration: 30,
+      duration: 30, // 3s
       appliedTick: currentTick,
       isMagic: false,
       onApply(unit) {
         unit.classData.shadowStepCrit = true;
+        unit.classData.rootImmune = true;
       },
       onRemove(unit) {
         unit.classData.shadowStepCrit = false;
+        unit.classData.rootImmune = false;
       }
     }));
   }
@@ -233,7 +246,7 @@ const umbralShroud = defineAbility({
       sourceId: source.id,
       targetId: source.id,
       school: SCHOOL.PHYSICAL,
-      duration: 50,
+      duration: 50, // 5s
       appliedTick: currentTick,
       isMagic: false,
       onApply(unit) {
@@ -295,7 +308,7 @@ const frenzyEdge = defineAbility({
   name: 'Frenzy Edge',
   school: SCHOOL.PHYSICAL,
   cost: null,
-  cooldown: 450,
+  cooldown: 300,
   castTime: 0,
   range: 0,
   slot: 13,
@@ -356,15 +369,16 @@ export default new ClassBase({
   isRanged: false,
 
   physicalArmor: 0.15,
-  magicDR: 0.05,
+  magicDR: 0.15,
   moveSpeed: 1.10,
 
-  autoAttackDamage: 2500,
+  autoAttackDamage: 3000,
   swingTimer: 14,
 
   classData: {
     shadowStepCrit: false,
     energyRegenMod: 1.0,
+    woundPoison: true,
     autoAttackSlow: {
       auraId: 'crippling_poison',
       name: 'Crippling Poison',
@@ -405,5 +419,27 @@ export default new ClassBase({
     shadowmeld
   ],
   coreAbilityIds: ['viper_lash', 'grim_flurry', 'throat_jab'],
-  defaultLoadout: ['viper_lash', 'grim_flurry', 'serrated_wound', 'shade_shift', 'veil_of_night', 'nerve_strike']
+  defaultLoadout: ['viper_lash', 'grim_flurry', 'throat_jab', 'serrated_wound', 'shade_shift', 'veil_of_night'],
+  builds: [
+    {
+      id: 'venom_fang', name: 'Venom Fang',
+      description: 'Death by a thousand cuts. Let the poison do its work.',
+      loadout: ['viper_lash', 'grim_flurry', 'throat_jab', 'serrated_wound', 'shade_shift', 'veil_of_night']
+    },
+    {
+      id: 'phantom', name: 'Phantom',
+      description: 'Strike from the shadows. They won\'t see you coming.',
+      loadout: ['viper_lash', 'grim_flurry', 'throat_jab', 'blackjack', 'nerve_strike', 'veil_of_night']
+    },
+    {
+      id: 'dervish', name: 'Dervish',
+      description: 'Frenzied bladework. Attack faster, hit harder, never stop.',
+      loadout: ['viper_lash', 'grim_flurry', 'throat_jab', 'frenzy_edge', 'shade_shift', 'phantasm_dodge']
+    },
+    {
+      id: 'nightshade', name: 'Nightshade',
+      description: 'Shrouded in darkness. Turn their magic against them.',
+      loadout: ['viper_lash', 'grim_flurry', 'throat_jab', 'umbral_shroud', 'blood_tincture', 'shade_shift']
+    }
+  ]
 });

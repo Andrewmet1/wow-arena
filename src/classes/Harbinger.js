@@ -140,10 +140,18 @@ const siphonEssence = defineAbility({
   range: 45,
   flags: [ABILITY_FLAG.CHANNEL],
   slot: 3,
-  description: 'Drains the target\'s life force, dealing 2000 Shadow damage and healing you for 3500 every 1s for 5s.',
+  description: 'Drains the target\'s life force, dealing 2000 Shadow damage and healing you for 1700 every 1s for 5s. During Soul Ignite, generates 1 Soul Shard on final tick.',
   channelTick(engine, source, target, currentTick) {
     engine.dealDamage(source, target, 2000, SCHOOL.SHADOW, 'siphon_essence', currentTick);
-    engine.healUnit(source, source, 3500, currentTick);
+    engine.healUnit(source, source, 1700, currentTick);
+
+    // Soul Ignite synergy: generate 1 Soul Shard on final channel tick
+    if (source.classData.soulburnActive && source.channelState) {
+      const remaining = source.channelState.endTick - currentTick;
+      if (remaining <= source.channelState.tickInterval) {
+        source.resources.gain(RESOURCE_TYPE.SOUL_SHARDS, 1);
+      }
+    }
   }
 });
 
@@ -156,7 +164,7 @@ const hexRupture = defineAbility({
   castTime: 15,
   range: 45,
   slot: 4,
-  description: 'Ruptures the target\'s afflictions, dealing 3000 damage plus 2000 per active DoT. Extends all DoTs on the target by 3s.',
+  description: 'Ruptures the target\'s afflictions, dealing 5000 damage plus 4000 per active DoT. Extends all DoTs by 3s and applies 15% vulnerability for 6s.',
   execute(engine, source, target, currentTick) {
     // Count active DoTs on the target
     const dotIds = ['hex_blight_dot', 'creeping_torment_dot', 'volatile_hex_dot'];
@@ -164,7 +172,7 @@ const hexRupture = defineAbility({
     const activeDots = [];
 
     for (const dotId of dotIds) {
-      const aura = target.auras.get(dotId);
+      const aura = target.auras.getAura(dotId);
       if (aura) {
         dotCount++;
         activeDots.push(aura);
@@ -172,12 +180,29 @@ const hexRupture = defineAbility({
     }
 
     // Deal damage based on active DoT count
-    const damage = 3000 + (2000 * dotCount);
+    const damage = 5000 + (4000 * dotCount);
     engine.dealDamage(source, target, damage, SCHOOL.SHADOW, 'hex_rupture', currentTick);
 
     // Extend all DoTs by 30 ticks (3s)
     for (const aura of activeDots) {
       aura.endTick += 30;
+    }
+
+    // Apply vulnerability debuff when DoTs are extended (creates burst window after setup)
+    if (dotCount >= 2) {
+      target.auras.apply(new Aura({
+        id: 'hex_rupture_vuln',
+        name: 'Hex Rupture',
+        type: AURA_TYPE.DEBUFF,
+        sourceId: source.id,
+        targetId: target.id,
+        school: SCHOOL.SHADOW,
+        duration: 60, // 6s burst window
+        appliedTick: currentTick,
+        statMods: { damageTakenMod: 1.15 }, // 15% increased damage taken
+        isMagic: true,
+        isDispellable: true
+      }));
     }
   }
 });
@@ -251,7 +276,7 @@ const bloodTithe = defineAbility({
   range: 0,
   flags: [ABILITY_FLAG.IGNORES_GCD],
   slot: 9,
-  description: 'Sacrifices 25% of your demon\'s HP to grant an absorb shield equal to 300% of the sacrificed amount for 10s. May kill the pet.',
+  description: 'Sacrifices 25% of your demon\'s HP to grant an absorb shield equal to 200% of the sacrificed amount for 10s. May kill the pet.',
   execute(engine, source, target, currentTick) {
     if (!source.classData.petAlive || source.classData.petHp <= 0) {
       engine.match.eventBus.emit('ability_cast_failed', { sourceId: source.id, abilityId: 'blood_tithe', reason: 'no_pet' });
@@ -265,7 +290,7 @@ const bloodTithe = defineAbility({
       source.classData.petAlive = false;
     }
 
-    const shieldAmount = sacrifice * 3;
+    const shieldAmount = sacrifice * 2;
     source.addAbsorb(shieldAmount, currentTick + 100, 'blood_tithe');
   }
 });
@@ -275,13 +300,16 @@ const wardedFlesh = defineAbility({
   name: 'Warded Flesh',
   school: SCHOOL.SHADOW,
   cost: null,
-  cooldown: 1800,
+  cooldown: 900,
   castTime: 0,
   range: 0,
-  flags: [ABILITY_FLAG.IGNORES_GCD],
+  flags: [ABILITY_FLAG.IGNORES_GCD, ABILITY_FLAG.USABLE_WHILE_CC],
   slot: 10,
-  description: 'Harden your skin, reducing all damage taken by 40% for 8s.',
+  description: 'Break free from all CC. Harden your skin, reducing all damage taken by 40% for 8s. 90s cooldown.',
   execute(engine, source, target, currentTick) {
+    // Break all CC on activation
+    CrowdControlSystem.removeAllCC(source);
+
     const aura = new Aura({
       id: 'warded_flesh_buff',
       name: 'Warded Flesh',
@@ -338,13 +366,14 @@ const hexSilence = defineAbility({
   range: 45,
   flags: [ABILITY_FLAG.IGNORES_GCD],
   slot: 12,
-  description: 'Commands your demon to interrupt the target, locking their spell school for 5s. Requires a living pet.',
+  description: 'Commands your demon to interrupt the target, locking their spell school for 5s. If pet is dead, you cast it yourself at doubled cooldown.',
   execute(engine, source, target, currentTick) {
-    if (!source.classData.petAlive) {
-      engine.match.eventBus.emit('ability_cast_failed', { sourceId: source.id, abilityId: 'hex_silence', reason: 'no_pet' });
-      return;
-    }
     engine.interruptTarget(source, target, 50, currentTick);
+
+    // If pet is dead, apply doubled cooldown penalty
+    if (!source.classData.petAlive) {
+      source.cooldowns.startCooldown('hex_silence', 480, currentTick); // 48s instead of 24s
+    }
   }
 });
 
@@ -419,7 +448,7 @@ const shadowfury = defineAbility({
         engine.match.eventBus.emit(EVENTS.GROUND_ZONE_EXPIRED, { id: this.id });
 
         for (const unit of engine.match.units) {
-          if (unit.id === source.id || !unit.isAlive) continue;
+          if (!unit.isAlive || !engine.match.isEnemy(source, unit)) continue;
           const dx = unit.position.x - zonePos.x;
           const dz = unit.position.z - zonePos.z;
           if (dx * dx + dz * dz <= ZONE_RADIUS * ZONE_RADIUS) {
@@ -471,7 +500,7 @@ const abyssalGround = defineAbility({
         lastTickAt = tick;
 
         for (const unit of engine.match.units) {
-          if (unit.id === source.id || !unit.isAlive) continue;
+          if (!unit.isAlive || !engine.match.isEnemy(source, unit)) continue;
           const dx = unit.position.x - zonePos.x;
           const dz = unit.position.z - zonePos.z;
           if (dx * dx + dz * dz <= ZONE_RADIUS * ZONE_RADIUS) {
@@ -508,7 +537,7 @@ export const HarbingerClass = new ClassBase({
   accentColor: '#9400D3',
   isRanged: true,
 
-  physicalArmor: 0.10,
+  physicalArmor: 0.15,
   magicDR: 0.15,
   moveSpeed: 0.95,
 
@@ -519,7 +548,7 @@ export const HarbingerClass = new ClassBase({
     petHp: 30000,
     petMaxHp: 30000,
     petAlive: true,
-    petDamage: 1500,
+    petDamage: 800,
     demonicCircle: null,
     soulburnActive: false
   },
@@ -560,7 +589,29 @@ export const HarbingerClass = new ClassBase({
     { abilityId: 'rift_anchor', maxCharges: 2, rechargeTicks: 150 }
   ],
   coreAbilityIds: ['hex_blight', 'creeping_torment', 'hex_silence'],
-  defaultLoadout: ['hex_blight', 'creeping_torment', 'hex_silence', 'siphon_essence', 'rift_anchor', 'volatile_hex']
+  defaultLoadout: ['hex_blight', 'creeping_torment', 'hex_silence', 'volatile_hex', 'hex_rupture', 'warded_flesh'],
+  builds: [
+    {
+      id: 'plague_doctor', name: 'Plague Doctor',
+      description: 'Corruption incarnate. Layer curses until the body fails.',
+      loadout: ['hex_blight', 'creeping_torment', 'hex_silence', 'volatile_hex', 'hex_rupture', 'warded_flesh']
+    },
+    {
+      id: 'soul_reaver', name: 'Soul Reaver',
+      description: 'Feast on their essence. Every wound you inflict sustains you.',
+      loadout: ['hex_blight', 'creeping_torment', 'hex_silence', 'soul_ignite', 'siphon_essence', 'warded_flesh']
+    },
+    {
+      id: 'dread_caller', name: 'Dread Caller',
+      description: 'Master of fear. Break their will before you break their body.',
+      loadout: ['hex_blight', 'creeping_torment', 'hex_silence', 'blood_tithe', 'dread_howl', 'nether_slam']
+    },
+    {
+      id: 'void_herald', name: 'Void Herald',
+      description: 'Command the void. Warp space itself to your advantage.',
+      loadout: ['hex_blight', 'creeping_torment', 'hex_silence', 'shadowfury', 'abyssal_ground', 'rift_anchor']
+    }
+  ]
 });
 
 export default HarbingerClass;

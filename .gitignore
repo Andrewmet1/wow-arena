@@ -52,3 +52,24 @@ public/assets/animations/shared/weapon_combo.glb
 # rigs/<rig>/ are these with mesh+texture removed; keep the originals
 # locally as a re-strip source, never in the repo.
 public/assets/animations/rigs/_originals_*/
+
+# ── Secrets — never commit ──────────────────────────────────
+# server/.env holds the ebon-crucible-server IAM key + Cognito config.
+# Past outages came from credential churn; leaking them is far worse.
+server/.env
+.env.electron
+*.pem
+*.keystore
+android/keystore.properties
+
+# ── Build output ────────────────────────────────────────────
+dist-app/
+dist-mobile/
+android/app/build/
+android/.gradle/
+ios/App/build/
+ios/App/Pods/
+
+# ── OS cruft ────────────────────────────────────────────────
+.DS_Store
+**/.DS_Store

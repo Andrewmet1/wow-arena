@@ -10,7 +10,7 @@
 //   node scripts/content-check.mjs --json    # machine-readable (for agents)
 //   node scripts/content-check.mjs --strict  # exit 1 on orphans too
 
-import { scanDisk, scanEngine, scanDeclaredMonsters, scanThemeTextures } from './lib/content-index.mjs';
+import { scanDisk, scanEngine, scanDeclaredMonsters, scanThemeTextures, scanAnimations } from './lib/content-index.mjs';
 
 const JSON_OUT = process.argv.includes('--json');
 const STRICT   = process.argv.includes('--strict');
@@ -19,6 +19,7 @@ const disk = scanDisk();
 const eng = scanEngine();
 const declaredMonsters = scanDeclaredMonsters();
 const themeTextures = scanThemeTextures();
+const anims = scanAnimations();
 
 const pooled = new Set(Object.values(eng.pools).flat());
 const aliasTargets = new Set(Object.values(eng.aliases));
@@ -52,6 +53,7 @@ const report = {
   monsters: { onDisk: disk.monsters.length, declared: declaredMonsters.length, orphans: monOrphans, missingModels: monMissing },
   preload:  { pooled: pooled.size, preloaded: eng.preload.length, lazyLoaded: unpreloaded.length },
   themeDrift,
+  animations: anims,
 };
 
 if (JSON_OUT) {
@@ -90,6 +92,12 @@ if (JSON_OUT) {
     for (const [sys, ids] of Object.entries(bySys)) console.log(`     · ${sys.padEnd(14)} ${ids.join(', ')}`);
   }
 
+  if (anims.missing.length) {
+    console.log(`\n  ANIMATION CLIPS DECLARED WITH NO FILE  (${anims.missing.length})`);
+    console.log('  these silently fall back to idle at runtime');
+    for (const m of anims.missing) console.log(`     · ${m.key.padEnd(26)} ${m.file}${m.used ? '   [USED BY A CLASS]' : '   (unused decl)'}`);
+  }
+
   const driftThemes = Object.keys(themeDrift);
   if (driftThemes.length) {
     console.log(`\n  THEMES DECLARING TEXTURES THE ENGINE IGNORES  (${driftThemes.length})`);
@@ -107,5 +115,6 @@ if (JSON_OUT) {
 // Broken refs are always a failure — they're runtime errors. Orphans only
 // fail under --strict so this can be adopted before the backlog is cleared.
 const failed = propBroken.length > 0 || monMissing.length > 0
+  || anims.missing.some(m => m.used)
   || (STRICT && (propOrphans.length + texOrphans.length + monOrphans.length) > 0);
 process.exit(failed ? 1 : 0);

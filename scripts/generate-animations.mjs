@@ -9,7 +9,9 @@
  * Usage:
  *   node scripts/generate-animations.mjs --rig-task <rigTaskId>
  *   node scripts/generate-animations.mjs --rig-task <rigTaskId> --only idle,attack,dead
+ *   node scripts/generate-animations.mjs --rig-task <rigTaskId> --rig-name tyrant_frost_dragon
  *   node scripts/generate-animations.mjs list
+ *   node scripts/generate-animations.mjs list-rigs
  *
  * Rig task IDs (any class works since animations are shared):
  *   Tyrant:    019c6e11-13e7-7295-a177-4dbda07934aa
@@ -42,7 +44,6 @@ const MESHY_API = 'https://api.meshy.ai';
 const SHARED_LIBRARY = {
   idle:                         { action_id: 0,   name: 'Idle' },
   attack:                       { action_id: 4,   name: 'Attack' },
-  behit_flyup:                  { action_id: 7,   name: 'BeHit_FlyUp' },
   dead:                         { action_id: 8,   name: 'Dead' },
   run:                          { action_id: 14,  name: 'Run_02' },
   basic_jump:                   { action_id: 86,  name: 'Basic_Jump' },
@@ -64,58 +65,73 @@ const SHARED_LIBRARY = {
   block:                        { action_id: 138, name: 'Block' },
   stand_dodge:                  { action_id: 156, name: 'Stand_Dodge' },
   roll_dodge:                   { action_id: 157, name: 'Roll_Dodge' },
-  electrocution_reaction:       { action_id: 172, name: 'Electrocution_Reaction' },
   hit_reaction:                 { action_id: 176, name: 'Hit_Reaction' },
   hit_reaction_1:               { action_id: 178, name: 'Hit_Reaction_1' },
-  shot_and_fall_forward:        { action_id: 183, name: 'Shot_and_Fall_Forward' },
-  shot_and_slow_fall_backward:  { action_id: 184, name: 'Shot_and_Slow_Fall_Backward' },
   dying_backwards:              { action_id: 189, name: 'dying_backwards' },
   lean_forward_sprint:          { action_id: 509, name: 'Lean_Forward_Sprint' },
 
-  // ── Additional melee attacks ──
+  // ── Melee attacks (weapon) ──
   counterstrike:                { action_id: 90,  name: 'Counterstrike' },
   double_blade_spin:            { action_id: 91,  name: 'Double_Blade_Spin' },
   double_combo_attack:          { action_id: 92,  name: 'Double_Combo_Attack' },
   dodge_and_counter:            { action_id: 93,  name: 'Dodge_and_Counter' },
-  simple_kick:                  { action_id: 103, name: 'Simple_Kick' },
   triple_combo_attack:          { action_id: 105, name: 'Triple_Combo_Attack' },
-  punch_combo:                  { action_id: 198, name: 'Punch_Combo' },
   weapon_combo:                 { action_id: 199, name: 'Weapon_Combo' },
-  spartan_kick:                 { action_id: 206, name: 'Spartan_Kick' },
-  roundhouse_kick:              { action_id: 207, name: 'Roundhouse_Kick' },
-  elbow_strike:                 { action_id: 212, name: 'Elbow_Strike' },
-  leg_sweep:                    { action_id: 213, name: 'Leg_Sweep' },
   right_hand_sword_slash:       { action_id: 219, name: 'Right_Hand_Sword_Slash' },
   shield_push:                  { action_id: 220, name: 'Shield_Push_Left' },
   charged_upward_slash:         { action_id: 221, name: 'Charged_Upward_Slash' },
   axe_spin_attack:              { action_id: 238, name: 'Axe_Spin_Attack' },
   charged_slash:                { action_id: 242, name: 'Charged_Slash' },
+  charged_axe_chop:             { action_id: 237, name: 'Charged_Axe_Chop' },
+  thrust_slash:                 { action_id: 240, name: 'Thrust_Slash' },
+  weapon_combo_2:               { action_id: 241, name: 'Weapon_Combo_2' },
+  punch_combo:                  { action_id: 198, name: 'Punch_Combo' },
+  weapon_combo_1:               { action_id: 202, name: 'Weapon_Combo_1' },
 
-  // ── Generic skill casts ──
+  // ── Spell casts (all variants) ──
   skill_01:                     { action_id: 17,  name: 'Skill_01' },
   skill_02:                     { action_id: 18,  name: 'Skill_02' },
   skill_03:                     { action_id: 19,  name: 'Skill_03' },
+  mage_spell_cast_0:            { action_id: 129, name: 'Mage_Spell_Cast_0' },
+  mage_spell_cast_2:            { action_id: 131, name: 'Mage_Spell_Cast_2' },
+  mage_spell_cast_4:            { action_id: 133, name: 'Mage_Spell_Cast_4' },
+  mage_spell_cast_6:            { action_id: 135, name: 'Mage_Spell_Cast_6' },
+  mage_spell_cast_7:            { action_id: 136, name: 'Mage_Spell_Cast_7' },
 
-  // ── Defense / parry ──
+  // ── Defense / parry / block variants ──
   sword_shout:                  { action_id: 101, name: 'Sword_Shout' },
   sword_parry:                  { action_id: 147, name: 'Sword_Parry' },
   two_handed_parry:             { action_id: 149, name: 'Two_Handed_Parry' },
+  sword_parry_backward:         { action_id: 148, name: 'Sword_Parry_Backward' },
+  block_2:                      { action_id: 139, name: 'Block2' },
+  block_3:                      { action_id: 140, name: 'Block3' },
+  block_4:                      { action_id: 141, name: 'Block4' },
+  block_5:                      { action_id: 142, name: 'Block5' },
+
+  // ── Roll dodge variants ──
+  roll_dodge_1:                 { action_id: 159, name: 'Roll_Dodge_1' },
+  roll_dodge_2:                 { action_id: 160, name: 'Roll_Dodge_2' },
 
   // ── Movement / acrobatic ──
   standard_forward_charge:      { action_id: 510, name: 'Standard_Forward_Charge' },
   quick_step_spin_dodge:        { action_id: 384, name: 'Quick_Step_and_Spin_Dodge' },
   backflip:                     { action_id: 452, name: 'Backflip' },
+  sprint_roll_and_flip:         { action_id: 401, name: 'Sprint_Roll_and_Flip' },
+  jump_and_slam:                { action_id: 382, name: 'Jump_and_Slam_Back_Down' },
 
-  // ── Death / knockdown / stomp ──
-  knock_down:                   { action_id: 187, name: 'Knock_Down' },
-  electrocuted_fall:            { action_id: 181, name: 'Electrocuted_Fall' },
-  angry_ground_stomp:           { action_id: 255, name: 'Angry_Ground_Stomp' },
 
   // ── Idle variants ──
   idle_02:                      { action_id: 11,  name: 'Idle_02' },
   idle_03:                      { action_id: 12,  name: 'Idle_03' },
   alert:                        { action_id: 2,   name: 'Alert' },
   axe_stance:                   { action_id: 85,  name: 'Axe_Stance' },
+  boxing_practice:              { action_id: 87,  name: 'Boxing_Practice' },
+  battle_pose:                  { action_id: 377, name: 'Relax_Arms_Then_Strike_Battle_Pose' },
+
+  // ── Taunts / emotes ──
+  angry_stomp:                  { action_id: 26,  name: 'Angry_Stomp' },
+  victory_cheer:                { action_id: 59,  name: 'Victory_Cheer' },
+  victory_fist_pump:            { action_id: 403, name: 'Victory_Fist_Pump' },
 
   // ── Run / movement variants ──
   run_03:                       { action_id: 15,  name: 'Run_03' },
@@ -232,16 +248,41 @@ if (args[0] === 'list') {
   process.exit(0);
 }
 
+if (args[0] === 'list-rigs') {
+  const rigsDir = path.join(ROOT, 'public', 'assets', 'animations', 'rigs');
+  if (!fs.existsSync(rigsDir)) {
+    console.log('\n  No rig-specific animation sets found.\n');
+    process.exit(0);
+  }
+  const rigDirs = fs.readdirSync(rigsDir, { withFileTypes: true }).filter(d => d.isDirectory());
+  if (rigDirs.length === 0) {
+    console.log('\n  No rig-specific animation sets found.\n');
+    process.exit(0);
+  }
+  console.log(`\n  Rig-Specific Animation Sets:\n`);
+  for (const dir of rigDirs) {
+    const dirPath = path.join(rigsDir, dir.name);
+    const clips = fs.readdirSync(dirPath).filter(f => f.endsWith('.glb'));
+    console.log(`  ${dir.name.padEnd(40)} ${clips.length} clips`);
+  }
+  console.log('');
+  process.exit(0);
+}
+
 const rigTaskIdx = args.indexOf('--rig-task');
 const rigTaskId = rigTaskIdx >= 0 ? args[rigTaskIdx + 1] : null;
 const onlyIdx = args.indexOf('--only');
 const onlyFilter = onlyIdx >= 0 ? args[onlyIdx + 1].split(',') : null;
+const rigNameIdx = args.indexOf('--rig-name');
+const rigName = rigNameIdx >= 0 ? args[rigNameIdx + 1] : null;
 const skipExisting = !args.includes('--force');
 
 if (!rigTaskId) {
   console.log('Meshy Shared Animation Generator');
   console.log('Usage: node scripts/generate-animations.mjs --rig-task <rigTaskId> [--only idle,attack] [--force]');
+  console.log('       node scripts/generate-animations.mjs --rig-task <rigTaskId> --rig-name tyrant_frost_dragon');
   console.log('       node scripts/generate-animations.mjs list');
+  console.log('       node scripts/generate-animations.mjs list-rigs');
   console.log('\nRig task IDs (any works — animations are shared):');
   console.log('  Tyrant:    019c6e11-13e7-7295-a177-4dbda07934aa');
   console.log('  Wraith:    019c6e7d-0741-7db3-80d2-6f6790ed4a35');
@@ -249,14 +290,18 @@ if (!rigTaskId) {
   console.log('  Harbinger: 019c6eda-d451-7720-8faa-eca6741a0685');
   console.log('  Revenant:  019c6f31-d0f6-78c8-b20e-a15e8fe302a7');
   console.log('\nOptions:');
-  console.log('  --only <clips>  Only generate specific clips (comma-separated)');
-  console.log('  --force         Regenerate even if clip already exists');
+  console.log('  --only <clips>     Only generate specific clips (comma-separated)');
+  console.log('  --rig-name <name>  Save to rigs/<name>/ instead of shared/ (for skin-specific anims)');
+  console.log('  --force            Regenerate even if clip already exists');
   process.exit(1);
 }
 
 async function main() {
-  const sharedDir = path.join(ROOT, 'public', 'assets', 'animations', 'shared');
-  fs.mkdirSync(sharedDir, { recursive: true });
+  // Determine output directory: shared/ by default, or rigs/<name>/ if --rig-name specified
+  const outDir = rigName
+    ? path.join(ROOT, 'public', 'assets', 'animations', 'rigs', rigName)
+    : path.join(ROOT, 'public', 'assets', 'animations', 'shared');
+  fs.mkdirSync(outDir, { recursive: true });
 
   let entries = Object.entries(SHARED_LIBRARY);
   if (onlyFilter) {
@@ -266,7 +311,7 @@ async function main() {
   // Skip existing files unless --force
   if (skipExisting) {
     const before = entries.length;
-    entries = entries.filter(([name]) => !fs.existsSync(path.join(sharedDir, `${name}.glb`)));
+    entries = entries.filter(([name]) => !fs.existsSync(path.join(outDir, `${name}.glb`)));
     if (before !== entries.length) {
       console.log(`  Skipping ${before - entries.length} existing clips (use --force to regenerate)`);
     }
@@ -277,15 +322,17 @@ async function main() {
     process.exit(0);
   }
 
+  const label = rigName ? `RIG-SPECIFIC: ${rigName}` : 'SHARED';
   console.log(`\n${'═'.repeat(60)}`);
-  console.log(`  GENERATING SHARED ANIMATIONS (${entries.length} clips)`);
+  console.log(`  GENERATING ${label} ANIMATIONS (${entries.length} clips)`);
   console.log(`  Rig Task: ${rigTaskId}`);
+  if (rigName) console.log(`  Output:   rigs/${rigName}/`);
   console.log(`${'═'.repeat(60)}`);
 
   const results = { success: [], failed: [] };
 
   for (const [clipName, info] of entries) {
-    const destPath = path.join(sharedDir, `${clipName}.glb`);
+    const destPath = path.join(outDir, `${clipName}.glb`);
     try {
       await generateAnimation(rigTaskId, clipName, info.action_id, destPath);
       results.success.push(clipName);
@@ -302,7 +349,8 @@ async function main() {
   if (results.failed.length) {
     console.log(`  Failed:  ${results.failed.join(', ')}`);
   }
-  console.log(`  Output:  ${sharedDir}/`);
+  console.log(`  Output:  ${outDir}/`);
+  if (rigName) console.log(`  Rig Name: ${rigName}`);
   console.log(`${'═'.repeat(60)}\n`);
 }
 

@@ -203,3 +203,35 @@ export function scanThemeTextures() {
   });
   return themes;
 }
+
+/**
+ * Animation clips declared in AssetManifest that have no file, and clips on
+ * disk nothing declares. A declaration with no file silently falls back to
+ * `idle` at runtime, which is how "the ability plays no animation" hides.
+ */
+export function scanAnimations() {
+  const p = path.join(ROOT, 'src', 'rendering', 'AssetManifest.js');
+  if (!fs.existsSync(p)) return { missing: [], unused: [] };
+  const src = fs.readFileSync(p, 'utf-8');
+  const shared = /SHARED_ANIMATIONS\s*=\s*\{([\s\S]*?)\n\}/.exec(src);
+  const cls = /CLASS_ANIMATIONS\s*=\s*\{([\s\S]*?)\n\};/.exec(src);
+  if (!shared) return { missing: [], unused: [] };
+
+  const decls = [...shared[1].matchAll(/(\w+):\s*'([\w./]+\.glb)'/g)]
+    .map(m => ({ key: m[1], file: m[2] }));
+  const usedKeys = new Set(
+    cls ? [...cls[1].matchAll(/:\s*'([\w./]+)'/g)].map(m => m[1]).filter(v => !v.endsWith('.glb')) : []
+  );
+
+  const dir = path.join(ROOT, 'public', 'assets', 'animations', 'shared');
+  const onDisk = fs.existsSync(dir)
+    ? new Set(fs.readdirSync(dir).filter(f => f.endsWith('.glb')))
+    : new Set();
+
+  const missing = decls
+    .filter(d => !onDisk.has(path.basename(d.file)) && !d.file.includes('/'))
+    .map(d => ({ ...d, used: usedKeys.has(d.key) }));
+  const declared = new Set(decls.map(d => path.basename(d.file)));
+  const unused = [...onDisk].filter(f => !declared.has(f));
+  return { missing, unused };
+}

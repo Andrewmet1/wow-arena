@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <title>Now in Early Access — Ebon Crucible</title>
+  <meta name="description" content="Ebon Crucible is now in Early Access on Steam, the App Store, Google Play, and the web. Five classes, 63 abilities, real-time arena combat — play how you want.">
+  <meta property="og:title" content="Ebon Crucible — Now in Early Access on All Platforms">
+  <meta property="og:description" content="Steam. iOS. Android. Web. One account, every device. Five classes. 63 abilities. Real-time arena combat.">
+  <meta property="og:image" content="/assets/art/launch_early_access_banner.webp">
+  <meta property="og:type" content="article">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://eboncrucible.com/news/now-in-early-access/">
+  <meta name="theme-color" content="#08080f">
+  <link rel="stylesheet" href="/src/styles/ebon-pages.css">
+  <style>
+    /* Platform pill buttons */
+    .ea-platforms {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin: 24px 0 8px;
+    }
+    .ea-platform {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 22px 16px 18px;
+      background: linear-gradient(180deg, rgba(20,20,32,0.85), rgba(10,10,18,0.95));
+      border: 1px solid rgba(200,168,96,0.22);
+      border-radius: 10px;
+      text-decoration: none;
+      transition: all 0.3s;
+      overflow: hidden;
+    }
+    .ea-platform::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(circle at top, rgba(200,168,96,0.08), transparent 60%);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .ea-platform:hover {
+      transform: translateY(-4px);
+      border-color: rgba(200,168,96,0.55);
+      box-shadow: 0 12px 36px rgba(0,0,0,0.55), 0 0 30px rgba(200,168,96,0.15);
+    }
+    .ea-platform:hover::before { opacity: 1; }
+    .ea-platform svg { width: 40px; height: 40px; fill: #c8a860; }
+    .ea-platform-label {
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: #888;
+      font-weight: 700;
+    }
+    .ea-platform-name {
+      font-size: 13px;
+      letter-spacing: 3px;
+      color: #e0d8c8;
+      font-weight: 800;
+    }
+
+    /* Trailer frame */
+    .ea-trailer {
+      max-width: 900px;
+      margin: 0 auto 24px;
+      position: relative;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 0 60px rgba(139,0,0,0.3), 0 0 120px rgba(0,0,0,0.6);
+    }
+    .ea-trailer::before {
+      content: '';
+      position: absolute; inset: 0;
+      border-radius: 8px;
+      padding: 3px;
+      background: linear-gradient(135deg, #c8a860, #8b0000, #c8a860, #5a0000, #c8a860);
+      background-size: 300% 300%;
+      animation: trailerBorder 6s ease-in-out infinite;
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor; mask-composite: exclude;
+      z-index: 2; pointer-events: none;
+    }
+    @keyframes trailerBorder {
+      0%,100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+    .ea-trailer video {
+      display: block;
+      width: 100%;
+      background: #0a0a0a;
+    }
+
+    /* Big stat strip */
+    .ea-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin: 20px 0 24px;
+    }
+    .ea-stat {
+      text-align: center;
+      padding: 16px 10px;
+      background: rgba(12,12,22,0.6);
+      border: 1px solid rgba(200,168,96,0.15);
+      border-radius: 8px;
+    }
+    .ea-stat-num {
+      font-size: 28px;
+      font-weight: 900;
+      color: #c8a860;
+      letter-spacing: 1px;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .ea-stat-label {
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: #888;
+      font-weight: 700;
+    }
+
+    /* Quote/pullquote */
+    .ea-pullquote {
+      max-width: 720px;
+      margin: 28px auto;
+      padding: 22px 28px;
+      border-left: 3px solid #c8a860;
+      background: linear-gradient(90deg, rgba(200,168,96,0.06), transparent 80%);
+      font-size: 15px;
+      color: #d0c8b8;
+      font-style: italic;
+      line-height: 1.7;
+    }
+
+    @media (max-width: 768px) {
+      .ea-platforms { grid-template-columns: 1fr 1fr; }
+      .ea-stats { grid-template-columns: 1fr 1fr; }
+      .ea-pullquote { font-size: 13px; padding: 16px 18px; margin: 20px 0; }
+    }
+    @media (max-width: 480px) {
+      .ea-platforms { grid-template-columns: 1fr; }
+      .ea-platform { flex-direction: row; padding: 14px 16px; }
+      .ea-platform svg { width: 28px; height: 28px; }
+    }
+  </style>
+</head>
+<body class="ambient-lines">
+  <div class="page-bg" style="background-image:url('/assets/art/launch_early_access_banner.webp');"></div>
+  <nav class="nav">
+    <a href="/" class="nav-brand">EBON CRUCIBLE <span class="alpha-badge">EARLY ACCESS</span></a>
+    <button class="nav-toggle" aria-label="Menu"><span></span><span></span><span></span></button>
+    <div class="nav-links">
+      <a href="/">HOME</a>
+      <a href="/classes/">CLASSES</a>
+      <a href="/gameplay/">GAME</a>
+      <a href="/rankings/">RANKINGS</a>
+      <a href="/news/" class="active">NEWS</a>
+      <a href="/community/">COMMUNITY</a>
+      <a href="/play/" class="nav-signin" id="nav-auth">SIGN IN</a>
+      <a href="/play/" class="nav-play">PLAY FREE</a>
+    </div>
+  </nav>
+
+  <div class="hero" style="min-height: 50vh;">
+    <div class="hero-bg" style="background-image: url('/assets/art/launch_early_access_banner.webp');"></div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <div class="article-badge" style="color:#c8a860;background:rgba(200,168,96,0.12);border:1px solid rgba(200,168,96,0.3);">EARLY ACCESS LAUNCH</div>
+      <h1 style="font-size: 32px; letter-spacing: 6px;">NOW ON EVERY PLATFORM</h1>
+      <div class="hero-line"></div>
+      <p style="color:#c8a860;letter-spacing:3px;font-size:11px;font-weight:700;">STEAM &middot; APP STORE &middot; GOOGLE PLAY &middot; WEB</p>
+      <p style="color:#888;font-size:11px;margin-top:6px;">May 4, 2026</p>
+    </div>
+    <div class="hero-scroll-arrow">&#9660;</div>
+  </div>
+
+  <div class="content">
+    <a href="/news/" class="back-link">&larr; BACK TO NEWS</a>
+
+    <div class="article-body">
+      <h2>Ebon Crucible Enters Early Access</h2>
+      <div class="meta">MAY 4, 2026 &middot; EARLY ACCESS LAUNCH</div>
+
+      <p><strong style="color:#e0d8c8;">Ebon Crucible is now in Early Access on Steam, the App Store, Google Play, and the web.</strong> A dark fantasy arena combat game built for fast, skill-based PvP. Pick one of five champions, master a deep ability kit, and climb a ranked ladder against real opponents on every platform.</p>
+
+      <div class="ea-pullquote">
+        &ldquo;Five classes. 63 abilities. Real-time, server-authoritative arena combat. Pick a champion. Pick a rival. Stake your claim.&rdquo;
+      </div>
+
+      <h3>WATCH THE LAUNCH TRAILER</h3>
+      <div class="ea-trailer">
+        <video controls playsinline preload="metadata" poster="/assets/art/launch_early_access_banner.webp">
+          <source src="/assets/art/launch_trailer.mp4" type="video/mp4">
+        </video>
+      </div>
+
+      <h3>PLAY ON YOUR PLATFORM</h3>
+      <p>One account, every device. Rank, coins, cosmetics, and battle pass progress sync across PC, mobile, and the web. Queue into the same matches no matter how you play.</p>
+
+      <div class="ea-platforms">
+        <a href="https://store.steampowered.com/app/4620190/Ebon_Crucible/" class="ea-platform" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0C5.6 0 .3 4.7 0 10.7l6.3 2.6a3.4 3.4 0 0 1 1.9-.6l2.9-4.2v-.1a4.5 4.5 0 1 1 4.5 4.5h-.1l-4.1 3a3.4 3.4 0 0 1-3.4 3.4 3.4 3.4 0 0 1-3.3-2.6L0 14.8C1.4 20 6.3 24 12 24c6.6 0 12-5.4 12-12S18.6 0 12 0zM7.5 18.2l-1.4-.6a2.6 2.6 0 0 0 1.3 1.2 2.6 2.6 0 0 0 2-4.7l1.5.6a3.4 3.4 0 0 1-2 4.4 3.4 3.4 0 0 1-1.4-.9zm12.6-7.2a3 3 0 1 1-3-3 3 3 0 0 1 3 3zm-5.3 0a2.3 2.3 0 1 0 2.3-2.3 2.3 2.3 0 0 0-2.3 2.3z"/></svg>
+          <div class="ea-platform-label">DOWNLOAD ON</div>
+          <div class="ea-platform-name">STEAM</div>
+        </a>
+        <a href="https://apps.apple.com/us/app/ebon-crucible/id6762164827" class="ea-platform" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.05 12.04c-.03-3.05 2.5-4.5 2.62-4.58-1.43-2.09-3.66-2.38-4.45-2.41-1.9-.19-3.7 1.12-4.66 1.12-.97 0-2.45-1.09-4.03-1.06-2.07.03-3.98 1.2-5.05 3.06-2.16 3.74-.55 9.27 1.55 12.31 1.03 1.49 2.25 3.16 3.85 3.1 1.55-.06 2.13-1 4-1 1.86 0 2.4 1 4.03.97 1.66-.03 2.72-1.51 3.74-3.01 1.18-1.73 1.66-3.4 1.69-3.49-.04-.02-3.24-1.24-3.27-4.91zM14.4 4.49c.85-1.04 1.43-2.48 1.27-3.92-1.23.05-2.72.82-3.6 1.85-.79.92-1.48 2.39-1.3 3.81 1.37.11 2.78-.7 3.63-1.74z"/></svg>
+          <div class="ea-platform-label">DOWNLOAD ON</div>
+          <div class="ea-platform-name">APP STORE</div>
+        </a>
+        <a href="https://play.google.com/store/apps/details?id=com.eboncrucible.arena" class="ea-platform" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.6 1.3c-.4.3-.6.7-.6 1.3v18.9c0 .5.2 1 .6 1.3l10.8-10.8L3.6 1.3zm12 9.3l3.5-2c.6-.4.6-1.2 0-1.6L15 4.6 11.7 8l3.9 2.6zm-2 1.4l-10.7 10.7c.4.2.9.2 1.3 0L17 16.2l-3.4-4.2zM4.2.6c-.3 0-.6 0-.8.2L13.6 11l3.4-4.2L4.5.7C4.4.6 4.3.6 4.2.6z"/></svg>
+          <div class="ea-platform-label">GET IT ON</div>
+          <div class="ea-platform-name">GOOGLE PLAY</div>
+        </a>
+        <a href="/play/" class="ea-platform">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm-1 17.93A8 8 0 0 1 4.07 13H7c.34 1.93.94 3.65 1.7 4.93zm0-8.93H4.07A8 8 0 0 1 11 4.07V11zm0 8.93C9.74 18.65 9.14 16.93 8.8 15H11v4.93zM11 13H7c-.05-.66-.05-1.34 0-2h4v2zm9.93 0h-2.93c.05-.66.05-1.34 0-2h2.93a8 8 0 0 1 0 2zM13 4.07A8 8 0 0 1 19.93 11H17c-.34-1.93-.94-3.65-1.7-4.93A8 8 0 0 1 13 4.07zm0 15.86V15h2.2c-.34 1.93-.94 3.65-1.7 4.93z"/></svg>
+          <div class="ea-platform-label">PLAY FREE IN</div>
+          <div class="ea-platform-name">BROWSER</div>
+        </a>
+      </div>
+
+      <h3>WHAT'S IN EARLY ACCESS</h3>
+      <div class="ea-stats">
+        <div class="ea-stat">
+          <div class="ea-stat-num">5</div>
+          <div class="ea-stat-label">CLASSES</div>
+        </div>
+        <div class="ea-stat">
+          <div class="ea-stat-num">63</div>
+          <div class="ea-stat-label">ABILITIES</div>
+        </div>
+        <div class="ea-stat">
+          <div class="ea-stat-num">10Hz</div>
+          <div class="ea-stat-label">SERVER TICK</div>
+        </div>
+        <div class="ea-stat">
+          <div class="ea-stat-num">4</div>
+          <div class="ea-stat-label">PLATFORMS</div>
+        </div>
+      </div>
+
+      <h3>FIVE CHAMPIONS, ONE ARENA</h3>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:16px 0 20px;">
+        <a href="/classes/tyrant/" style="text-align:center;text-decoration:none;">
+          <img src="/assets/art/tyrant_portrait.webp" width="64" height="64" style="border-radius:8px;border:2px solid #8B0000;display:block;margin:0 auto;" alt="Tyrant">
+          <div style="font-size:10px;letter-spacing:2px;font-weight:700;color:#8B0000;margin-top:8px;">TYRANT</div>
+          <div style="font-size:9px;color:#888;">Warrior &middot; Rage</div>
+        </a>
+        <a href="/classes/wraith/" style="text-align:center;text-decoration:none;">
+          <img src="/assets/art/wraith_portrait.webp" width="64" height="64" style="border-radius:8px;border:2px solid #6B2FA0;display:block;margin:0 auto;" alt="Wraith">
+          <div style="font-size:10px;letter-spacing:2px;font-weight:700;color:#6B2FA0;margin-top:8px;">WRAITH</div>
+          <div style="font-size:9px;color:#888;">Assassin &middot; Energy</div>
+        </a>
+        <a href="/classes/infernal/" style="text-align:center;text-decoration:none;">
+          <img src="/assets/art/infernal_portrait.webp" width="64" height="64" style="border-radius:8px;border:2px solid #FF4500;display:block;margin:0 auto;" alt="Infernal">
+          <div style="font-size:10px;letter-spacing:2px;font-weight:700;color:#FF4500;margin-top:8px;">INFERNAL</div>
+          <div style="font-size:9px;color:#888;">Mage &middot; Mana</div>
+        </a>
+        <a href="/classes/harbinger/" style="text-align:center;text-decoration:none;">
+          <img src="/assets/art/harbinger_portrait.webp" width="64" height="64" style="border-radius:8px;border:2px solid #228B22;display:block;margin:0 auto;" alt="Harbinger">
+          <div style="font-size:10px;letter-spacing:2px;font-weight:700;color:#228B22;margin-top:8px;">HARBINGER</div>
+          <div style="font-size:9px;color:#888;">Warlock &middot; Shards</div>
+        </a>
+        <a href="/classes/revenant/" style="text-align:center;text-decoration:none;">
+          <img src="/assets/art/revenant_portrait.webp" width="64" height="64" style="border-radius:8px;border:2px solid #C8B560;display:block;margin:0 auto;" alt="Revenant">
+          <div style="font-size:10px;letter-spacing:2px;font-weight:700;color:#C8B560;margin-top:8px;">REVENANT</div>
+          <div style="font-size:9px;color:#888;">Paladin &middot; Holy</div>
+        </a>
+      </div>
+
+      <h3>WHY EARLY ACCESS</h3>
+      <p>The arena is real, the matches are real, and the ladder is live. Early Access means ranked competition is open today, and the rest of the roadmap will land in front of players, not behind a wall. Every match shapes balance. Every rank earned is permanent.</p>
+
+      <h3>WHAT'S NEXT</h3>
+      <ul>
+        <li><strong style="color:#e0d8c8;">Procedural Dungeon Crawl</strong> &mdash; Solo and co-op PvE runs, one dungeon per class, with room-by-room progression and roguelike upgrades.</li>
+        <li><strong style="color:#e0d8c8;">3v3 Ranked</strong> &mdash; A third arena format alongside 1v1 and 2v2, with full party ranked support.</li>
+        <li><strong style="color:#e0d8c8;">New champions and skins</strong> &mdash; The roster expands. The cosmetic catalog expands faster.</li>
+        <li><strong style="color:#e0d8c8;">Cross-platform play</strong> &mdash; Live now. PC, mobile, and web players already queue into the same matches.</li>
+      </ul>
+
+      <h3>ABOUT EBON CRUCIBLE</h3>
+      <p>Ebon Crucible is a dark fantasy 1v1 and 2v2 arena combat game. Five classes. 63 abilities. Skill-based matchmaking from The Broken to The Ascended. Free to play on every major platform.</p>
+      <p>The Crucible is open.</p>
+    </div>
+  </div>
+
+  <div class="cta-section ember-corners section-glow-top">
+    <h2>STEP INTO THE CRUCIBLE</h2>
+    <p style="color:#888;font-size:13px;margin-bottom:24px;">Free to play. Cross-progression. Server-authoritative. Always crossplay.</p>
+    <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;">
+      <a href="/play/" class="cta-btn">PLAY FREE NOW</a>
+    </div>
+  </div>
+
+  <div class="footer">&copy; 2026 Ebon Crucible. All rights reserved. <a href="/privacy/" style="color:#666;margin-left:12px;">Privacy Policy</a> <a href="/terms/" style="color:#666;margin-left:12px;">Terms of Service</a><div class="footer-alpha">In Early Access &mdash; features and balance evolve every week.</div></div>
+
+  <script>
+    (function() {
+      var c = document.querySelector('.hero');
+      for (var i = 0; i < 18; i++) {
+        var p = document.createElement('div');
+        var s = 2 + Math.random() * 4;
+        p.style.cssText = 'position:absolute;bottom:-10px;left:' + (Math.random()*100) + '%;width:' + s + 'px;height:' + s + 'px;border-radius:50%;background:rgba(200,168,96,0.6);opacity:0;pointer-events:none;animation:particleFloat ' + (6+Math.random()*6) + 's ' + (Math.random()*8) + 's ease-out infinite;';
+        c.appendChild(p);
+      }
+    })();
+  </script>
+<script>
+(function(){try{
+  var n=localStorage.getItem('ec_username');
+  if(n){
+    var el=document.getElementById('nav-auth');
+    if(el){
+      el.textContent=n+' ▾';
+      el.href='javascript:void(0)';
+      el.style.position='relative';
+      el.style.cursor='pointer';
+      var dd=document.createElement('div');
+      dd.style.cssText='display:none;position:absolute;top:100%;right:0;margin-top:8px;min-width:120px;background:rgba(12,12,22,0.98);border:1px solid #2a2a3a;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.5);overflow:hidden;z-index:9999;';
+      var profile=document.createElement('a');profile.href='/play/';profile.textContent='⛨ PROFILE';
+      profile.style.cssText='display:block;padding:10px 16px;font-size:9px;letter-spacing:2px;font-weight:700;color:#888;text-decoration:none;transition:background 0.2s;';
+      profile.onmouseenter=function(){this.style.background='rgba(255,255,255,0.04)'};profile.onmouseleave=function(){this.style.background='none'};
+      dd.appendChild(profile);
+      var logout=document.createElement('a');logout.href='javascript:void(0)';logout.textContent='⏻ LOG OUT';
+      logout.style.cssText='display:block;padding:10px 16px;font-size:9px;letter-spacing:2px;font-weight:700;color:#cc6666;text-decoration:none;transition:background 0.2s;';
+      logout.onmouseenter=function(){this.style.background='rgba(255,255,255,0.04)'};logout.onmouseleave=function(){this.style.background='none'};
+      logout.onclick=function(e){e.stopPropagation();localStorage.removeItem('ec_username');localStorage.removeItem('CognitoIdentityServiceProvider.sn01blkd57e7oi7e7vq80mipv.LastAuthUser');var keys=Object.keys(localStorage);for(var i=0;i<keys.length;i++){if(keys[i].indexOf('CognitoIdentityServiceProvider')===0)localStorage.removeItem(keys[i]);}window.location.reload();};
+      dd.appendChild(logout);
+      el.appendChild(dd);
+      var open=false;
+      el.onclick=function(e){e.preventDefault();e.stopPropagation();open=!open;dd.style.display=open?'block':'none';};
+      document.addEventListener('click',function(){dd.style.display='none';open=false;});var pb=document.querySelector('.nav-play');if(pb)pb.textContent='PLAY NOW';
+    }
+  }
+}catch(e){}}());
+(function(){var tog=document.querySelector('.nav-toggle');var links=document.querySelector('.nav-links');if(tog)tog.onclick=function(){links.classList.toggle('open');};document.addEventListener('click',function(e){if(!e.target.closest('.nav'))links.classList.remove('open');});})();
+</script>
+<script src="/src/analytics/consent.js"></script>
+</body>
+</html>

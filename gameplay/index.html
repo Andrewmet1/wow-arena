@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <title>How to Play — Ebon Crucible</title>
+  <meta name="description" content="Learn how to play Ebon Crucible. Five classes, 63 abilities, real-time 1v1 arena combat with ranked matchmaking. Master your class and climb the ladder.">
+  <meta property="og:title" content="How to Play — Ebon Crucible">
+  <meta property="og:description" content="Five classes, 63 abilities, real-time 1v1 arena combat. Learn the combat system, classes, and ranked play.">
+  <meta property="og:image" content="/assets/art/arena_action.webp">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://eboncrucible.com/gameplay/">
+  <meta name="theme-color" content="#08080f">
+  <link rel="stylesheet" href="/src/styles/ebon-pages.css">
+</head>
+<body class="ambient-lines">
+  <div class="page-bg" style="background-image:url('/assets/art/prove_yourself_bg.webp');"></div>
+  <nav class="nav">
+    <a href="/" class="nav-brand">EBON CRUCIBLE <span class="alpha-badge">ALPHA</span></a>
+    <button class="nav-toggle" aria-label="Menu"><span></span><span></span><span></span></button>
+    <div class="nav-links">
+      <a href="/">HOME</a>
+      <a href="/classes/">CLASSES</a>
+      <a href="/gameplay/" class="active">GAME</a>
+      <a href="/rankings/">RANKINGS</a>
+      <a href="/news/">NEWS</a>
+      <a href="/community/">COMMUNITY</a>
+      <a href="/play/" class="nav-signin" id="nav-auth">SIGN IN</a>
+      <a href="/play/" class="nav-play">PLAY FREE</a>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <div class="hero-bg" style="background-image: url('/assets/art/arena_action.webp');"></div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <h1>HOW TO PLAY</h1>
+      <div class="hero-line"></div>
+      <p>Everything you need to know about Ebon Crucible's combat system, classes, and ranked play.</p>
+    </div>
+    <div class="hero-scroll-arrow">&#9660;</div>
+  </div>
+
+  <!-- The Arena -->
+  <div class="gp-section ambient-wash section-glow-top" id="overview">
+    <div class="gp-section-bg" style="background-image: url('/assets/art/prove_yourself_bg.webp');"></div>
+    <div class="gp-section-title">THE ARENA</div>
+    <div class="gp-section-line"></div>
+    <div class="gp-section-text">Ebon Crucible is a real-time 1v1 arena combat game set in a dark fantasy world. Two players enter the arena, each controlling a champion with unique abilities. The last one standing wins.</div>
+    <div class="gp-pillars">
+      <div class="gp-pillar" style="animation-delay:0.1s;">
+        <div class="gp-pillar-icon"><img src="/assets/art/icons/icon_action.png" width="48" height="48" style="border-radius:8px;margin-bottom:8px;" alt="Action"></div>
+        <div class="gp-pillar-title">INSTANT PLAY</div>
+        <div class="gp-pillar-desc">Play in your browser or on Steam. Jump straight into the arena — no setup, no waiting.</div>
+      </div>
+      <div class="gp-pillar" style="animation-delay:0.15s;">
+        <div class="gp-pillar-icon"><img src="/assets/art/icons/icon_strategy.png" width="48" height="48" style="border-radius:8px;margin-bottom:8px;" alt="Strategy" loading="lazy"></div>
+        <div class="gp-pillar-title">NO PAY-TO-WIN</div>
+        <div class="gp-pillar-desc">Every fight is fair. No random elements, no grinding. Pure skill determines the outcome.</div>
+      </div>
+      <div class="gp-pillar" style="animation-delay:0.2s;">
+        <div class="gp-pillar-icon"><img src="/assets/art/icons/icon_combat.png" width="48" height="48" style="border-radius:8px;margin-bottom:8px;" alt="Combat" loading="lazy"></div>
+        <div class="gp-pillar-title">PURE SKILL</div>
+        <div class="gp-pillar-desc">Ability usage, positioning, and decision-making. Every victory is earned.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="glow-divider"></div>
+  <!-- Combat System -->
+  <div class="gp-section ambient-wash section-glow-top" id="combat" style="--wash-color:rgba(224,85,85,0.02);">
+    <div class="gp-section-title">COMBAT SYSTEM</div>
+    <div class="gp-section-line"></div>
+    <div class="gp-section-text">Each class has 12+ unique abilities with cooldowns, cast times, and resource costs. Manage your resource while reading your opponent's cooldowns and positioning.</div>
+    <div class="gp-mechanic-grid">
+      <div class="gp-mechanic-card" style="--mech-color:#e05555; animation-delay:0.1s;">
+        <div class="gp-mechanic-icon"><img src="/assets/art/icons/icon_resource.png" width="40" height="40" style="border-radius:6px;margin-bottom:6px;" alt="Resource" loading="lazy"></div>
+        <div class="gp-mechanic-name" style="color:#e05555;">CC</div>
+        <div class="gp-mechanic-desc">Stuns, roots, silences, fears. Chain them to lock down opponents.</div>
+      </div>
+      <div class="gp-mechanic-card" style="--mech-color:#e0c855; animation-delay:0.15s;">
+        <div class="gp-mechanic-icon"><img src="/assets/art/icons/icon_execute.png" width="40" height="40" style="border-radius:6px;margin-bottom:6px;" alt="Execute" loading="lazy"></div>
+        <div class="gp-mechanic-name" style="color:#e0c855;">INTERRUPTS</div>
+        <div class="gp-mechanic-desc">Kick cast-time abilities to prevent healing or burst. Timing is everything.</div>
+      </div>
+      <div class="gp-mechanic-card" style="--mech-color:#55c878; animation-delay:0.2s;">
+        <div class="gp-mechanic-icon"><img src="/assets/art/icons/icon_combo.png" width="40" height="40" style="border-radius:6px;margin-bottom:6px;" alt="Combo" loading="lazy"></div>
+        <div class="gp-mechanic-name" style="color:#55c878;">DEFENSIVES</div>
+        <div class="gp-mechanic-desc">Shields, damage reduction, immunities, and healing to survive burst.</div>
+      </div>
+      <div class="gp-mechanic-card" style="--mech-color:#e09055; animation-delay:0.25s;">
+        <div class="gp-mechanic-icon"><img src="/assets/art/icons/icon_dot.png" width="40" height="40" style="border-radius:6px;margin-bottom:6px;" alt="DoT" loading="lazy"></div>
+        <div class="gp-mechanic-name" style="color:#e09055;">BURST</div>
+        <div class="gp-mechanic-desc">Stack cooldowns, CC the opponent, and unload. Knowing when to commit wins games.</div>
+      </div>
+      <div class="gp-mechanic-card" style="--mech-color:#5588e0; animation-delay:0.3s;">
+        <div class="gp-mechanic-icon"><img src="/assets/art/icons/icon_holypower.png" width="40" height="40" style="border-radius:6px;margin-bottom:6px;" alt="Holy Power" loading="lazy"></div>
+        <div class="gp-mechanic-name" style="color:#5588e0;">POSITIONING</div>
+        <div class="gp-mechanic-desc">WASD movement. Kite melee, chase ranged, dodge abilities.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="glow-divider"></div>
+  <!-- The Five Classes -->
+  <div class="gp-section ambient-wash section-glow-top" id="classes">
+    <div class="gp-section-title">THE FIVE CLASSES</div>
+    <div class="gp-section-line"></div>
+    <div class="gp-section-text">Each class plays differently and rewards a unique playstyle. 63 abilities across five distinct combat identities.</div>
+    <div class="gp-class-strip">
+      <a href="/classes/tyrant/" class="gp-class-thumb">
+        <div class="gp-class-thumb-img" style="border-color:#8B0000;"><img src="/assets/art/tyrant_splash.webp" alt="Tyrant" loading="lazy"></div>
+        <div class="gp-class-thumb-name" style="color:#8B0000;">TYRANT</div>
+      </a>
+      <a href="/classes/wraith/" class="gp-class-thumb">
+        <div class="gp-class-thumb-img" style="border-color:#6B2FA0;"><img src="/assets/art/wraith_splash.webp" alt="Wraith" loading="lazy"></div>
+        <div class="gp-class-thumb-name" style="color:#6B2FA0;">WRAITH</div>
+      </a>
+      <a href="/classes/infernal/" class="gp-class-thumb">
+        <div class="gp-class-thumb-img" style="border-color:#FF4500;"><img src="/assets/art/infernal_splash.webp" alt="Infernal" loading="lazy"></div>
+        <div class="gp-class-thumb-name" style="color:#FF4500;">INFERNAL</div>
+      </a>
+      <a href="/classes/harbinger/" class="gp-class-thumb">
+        <div class="gp-class-thumb-img" style="border-color:#228B22;"><img src="/assets/art/harbinger_splash.webp" alt="Harbinger" loading="lazy"></div>
+        <div class="gp-class-thumb-name" style="color:#228B22;">HARBINGER</div>
+      </a>
+      <a href="/classes/revenant/" class="gp-class-thumb">
+        <div class="gp-class-thumb-img" style="border-color:#C8B560;"><img src="/assets/art/revenant_splash.webp" alt="Revenant" loading="lazy"></div>
+        <div class="gp-class-thumb-name" style="color:#C8B560;">REVENANT</div>
+      </a>
+    </div>
+    <div style="text-align:center;margin-top:16px;">
+      <a href="/classes/" style="font-size:10px;letter-spacing:3px;font-weight:700;">VIEW ALL CLASSES &rarr;</a>
+    </div>
+  </div>
+
+  <div class="glow-divider"></div>
+  <!-- Game Modes -->
+  <div class="gp-section ambient-wash section-glow-top" id="modes">
+    <div class="gp-section-title">GAME MODES</div>
+    <div class="gp-section-line"></div>
+    <div class="gp-modes-grid">
+      <div class="gp-mode-card gp-mode-card--featured" style="animation-delay:0.1s;">
+        <div class="gp-mode-card-bg"><img src="/assets/art/mode_ranked.webp" alt="Ranked" loading="lazy"></div>
+        <div class="gp-mode-card-overlay"></div>
+        <div class="gp-mode-card-content">
+          <div class="gp-mode-card-badge" style="color:#c8a860;background:rgba(200,168,96,0.15);border:1px solid rgba(200,168,96,0.2);">COMPETITIVE</div>
+          <div class="gp-mode-card-name">RANKED ARENA</div>
+          <div class="gp-mode-card-desc">Queue up and get matched by skill. Climb from The Broken to The Ascended. Solo 1v1 and duo 2v2 ranked. 3v3 coming soon.</div>
+        </div>
+      </div>
+      <div class="gp-modes-row">
+        <div class="gp-mode-card" style="animation-delay:0.12s;">
+          <div class="gp-mode-card-bg"><img src="/assets/art/news_wager_duels.webp" alt="Wager Duels" loading="lazy"></div>
+          <div class="gp-mode-card-overlay"></div>
+          <div class="gp-mode-card-content">
+            <div class="gp-mode-card-badge" style="color:#e05555;background:rgba(224,85,85,0.15);border:1px solid rgba(224,85,85,0.2);">HIGH STAKES</div>
+            <div class="gp-mode-card-name">WAGER DUELS</div>
+            <div class="gp-mode-card-desc">Challenge any player and stake coins. Winner takes all with amplified ELO gains up to 5x.</div>
+          </div>
+        </div>
+        <div class="gp-mode-card" style="animation-delay:0.15s;">
+          <div class="gp-mode-card-bg"><img src="/assets/art/mode_custom.webp" alt="Custom" loading="lazy"></div>
+          <div class="gp-mode-card-overlay"></div>
+          <div class="gp-mode-card-content">
+            <div class="gp-mode-card-badge" style="color:#4a90d9;background:rgba(74,144,217,0.15);border:1px solid rgba(74,144,217,0.2);">SOCIAL</div>
+            <div class="gp-mode-card-name">CUSTOM GAME</div>
+            <div class="gp-mode-card-desc">Create a room with a 4-letter code. Share it with a friend to fight on your terms.</div>
+          </div>
+        </div>
+        <div class="gp-mode-card" style="animation-delay:0.2s;">
+          <div class="gp-mode-card-bg"><img src="/assets/art/mode_ai.webp" alt="Practice" loading="lazy"></div>
+          <div class="gp-mode-card-overlay"></div>
+          <div class="gp-mode-card-content">
+            <div class="gp-mode-card-badge" style="color:#4adb7a;background:rgba(74,219,122,0.15);border:1px solid rgba(74,219,122,0.2);">PRACTICE</div>
+            <div class="gp-mode-card-name">VS AI</div>
+            <div class="gp-mode-card-desc">Solo and 2v2 practice against AI at three difficulty levels. Learn matchups and combos.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="glow-divider"></div>
+  <!-- Team Arena -->
+  <div class="gp-section ambient-wash section-glow-top" id="teams" style="--wash-color:rgba(74,144,217,0.02);">
+    <div class="gp-section-title">TEAM ARENA</div>
+    <div class="gp-section-line"></div>
+    <div class="gp-section-text">Team up with friends or queue solo for a random partner. Coordinate cooldowns, chain CC, and execute team combos.</div>
+    <div class="gp-mechanic-grid gp-mechanic-grid--3col">
+      <div class="gp-mechanic-card" style="--mech-color:#4a90d9; animation-delay:0.1s;">
+        <div class="gp-mechanic-icon" style="color:#4a90d9;font-size:28px;">2v2</div>
+        <div class="gp-mechanic-name" style="color:#4a90d9;">RANKED 2V2</div>
+        <div class="gp-mechanic-desc">Party with a friend or queue solo. Separate 2v2 ELO rating. Team synergy and communication decide the match.</div>
+      </div>
+      <div class="gp-mechanic-card" style="--mech-color:#50b464; animation-delay:0.15s;">
+        <div class="gp-mechanic-icon" style="color:#50b464;font-size:28px;">&#x1F91D;</div>
+        <div class="gp-mechanic-name" style="color:#50b464;">PARTY SYSTEM</div>
+        <div class="gp-mechanic-desc">Invite friends to your party from the Social tab. Queue together for ranked 2v2 as a premade duo.</div>
+      </div>
+      <div class="gp-mechanic-card" style="--mech-color:#888; animation-delay:0.2s;">
+        <div class="gp-mechanic-icon" style="color:#888;font-size:28px;">3v3</div>
+        <div class="gp-mechanic-name" style="color:#888;">3V3 &mdash; COMING SOON</div>
+        <div class="gp-mechanic-desc">The ultimate team arena. Strategy, comp building, and coordinated kills. Currently in development.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="glow-divider"></div>
+  <!-- Social & Spectating -->
+  <div class="gp-section ambient-wash section-glow-top" id="social" style="--wash-color:rgba(160,230,212,0.02);">
+    <div class="gp-section-title">SOCIAL &amp; SPECTATING</div>
+    <div class="gp-section-line"></div>
+    <div class="gp-section-text">The Crucible is a community. Chat, spectate, and build rivalries.</div>
+    <div class="gp-mechanic-grid gp-mechanic-grid--4col">
+      <div class="gp-mechanic-card" style="--mech-color:#a0e6d4; animation-delay:0.1s;">
+        <div class="gp-mechanic-icon" style="color:#a0e6d4;font-size:24px;">&#x1F441;</div>
+        <div class="gp-mechanic-name" style="color:#a0e6d4;">SPECTATING</div>
+        <div class="gp-mechanic-desc">Watch live champion matches from the Rankings tab. See the LIVE indicator when a champion is in an active match.</div>
+      </div>
+      <div class="gp-mechanic-card" style="--mech-color:#e0c855; animation-delay:0.15s;">
+        <div class="gp-mechanic-icon" style="color:#e0c855;font-size:24px;">&#x1F4AC;</div>
+        <div class="gp-mechanic-name" style="color:#e0c855;">GLOBAL CHAT</div>
+        <div class="gp-mechanic-desc">Talk to everyone in the arena. Global chat is always available from the Social panel.</div>
+      </div>
+      <div class="gp-mechanic-card" style="--mech-color:#e05555; animation-delay:0.2s;">
+        <div class="gp-mechanic-icon" style="color:#e05555;font-size:24px;">&#x2694;</div>
+        <div class="gp-mechanic-name" style="color:#e05555;">DUEL CHAT</div>
+        <div class="gp-mechanic-desc">Private chat channels auto-created for wager duels. Talk trash before and after the fight.</div>
+      </div>
+      <div class="gp-mechanic-card" style="--mech-color:#4a90d9; animation-delay:0.25s;">
+        <div class="gp-mechanic-icon" style="color:#4a90d9;font-size:24px;">&#x2709;</div>
+        <div class="gp-mechanic-name" style="color:#4a90d9;">DIRECT MESSAGES</div>
+        <div class="gp-mechanic-desc">Send private messages to friends. Manage your conversations from the chat widget.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="glow-divider"></div>
+  <!-- Battle Pass -->
+  <div class="gp-section ambient-wash section-glow-top" id="battlepass" style="--wash-color:rgba(200,168,96,0.02);">
+    <div class="gp-section-title">BATTLE PASS &mdash; SEASON 1</div>
+    <div class="gp-section-line"></div>
+    <div class="gp-section-text">50 tiers of exclusive cosmetics. Earn season XP from every ranked match and unlock portrait frames, portraits, and titles as you progress.</div>
+    <div class="gp-mechanic-grid gp-mechanic-grid--3col">
+      <div class="gp-mechanic-card" style="--mech-color:#c8a860; animation-delay:0.1s;">
+        <div class="gp-mechanic-icon" style="color:#c8a860;font-size:28px;">&#x1F3C6;</div>
+        <div class="gp-mechanic-name" style="color:#c8a860;">50 TIERS</div>
+        <div class="gp-mechanic-desc">Frames, portraits, and titles unlocked at each tier. Rarity increases as you climb &mdash; the top tiers are Legendary.</div>
+      </div>
+      <div class="gp-mechanic-card" style="--mech-color:#a0e6d4; animation-delay:0.15s;">
+        <div class="gp-mechanic-icon" style="color:#a0e6d4;font-size:28px;">&#x2B50;</div>
+        <div class="gp-mechanic-name" style="color:#a0e6d4;">SEASON XP</div>
+        <div class="gp-mechanic-desc">Every ranked match earns season XP. Wins earn more than losses. Progress is tracked in the Pass tab.</div>
+      </div>
+      <div class="gp-mechanic-card" style="--mech-color:#a064dc; animation-delay:0.2s;">
+        <div class="gp-mechanic-icon" style="color:#a064dc;font-size:28px;">&#x1F48E;</div>
+        <div class="gp-mechanic-name" style="color:#a064dc;">COSMETIC ONLY</div>
+        <div class="gp-mechanic-desc">All rewards are visual. No power, no gameplay advantages. Flex your dedication, not your wallet.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="glow-divider"></div>
+  <!-- Ranked Play -->
+  <div class="gp-section ambient-wash section-glow-top" id="ranked">
+    <div class="gp-section-title">RANKED PLAY</div>
+    <div class="gp-section-line"></div>
+    <div class="gp-section-text">Every player starts at 1500 rating. Win matches to gain rating, lose to drop. The amount gained or lost depends on the skill difference between you and your opponent.</div>
+
+    <div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-bottom:24px;">
+      <div class="gp-tier-chip">
+        <img src="/assets/art/rank_cinder.webp" alt="" loading="lazy">
+        <div>
+          <div class="gp-tier-chip-name" style="color:#7a7a7a;">THE BROKEN</div>
+          <div class="gp-tier-chip-range">&lt;1300</div>
+        </div>
+      </div>
+      <div class="gp-tier-chip">
+        <img src="/assets/art/rank_crimson.webp" alt="" loading="lazy">
+        <div>
+          <div class="gp-tier-chip-name" style="color:#c0c0c0;">THE PROVEN</div>
+          <div class="gp-tier-chip-range">1300+</div>
+        </div>
+      </div>
+      <div class="gp-tier-chip">
+        <img src="/assets/art/rank_dreadforge.webp" alt="" loading="lazy">
+        <div>
+          <div class="gp-tier-chip-name" style="color:#ffd700;">THE EXALTED</div>
+          <div class="gp-tier-chip-range">1500+</div>
+        </div>
+      </div>
+      <div class="gp-tier-chip">
+        <img src="/assets/art/rank_soulfire.webp" alt="" loading="lazy">
+        <div>
+          <div class="gp-tier-chip-name" style="color:#a0e6d4;">THE DREAD</div>
+          <div class="gp-tier-chip-range">1800+</div>
+        </div>
+      </div>
+      <div class="gp-tier-chip">
+        <img src="/assets/art/rank_abyssal.webp" alt="" loading="lazy">
+        <div>
+          <div class="gp-tier-chip-name" style="color:#b9f2ff;">THE ASCENDED</div>
+          <div class="gp-tier-chip-range">2000+</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="gp-section-text" style="margin-bottom:0;">The highest-rated player is crowned the <span style="color:#c8a860;font-weight:700;">Crucible Champion</span>. Every match at the top is a battle to hold or seize the throne. Upsets are rewarded &mdash; beating a higher-rated player earns amplified rating. Losing streaks accelerate your descent.</div>
+  </div>
+
+  <div class="glow-divider"></div>
+  <!-- Class Mastery & Progression -->
+  <div class="gp-section ambient-wash section-glow-top" id="mastery" style="--wash-color:rgba(200,168,96,0.03);">
+    <div class="gp-section-title">CLASS MASTERY &amp; PROGRESSION</div>
+    <div class="gp-section-line"></div>
+    <div class="gp-section-text">Every class has its own progression track. Earn XP by playing matches, level up your mastery, and unlock milestone rewards as you prove your dedication to each class.</div>
+
+    <!-- XP rates -->
+    <div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap;margin-bottom:28px;">
+      <div style="padding:14px 24px;background:rgba(12,12,22,0.6);border:1px solid rgba(200,168,96,0.08);border-radius:8px;text-align:center;">
+        <div style="font-size:10px;letter-spacing:2px;color:#555;margin-bottom:6px;">RANKED MATCH</div>
+        <div style="font-size:16px;font-weight:700;color:#4adb7a;">+100 XP</div>
+        <div style="font-size:9px;color:#666;margin-top:2px;">WIN</div>
+        <div style="font-size:14px;font-weight:700;color:#888;margin-top:6px;">0&ndash;25 XP</div>
+        <div style="font-size:9px;color:#555;margin-top:2px;">LOSS (BY PERFORMANCE)</div>
+      </div>
+      <div style="padding:14px 24px;background:rgba(12,12,22,0.6);border:1px solid rgba(74,219,122,0.08);border-radius:8px;text-align:center;">
+        <div style="font-size:10px;letter-spacing:2px;color:#555;margin-bottom:6px;">VS AI</div>
+        <div style="font-size:16px;font-weight:700;color:#4adb7a;">+25 XP</div>
+        <div style="font-size:9px;color:#666;margin-top:2px;">WIN</div>
+        <div style="font-size:14px;font-weight:700;color:#888;margin-top:6px;">0&ndash;10 XP</div>
+        <div style="font-size:9px;color:#555;margin-top:2px;">LOSS (BY PERFORMANCE)</div>
+      </div>
+    </div>
+    <div style="font-size:9px;color:#444;text-align:center;margin-top:-20px;margin-bottom:24px;">AI rewards require Hard difficulty after Account Level 5</div>
+
+    <!-- Mastery tiers -->
+    <div style="font-size:10px;letter-spacing:3px;color:#555;text-align:center;font-weight:700;margin-bottom:14px;">MASTERY TIERS</div>
+    <div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-bottom:24px;">
+      <div class="gp-tier-chip">
+        <img src="/assets/art/mastery_uninitiated.webp" alt="" loading="lazy">
+        <div>
+          <div class="gp-tier-chip-name" style="color:#7a7a7a;">UNINITIATED</div>
+          <div class="gp-tier-chip-range">Level 0&ndash;9</div>
+        </div>
+      </div>
+      <div class="gp-tier-chip">
+        <img src="/assets/art/mastery_blooded.webp" alt="" loading="lazy">
+        <div>
+          <div class="gp-tier-chip-name" style="color:#c0c0c0;">BLOODED</div>
+          <div class="gp-tier-chip-range">Level 10&ndash;19</div>
+        </div>
+      </div>
+      <div class="gp-tier-chip">
+        <img src="/assets/art/mastery_forged.webp" alt="" loading="lazy">
+        <div>
+          <div class="gp-tier-chip-name" style="color:#ffd700;">FORGED</div>
+          <div class="gp-tier-chip-range">Level 20&ndash;29</div>
+        </div>
+      </div>
+      <div class="gp-tier-chip">
+        <img src="/assets/art/mastery_ascendant.webp" alt="" loading="lazy">
+        <div>
+          <div class="gp-tier-chip-name" style="color:#a0e6d4;">ASCENDANT</div>
+          <div class="gp-tier-chip-range">Level 30&ndash;39</div>
+        </div>
+      </div>
+      <div class="gp-tier-chip">
+        <img src="/assets/art/mastery_sovereign.webp" alt="" loading="lazy">
+        <div>
+          <div class="gp-tier-chip-name" style="color:#c8a860;">SOVEREIGN</div>
+          <div class="gp-tier-chip-range">Level 40&ndash;50</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Milestone rewards -->
+    <div class="gp-mechanic-grid gp-mechanic-grid--3col">
+      <div class="gp-mechanic-card" style="--mech-color:#c8a860; animation-delay:0.1s;">
+        <div class="gp-mechanic-icon" style="color:#c8a860;">&#x1FA99;</div>
+        <div class="gp-mechanic-name" style="color:#c8a860;">MILESTONE COINS</div>
+        <div class="gp-mechanic-desc">Earn bonus coins at every 5th level. From 50 coins at level 5 up to 500 coins at level 50.</div>
+      </div>
+      <div class="gp-mechanic-card" style="--mech-color:#a0e6d4; animation-delay:0.15s;">
+        <div class="gp-mechanic-icon" style="color:#a0e6d4;">&#x265B;</div>
+        <div class="gp-mechanic-name" style="color:#a0e6d4;">SOVEREIGN TITLE</div>
+        <div class="gp-mechanic-desc">Reach level 50 with any class to earn its exclusive Sovereign title &mdash; proof of true mastery.</div>
+      </div>
+      <div class="gp-mechanic-card" style="--mech-color:#ffd700; animation-delay:0.2s;">
+        <div class="gp-mechanic-icon" style="color:#ffd700;">&#x2605;</div>
+        <div class="gp-mechanic-name" style="color:#ffd700;">MAX LEVEL 50</div>
+        <div class="gp-mechanic-desc">Each class has an independent progression track to level 50. Master one or master them all.</div>
+      </div>
+    </div>
+
+    <div class="gp-section-text" style="margin-top:20px;margin-bottom:0;">All match XP also contributes to your <span style="color:#e0d8c8;font-weight:700;">Account Level</span> &mdash; a global level displayed next to your name that tracks your total experience across all classes.</div>
+  </div>
+
+  <div class="glow-divider"></div>
+  <!-- Economy & Betting -->
+  <div class="gp-section ambient-wash section-glow-top" id="economy" style="--wash-color:rgba(200,168,96,0.02);">
+    <div class="gp-section-title">ECONOMY &amp; BETTING</div>
+    <div class="gp-section-line"></div>
+    <div class="gp-section-text">Every ranked match earns coins. Spend them on cosmetics or wager them on class champions.</div>
+    <div class="gp-mechanic-grid">
+      <div class="gp-mechanic-card" style="--mech-color:#c8a860; animation-delay:0.1s;">
+        <div class="gp-mechanic-icon"><img src="/assets/art/icons/icon_earn_coins.png" width="40" height="40" style="border-radius:6px;margin-bottom:6px;" alt="Coins" loading="lazy"></div>
+        <div class="gp-mechanic-name" style="color:#c8a860;">COINS</div>
+        <div class="gp-mechanic-desc">Earn coins from every ranked match. Win streaks and higher tiers multiply your rewards.</div>
+      </div>
+      <div class="gp-mechanic-card" style="--mech-color:#a064dc; animation-delay:0.15s;">
+        <div class="gp-mechanic-icon"><img src="/assets/art/icons/icon_champion_bets.png" width="40" height="40" style="border-radius:6px;margin-bottom:6px;" alt="Shop" loading="lazy"></div>
+        <div class="gp-mechanic-name" style="color:#a064dc;">SHOP</div>
+        <div class="gp-mechanic-desc">Portrait frames, portrait styles, and titles. Purely cosmetic, earned through play.</div>
+      </div>
+      <div class="gp-mechanic-card" style="--mech-color:#e05555; animation-delay:0.2s;">
+        <div class="gp-mechanic-icon"><img src="/assets/art/icons/icon_champion_bets.png" width="40" height="40" style="border-radius:6px;margin-bottom:6px;" alt="Champion Bets" loading="lazy"></div>
+        <div class="gp-mechanic-name" style="color:#e05555;">CHAMPION BETS</div>
+        <div class="gp-mechanic-desc">Wager on whether class champions hold or fall. Losers fund winners; surplus goes to the Crucible Jackpot.</div>
+      </div>
+      <div class="gp-mechanic-card" style="--mech-color:#55c878; animation-delay:0.25s;">
+        <div class="gp-mechanic-icon"><img src="/assets/art/icons/icon_champions_cut.png" width="40" height="40" style="border-radius:6px;margin-bottom:6px;" alt="Champion's Cut" loading="lazy"></div>
+        <div class="gp-mechanic-name" style="color:#55c878;">CHAMPION'S CUT</div>
+        <div class="gp-mechanic-desc">Champions earn 15% of the surplus when bettors wager against them and lose. Defend your throne, profit from doubters.</div>
+      </div>
+      <div class="gp-mechanic-card" style="--mech-color:#4a90d9; animation-delay:0.3s;">
+        <div class="gp-mechanic-icon"><img src="/assets/art/icons/icon_jackpot.png" width="40" height="40" style="border-radius:6px;margin-bottom:6px;" alt="Jackpot" loading="lazy"></div>
+        <div class="gp-mechanic-name" style="color:#4a90d9;">JACKPOT</div>
+        <div class="gp-mechanic-desc">Leftover bet coins flow into the Crucible Jackpot &mdash; a community prize pool for challenges and events.</div>
+      </div>
+      <div class="gp-mechanic-card" style="--mech-color:#50b464; animation-delay:0.35s;">
+        <div class="gp-mechanic-icon"><img src="/assets/art/icons/icon_weekly_quests.png" width="40" height="40" style="border-radius:6px;margin-bottom:6px;" alt="Weekly Quests" loading="lazy"></div>
+        <div class="gp-mechanic-name" style="color:#50b464;">WEEKLY CHALLENGES</div>
+        <div class="gp-mechanic-desc">AI-generated weekly objectives funded by the Jackpot. Complete challenges for bonus coins. New goals every Sunday.</div>
+      </div>
+      <div class="gp-mechanic-card" style="--mech-color:#e0c855; animation-delay:0.4s;">
+        <div class="gp-mechanic-icon" style="color:#e0c855;">&#x2694;</div>
+        <div class="gp-mechanic-name" style="color:#e0c855;">WAGER DUELS</div>
+        <div class="gp-mechanic-desc">Challenge a higher-rated player and wager coins. Win the upset for amplified ELO gains up to 3x. Risk it all to prove you belong.</div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:16px;">
+      <a href="/news/shop-betting/" style="font-size:10px;letter-spacing:3px;font-weight:700;">READ THE FULL BREAKDOWN &rarr;</a>
+    </div>
+  </div>
+
+  <div class="glow-divider"></div>
+  <!-- Controls -->
+  <div class="gp-section ambient-wash section-glow-top" id="controls">
+    <div class="gp-section-title">CONTROLS</div>
+    <div class="gp-section-line"></div>
+    <div class="gp-keyboard">
+      <div class="gp-key-row">
+        <div class="gp-key--spacer"></div>
+        <div class="gp-key">W</div>
+      </div>
+      <div class="gp-key-row">
+        <div class="gp-key">A</div>
+        <div class="gp-key">S</div>
+        <div class="gp-key">D</div>
+      </div>
+      <div class="gp-key-label">MOVEMENT</div>
+
+      <div style="margin-top:20px;"></div>
+      <div class="gp-key-row">
+        <div class="gp-key">1</div>
+        <div class="gp-key">2</div>
+        <div class="gp-key">3</div>
+        <div class="gp-key">4</div>
+        <div class="gp-key">5</div>
+        <div class="gp-key">6</div>
+      </div>
+      <div class="gp-key-label">ABILITIES</div>
+
+      <div style="margin-top:20px;"></div>
+      <div class="gp-key-row">
+        <div class="gp-key gp-key--wide">TAB</div>
+        <div class="gp-key gp-key--wide">SHIFT</div>
+      </div>
+      <div class="gp-key-label">TARGET + MODIFIER</div>
+
+      <div class="gp-input-row">
+        <div class="gp-input-item">
+          <div class="gp-input-icon"><img src="/assets/art/icons/icon_keyboard.png" width="48" height="48" style="border-radius:8px;margin-bottom:8px;" alt="Keyboard" loading="lazy"></div>
+          <div class="gp-input-label">MOUSE</div>
+        </div>
+        <div class="gp-input-item">
+          <div class="gp-input-icon"><img src="/assets/art/icons/icon_controller.png" width="48" height="48" style="border-radius:8px;margin-bottom:8px;" alt="Controller" loading="lazy"></div>
+          <div class="gp-input-label">GAMEPAD</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cta-section ember-corners section-glow-top">
+    <h2>READY TO FIGHT?</h2>
+    <p style="color:#555;font-size:13px;margin-bottom:24px;">Free to play. Browser or Steam (coming soon). Start fighting in seconds.</p>
+    <a href="/play/" class="cta-btn">PLAY FREE</a>
+  </div>
+
+  <div class="footer">&copy; 2026 Ebon Crucible. All rights reserved. <a href="/privacy/" style="color:#666;margin-left:12px;">Privacy Policy</a> <a href="/terms/" style="color:#666;margin-left:12px;">Terms of Service</a><div class="footer-alpha">Currently in Alpha — features and balance are actively evolving.</div></div>
+
+  <script>
+    (function() {
+      var c = document.querySelector('.hero');
+      for (var i = 0; i < 15; i++) {
+        var p = document.createElement('div');
+        var s = 2 + Math.random() * 4;
+        p.style.cssText = 'position:absolute;bottom:-10px;left:' + (Math.random()*100) + '%;width:' + s + 'px;height:' + s + 'px;border-radius:50%;background:rgba(200,168,96,0.6);opacity:0;pointer-events:none;animation:particleFloat ' + (6+Math.random()*6) + 's ' + (Math.random()*8) + 's ease-out infinite;';
+        c.appendChild(p);
+      }
+    })();
+  </script>
+<script>
+(function(){try{
+  var n=localStorage.getItem('ec_username');
+  if(n){
+    var el=document.getElementById('nav-auth');
+    if(el){
+      el.textContent=n+' \u25BE';
+      el.href='javascript:void(0)';
+      el.style.position='relative';
+      el.style.cursor='pointer';
+      var dd=document.createElement('div');
+      dd.style.cssText='display:none;position:absolute;top:100%;right:0;margin-top:8px;min-width:120px;background:rgba(12,12,22,0.98);border:1px solid #2a2a3a;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.5);overflow:hidden;z-index:9999;';
+      var profile=document.createElement('a');profile.href='/play/';profile.textContent='\u26E8 PROFILE';
+      profile.style.cssText='display:block;padding:10px 16px;font-size:9px;letter-spacing:2px;font-weight:700;color:#888;text-decoration:none;transition:background 0.2s;';
+      profile.onmouseenter=function(){this.style.background='rgba(255,255,255,0.04)'};profile.onmouseleave=function(){this.style.background='none'};
+      dd.appendChild(profile);
+      var logout=document.createElement('a');logout.href='javascript:void(0)';logout.textContent='\u23FB LOG OUT';
+      logout.style.cssText='display:block;padding:10px 16px;font-size:9px;letter-spacing:2px;font-weight:700;color:#cc6666;text-decoration:none;transition:background 0.2s;';
+      logout.onmouseenter=function(){this.style.background='rgba(255,255,255,0.04)'};logout.onmouseleave=function(){this.style.background='none'};
+      logout.onclick=function(e){e.stopPropagation();localStorage.removeItem('ec_username');localStorage.removeItem('CognitoIdentityServiceProvider.sn01blkd57e7oi7e7vq80mipv.LastAuthUser');var keys=Object.keys(localStorage);for(var i=0;i<keys.length;i++){if(keys[i].indexOf('CognitoIdentityServiceProvider')===0)localStorage.removeItem(keys[i]);}window.location.reload();};
+      dd.appendChild(logout);
+      el.appendChild(dd);
+      var open=false;
+      el.onclick=function(e){e.preventDefault();e.stopPropagation();open=!open;dd.style.display=open?'block':'none';};
+      document.addEventListener('click',function(){dd.style.display='none';open=false;});var pb=document.querySelector('.nav-play');if(pb)pb.textContent='PLAY NOW';
+    }
+  }
+}catch(e){}}());
+(function(){var tog=document.querySelector('.nav-toggle');var links=document.querySelector('.nav-links');if(tog)tog.onclick=function(){links.classList.toggle('open');};document.addEventListener('click',function(e){if(!e.target.closest('.nav'))links.classList.remove('open');});})();
+</script>
+<script src="/src/analytics/consent.js"></script>
+</body>
+</html>

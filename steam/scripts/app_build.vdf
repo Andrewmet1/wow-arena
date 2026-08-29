@@ -1,0 +1,14 @@
+"appbuild"
+{
+	"appid"		"4620190"
+	"desc"		"Ebon Crucible build"
+	"buildoutput"	"../output/"
+	"contentroot"	""
+	"setlive"	""
+	"preview"	"0"
+
+	"depots"
+	{
+		"4620191"	"depot_build_win.vdf"
+	}
+}

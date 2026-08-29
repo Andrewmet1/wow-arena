@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <title>Alpha Launch — Ebon Crucible</title>
+  <meta name="description" content="Ebon Crucible alpha is live. Five classes, 63 abilities, real-time 1v1 arena combat free in your browser. Play free in your browser or on Steam.">
+  <meta property="og:title" content="Alpha Launch — Ebon Crucible">
+  <meta property="og:description" content="Five classes, 63 abilities, real-time 1v1 arena combat. Free to play in your browser.">
+  <meta property="og:image" content="/assets/art/champion_select_bg.webp">
+  <meta property="og:type" content="article">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://eboncrucible.com/news/launch/">
+  <meta name="theme-color" content="#08080f">
+  <link rel="stylesheet" href="/src/styles/ebon-pages.css">
+  <style>
+    @media (max-width: 768px) {
+      .article-body [style*="grid-template-columns:repeat(5"] { grid-template-columns: repeat(3,1fr) !important; }
+      .article-body [style*="grid-template-columns:1fr 1fr;"] { grid-template-columns: 1fr !important; }
+    }
+    @media (max-width: 480px) {
+      .article-body [style*="grid-template-columns:repeat(5"] { grid-template-columns: repeat(2,1fr) !important; }
+      .article-body [style*="grid-template-columns:repeat(3"] { grid-template-columns: repeat(2,1fr) !important; }
+    }
+  </style>
+</head>
+<body class="ambient-lines">
+  <div class="page-bg" style="background-image:url('/assets/art/champion_select_bg.webp');"></div>
+  <nav class="nav">
+    <a href="/" class="nav-brand">EBON CRUCIBLE <span class="alpha-badge">ALPHA</span></a>
+    <button class="nav-toggle" aria-label="Menu"><span></span><span></span><span></span></button>
+    <div class="nav-links">
+      <a href="/">HOME</a>
+      <a href="/classes/">CLASSES</a>
+      <a href="/gameplay/">GAME</a>
+      <a href="/rankings/">RANKINGS</a>
+      <a href="/news/" class="active">NEWS</a>
+      <a href="/community/">COMMUNITY</a>
+      <a href="/play/" class="nav-signin" id="nav-auth">SIGN IN</a>
+      <a href="/play/" class="nav-play">PLAY FREE</a>
+    </div>
+  </nav>
+
+  <div class="hero" style="min-height: 40vh;">
+    <div class="hero-bg" style="background-image: url('/assets/art/champion_select_bg.webp');"></div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <div class="article-badge" style="color:#c8a860;background:rgba(200,168,96,0.1);border:1px solid rgba(200,168,96,0.2);">LAUNCH</div>
+      <h1 style="font-size: 28px; letter-spacing: 6px;">ALPHA IS LIVE</h1>
+      <div class="hero-line"></div>
+      <p>February 2026</p>
+    </div>
+    <div class="hero-scroll-arrow">&#9660;</div>
+  </div>
+
+  <div class="content">
+    <a href="/news/" class="back-link">&larr; BACK TO NEWS</a>
+
+    <div class="article-body">
+      <h2>Ebon Crucible Alpha Launches</h2>
+      <div class="meta">FEBRUARY 2026</div>
+
+      <p>The Ebon Crucible alpha is live. Five classes, 63 abilities, real-time 1v1 arena combat &mdash; all playable for free in your browser. No account required. Just pick a class and fight.</p>
+
+      <h3>FIVE CLASSES</h3>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:16px 0 20px;">
+        <div style="text-align:center;">
+          <img src="/assets/art/tyrant_portrait.webp" width="56" height="56" style="border-radius:8px;border:2px solid #8B0000;" alt="Tyrant">
+          <div style="font-size:10px;letter-spacing:2px;font-weight:700;color:#8B0000;margin-top:8px;">TYRANT</div>
+          <div style="font-size:9px;color:#888;">Warrior</div>
+        </div>
+        <div style="text-align:center;">
+          <img src="/assets/art/wraith_portrait.webp" width="56" height="56" style="border-radius:8px;border:2px solid #6B2FA0;" alt="Wraith">
+          <div style="font-size:10px;letter-spacing:2px;font-weight:700;color:#6B2FA0;margin-top:8px;">WRAITH</div>
+          <div style="font-size:9px;color:#888;">Assassin</div>
+        </div>
+        <div style="text-align:center;">
+          <img src="/assets/art/infernal_portrait.webp" width="56" height="56" style="border-radius:8px;border:2px solid #FF4500;" alt="Infernal">
+          <div style="font-size:10px;letter-spacing:2px;font-weight:700;color:#FF4500;margin-top:8px;">INFERNAL</div>
+          <div style="font-size:9px;color:#888;">Mage</div>
+        </div>
+        <div style="text-align:center;">
+          <img src="/assets/art/harbinger_portrait.webp" width="56" height="56" style="border-radius:8px;border:2px solid #228B22;" alt="Harbinger">
+          <div style="font-size:10px;letter-spacing:2px;font-weight:700;color:#228B22;margin-top:8px;">HARBINGER</div>
+          <div style="font-size:9px;color:#888;">Warlock</div>
+        </div>
+        <div style="text-align:center;">
+          <img src="/assets/art/revenant_portrait.webp" width="56" height="56" style="border-radius:8px;border:2px solid #C8B560;" alt="Revenant">
+          <div style="font-size:10px;letter-spacing:2px;font-weight:700;color:#C8B560;margin-top:8px;">REVENANT</div>
+          <div style="font-size:9px;color:#888;">Paladin</div>
+        </div>
+      </div>
+      <p>Each class has 12+ unique abilities, a dedicated resource system, and a distinct combat identity. Every matchup plays differently.</p>
+
+      <h3>WAYS TO PLAY</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0 20px;">
+        <div style="background:rgba(12,12,22,0.6);border:1px solid rgba(200,168,96,0.2);border-radius:8px;padding:16px;text-align:center;">
+          <img src="/assets/art/mode_ranked.webp" width="80" height="48" style="border-radius:6px;object-fit:cover;margin-bottom:10px;" alt="Ranked">
+          <div style="font-size:10px;letter-spacing:2px;font-weight:700;color:#c8a860;margin-bottom:6px;">RANKED 1V1 &amp; 2V2</div>
+          <div style="font-size:11px;color:#888;line-height:1.5;">Climb the rating ladder from The Broken to The Ascended. Solo or duo queue. 3v3 coming soon.</div>
+        </div>
+        <div style="background:rgba(12,12,22,0.6);border:1px solid rgba(224,85,85,0.2);border-radius:8px;padding:16px;text-align:center;">
+          <img src="/assets/art/news_wager_duels.webp" width="80" height="48" style="border-radius:6px;object-fit:cover;margin-bottom:10px;" alt="Wager Duels">
+          <div style="font-size:10px;letter-spacing:2px;font-weight:700;color:#e05555;margin-bottom:6px;">WAGER DUELS</div>
+          <div style="font-size:11px;color:#888;line-height:1.5;">Challenge higher-rated players for coins. Winner takes all with amplified ELO stakes.</div>
+        </div>
+        <div style="background:rgba(12,12,22,0.6);border:1px solid rgba(74,144,217,0.2);border-radius:8px;padding:16px;text-align:center;">
+          <img src="/assets/art/mode_custom.webp" width="80" height="48" style="border-radius:6px;object-fit:cover;margin-bottom:10px;" alt="Custom">
+          <div style="font-size:10px;letter-spacing:2px;font-weight:700;color:#4a90d9;margin-bottom:6px;">CUSTOM GAME</div>
+          <div style="font-size:11px;color:#888;line-height:1.5;">Challenge a friend with a 4-letter room code. Fight on your terms.</div>
+        </div>
+        <div style="background:rgba(12,12,22,0.6);border:1px solid rgba(74,219,122,0.2);border-radius:8px;padding:16px;text-align:center;">
+          <img src="/assets/art/mode_ai.webp" width="80" height="48" style="border-radius:6px;object-fit:cover;margin-bottom:10px;" alt="VS AI">
+          <div style="font-size:10px;letter-spacing:2px;font-weight:700;color:#4adb7a;margin-bottom:6px;">VS AI</div>
+          <div style="font-size:11px;color:#888;line-height:1.5;">Solo and team practice against AI at three difficulty levels. Learn matchups and combos.</div>
+        </div>
+      </div>
+
+      <h3>SOCIAL FEATURES</h3>
+      <p>Party up with friends for 2v2 ranked. Spectate live champion matches. Chat globally, in duel lobbies, or send direct messages. The Crucible is a community, not just an arena.</p>
+
+      <h3>BUILT FOR THE BROWSER</h3>
+      <p>Ebon Crucible runs entirely in your browser using WebGL. No plugins, no installs, no launcher. Works on any modern browser. The arena loads in seconds.</p>
+    </div>
+  </div>
+
+  <div class="cta-section ember-corners section-glow-top">
+    <h2>READY TO FIGHT?</h2>
+    <p style="color:#888;font-size:13px;margin-bottom:24px;">Free to play. Browser or Steam (coming soon). Start fighting in seconds.</p>
+    <a href="/play/" class="cta-btn">PLAY FREE</a>
+  </div>
+
+  <div class="footer">&copy; 2026 Ebon Crucible. All rights reserved. <a href="/privacy/" style="color:#666;margin-left:12px;">Privacy Policy</a> <a href="/terms/" style="color:#666;margin-left:12px;">Terms of Service</a><div class="footer-alpha">Currently in Alpha — features and balance are actively evolving.</div></div>
+
+  <script>
+    (function() {
+      var c = document.querySelector('.hero');
+      for (var i = 0; i < 15; i++) {
+        var p = document.createElement('div');
+        var s = 2 + Math.random() * 4;
+        p.style.cssText = 'position:absolute;bottom:-10px;left:' + (Math.random()*100) + '%;width:' + s + 'px;height:' + s + 'px;border-radius:50%;background:rgba(200,168,96,0.6);opacity:0;pointer-events:none;animation:particleFloat ' + (6+Math.random()*6) + 's ' + (Math.random()*8) + 's ease-out infinite;';
+        c.appendChild(p);
+      }
+    })();
+  </script>
+<script>
+(function(){try{
+  var n=localStorage.getItem('ec_username');
+  if(n){
+    var el=document.getElementById('nav-auth');
+    if(el){
+      el.textContent=n+' \u25BE';
+      el.href='javascript:void(0)';
+      el.style.position='relative';
+      el.style.cursor='pointer';
+      var dd=document.createElement('div');
+      dd.style.cssText='display:none;position:absolute;top:100%;right:0;margin-top:8px;min-width:120px;background:rgba(12,12,22,0.98);border:1px solid #2a2a3a;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.5);overflow:hidden;z-index:9999;';
+      var profile=document.createElement('a');profile.href='/play/';profile.textContent='\u26E8 PROFILE';
+      profile.style.cssText='display:block;padding:10px 16px;font-size:9px;letter-spacing:2px;font-weight:700;color:#888;text-decoration:none;transition:background 0.2s;';
+      profile.onmouseenter=function(){this.style.background='rgba(255,255,255,0.04)'};profile.onmouseleave=function(){this.style.background='none'};
+      dd.appendChild(profile);
+      var logout=document.createElement('a');logout.href='javascript:void(0)';logout.textContent='\u23FB LOG OUT';
+      logout.style.cssText='display:block;padding:10px 16px;font-size:9px;letter-spacing:2px;font-weight:700;color:#cc6666;text-decoration:none;transition:background 0.2s;';
+      logout.onmouseenter=function(){this.style.background='rgba(255,255,255,0.04)'};logout.onmouseleave=function(){this.style.background='none'};
+      logout.onclick=function(e){e.stopPropagation();localStorage.removeItem('ec_username');localStorage.removeItem('CognitoIdentityServiceProvider.sn01blkd57e7oi7e7vq80mipv.LastAuthUser');var keys=Object.keys(localStorage);for(var i=0;i<keys.length;i++){if(keys[i].indexOf('CognitoIdentityServiceProvider')===0)localStorage.removeItem(keys[i]);}window.location.reload();};
+      dd.appendChild(logout);
+      el.appendChild(dd);
+      var open=false;
+      el.onclick=function(e){e.preventDefault();e.stopPropagation();open=!open;dd.style.display=open?'block':'none';};
+      document.addEventListener('click',function(){dd.style.display='none';open=false;});var pb=document.querySelector('.nav-play');if(pb)pb.textContent='PLAY NOW';
+    }
+  }
+}catch(e){}}());
+(function(){var tog=document.querySelector('.nav-toggle');var links=document.querySelector('.nav-links');if(tog)tog.onclick=function(){links.classList.toggle('open');};document.addEventListener('click',function(e){if(!e.target.closest('.nav'))links.classList.remove('open');});})();
+</script>
+<script src="/src/analytics/consent.js"></script>
+</body>
+</html>

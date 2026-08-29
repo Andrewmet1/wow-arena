@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <title>Economy, Betting & Weekly Challenges — Ebon Crucible</title>
+  <meta name="description" content="Earn coins from ranked play, collect cosmetics, wager on class champions, and complete AI-generated weekly challenges. The full metagame economy is live.">
+  <meta property="og:title" content="Economy, Betting & Weekly Challenges — Ebon Crucible">
+  <meta property="og:description" content="Rebalanced economy, champion betting, and AI-powered weekly challenges. The metagame has arrived.">
+  <meta property="og:image" content="/assets/art/news_shop_betting.webp">
+  <meta property="og:type" content="article">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://eboncrucible.com/news/shop-betting/">
+  <meta name="theme-color" content="#08080f">
+  <link rel="stylesheet" href="/src/styles/ebon-pages.css">
+  <style>
+    @media (max-width: 768px) {
+      .content.section-panel { padding: 24px 16px !important; }
+      .content h2 { font-size: 15px !important; letter-spacing: 3px !important; }
+      .content [style*="grid-template-columns:repeat(4"] { grid-template-columns: repeat(2,1fr) !important; }
+      .content [style*="grid-template-columns:1fr 1fr 1fr"] { grid-template-columns: 1fr !important; }
+    }
+    @media (max-width: 480px) {
+      .content.section-panel { padding: 16px 12px !important; }
+      .content h2 { font-size: 14px !important; letter-spacing: 2px !important; }
+      .content [style*="grid-template-columns:repeat(4"] { grid-template-columns: 1fr !important; }
+      .content [style*="grid-template-columns:1fr 1fr;"] { grid-template-columns: 1fr !important; }
+    }
+  </style>
+</head>
+<body class="ambient-lines">
+  <div class="page-bg" style="background-image:url('/assets/art/news_shop_betting.webp');"></div>
+  <nav class="nav">
+    <a href="/" class="nav-brand">EBON CRUCIBLE <span class="alpha-badge">ALPHA</span></a>
+    <button class="nav-toggle" aria-label="Menu"><span></span><span></span><span></span></button>
+    <div class="nav-links">
+      <a href="/">HOME</a>
+      <a href="/classes/">CLASSES</a>
+      <a href="/gameplay/">GAME</a>
+      <a href="/rankings/">RANKINGS</a>
+      <a href="/news/" class="active">NEWS</a>
+      <a href="/community/">COMMUNITY</a>
+      <a href="/play/" class="nav-signin" id="nav-auth">SIGN IN</a>
+      <a href="/play/" class="nav-play">PLAY FREE</a>
+    </div>
+  </nav>
+
+  <div class="hero" style="min-height: 40vh;">
+    <div class="hero-bg" style="background-image: url('/assets/art/news_shop_betting.webp');"></div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <div class="article-badge" style="color:#c8a860;background:rgba(200,168,96,0.12);border:1px solid rgba(200,168,96,0.2);">NEW FEATURE</div>
+      <h1 style="font-size: 28px; letter-spacing: 6px;">ECONOMY, BETTING &amp; CHALLENGES</h1>
+      <div class="hero-line"></div>
+      <p>Earn coins, collect cosmetics, wager on champions, and complete weekly challenges.</p>
+    </div>
+    <div class="hero-scroll-arrow">&#9660;</div>
+  </div>
+
+  <div class="glow-divider"></div>
+  <div class="content section-panel" style="padding:40px;">
+    <div class="article-date" style="margin-bottom:20px;">FEBRUARY 20, 2026</div>
+
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+      <img src="/assets/art/icons/icon_earn_coins.png" width="36" height="36" alt="" style="filter:drop-shadow(0 0 6px rgba(200,168,96,0.3));">
+      <h2 style="font-size:18px;letter-spacing:4px;color:#c8a860;margin:0;">EARN COINS FROM RANKED PLAY</h2>
+    </div>
+    <p style="color:#999;line-height:1.8;margin-bottom:24px;">
+      Every ranked match earns coins. Wins pay significantly more than losses &mdash; the Crucible rewards skill, not just time. Stack a win streak for bonus coins, and higher-ranked players earn multiplied rewards.
+    </p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:600px;margin:0 auto 32px;">
+      <div style="background:rgba(12,12,22,0.6);border:1px solid #1a1a2a;border-radius:8px;padding:16px;text-align:center;">
+        <div style="font-size:10px;letter-spacing:2px;color:#888;margin-bottom:4px;">RANKED WIN</div>
+        <div style="font-size:20px;font-weight:900;color:#c8a860;">30</div>
+        <div style="font-size:9px;color:#777;">BASE COINS</div>
+      </div>
+      <div style="background:rgba(12,12,22,0.6);border:1px solid #1a1a2a;border-radius:8px;padding:16px;text-align:center;">
+        <div style="font-size:10px;letter-spacing:2px;color:#888;margin-bottom:4px;">RANKED LOSS</div>
+        <div style="font-size:20px;font-weight:900;color:#c8a860;">8</div>
+        <div style="font-size:9px;color:#777;">BASE COINS</div>
+      </div>
+    </div>
+    <p style="color:#999;line-height:1.8;margin-bottom:32px;font-size:12px;">
+      Win streaks add +5 coins per level (up to +25). ELO tier multipliers range from 1.1x at 1300+ to 2.0x at 2000+. A top-tier player on a hot streak can earn up to 110 coins per match. Practice matches earn a small token reward.
+    </p>
+
+    <div style="width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(200,168,96,0.15),transparent);margin:32px 0;"></div>
+
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+      <img src="/assets/art/icons/icon_champions_cut.png" width="36" height="36" alt="" style="filter:drop-shadow(0 0 6px rgba(200,168,96,0.3));">
+      <h2 style="font-size:18px;letter-spacing:4px;color:#c8a860;margin:0;">THE SHOP</h2>
+    </div>
+    <p style="color:#999;line-height:1.8;margin-bottom:24px;">
+      Spend your coins on cosmetic upgrades. Portrait frames, portrait styles, and titles &mdash; all purely cosmetic, all earned through play.
+    </p>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;max-width:700px;margin:0 auto 32px;">
+      <div style="background:rgba(12,12,22,0.6);border:1px solid #1a1a2a;border-radius:8px;padding:14px 10px;text-align:center;">
+        <div style="font-size:9px;letter-spacing:2px;color:#777;margin-bottom:2px;">COMMON</div>
+        <div style="font-size:12px;font-weight:700;color:#aaa;">150&ndash;300</div>
+      </div>
+      <div style="background:rgba(12,12,22,0.6);border:1px solid rgba(74,144,217,0.2);border-radius:8px;padding:14px 10px;text-align:center;">
+        <div style="font-size:9px;letter-spacing:2px;color:#4a90d9;margin-bottom:2px;">RARE</div>
+        <div style="font-size:12px;font-weight:700;color:#4a90d9;">400&ndash;500</div>
+      </div>
+      <div style="background:rgba(12,12,22,0.6);border:1px solid rgba(160,100,220,0.2);border-radius:8px;padding:14px 10px;text-align:center;">
+        <div style="font-size:9px;letter-spacing:2px;color:#a064dc;margin-bottom:2px;">EPIC</div>
+        <div style="font-size:12px;font-weight:700;color:#a064dc;">1,000&ndash;1,800</div>
+      </div>
+      <div style="background:rgba(12,12,22,0.6);border:1px solid rgba(200,168,96,0.2);border-radius:8px;padding:14px 10px;text-align:center;">
+        <div style="font-size:9px;letter-spacing:2px;color:#c8a860;margin-bottom:2px;">LEGENDARY</div>
+        <div style="font-size:12px;font-weight:700;color:#c8a860;">2,500&ndash;5,000</div>
+      </div>
+    </div>
+
+    <div style="width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(200,168,96,0.15),transparent);margin:32px 0;"></div>
+
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+      <img src="/assets/art/icons/icon_champion_bets.png" width="36" height="36" alt="" style="filter:drop-shadow(0 0 6px rgba(200,168,96,0.3));">
+      <h2 style="font-size:18px;letter-spacing:4px;color:#c8a860;margin:0;">CHAMPION BETTING</h2>
+    </div>
+    <p style="color:#999;line-height:1.8;margin-bottom:16px;">
+      Every class has a champion &mdash; the highest-rated player on that class. Now you can put your coins where your conviction is.
+    </p>
+    <p style="color:#888;line-height:1.8;margin-bottom:24px;">
+      Place a bet on whether the current champion <span style="color:#c8a860;font-weight:700;">holds</span> their position or <span style="color:#e05555;font-weight:700;">falls</span> within the next 5 ranked matches. Odds are based on the champion's win rate &mdash; betting against a dominant champion pays big, but is risky.
+    </p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:600px;margin:0 auto 32px;">
+      <div style="background:rgba(12,12,22,0.6);border:1px solid rgba(200,168,96,0.2);border-radius:8px;padding:20px;text-align:center;">
+        <div style="font-size:11px;letter-spacing:3px;color:#c8a860;font-weight:700;margin-bottom:8px;">HOLDS</div>
+        <div style="font-size:11px;color:#777;line-height:1.6;">Champion survives 5 matches. Lower odds, safer bet.</div>
+        <div style="font-size:10px;color:#888;margin-top:8px;">1.15x &ndash; 1.5x payout</div>
+      </div>
+      <div style="background:rgba(12,12,22,0.6);border:1px solid rgba(224,85,85,0.2);border-radius:8px;padding:20px;text-align:center;">
+        <div style="font-size:11px;letter-spacing:3px;color:#e05555;font-weight:700;margin-bottom:8px;">FALLS</div>
+        <div style="font-size:11px;color:#777;line-height:1.6;">Champion is dethroned. Higher odds, bigger payoff.</div>
+        <div style="font-size:10px;color:#888;margin-top:8px;">1.8x &ndash; 4.5x payout</div>
+      </div>
+    </div>
+
+    <div style="width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(200,168,96,0.15),transparent);margin:32px 0;"></div>
+
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+      <img src="/assets/art/icons/icon_resource.png" width="36" height="36" alt="" style="filter:drop-shadow(0 0 6px rgba(200,168,96,0.3));">
+      <h2 style="font-size:18px;letter-spacing:4px;color:#c8a860;margin:0;">HOW THE POOL WORKS</h2>
+    </div>
+    <p style="color:#999;line-height:1.8;margin-bottom:16px;">
+      Losing bets aren't burned &mdash; they fund the winners. When bets resolve, the losing side's coins pay the winning side's payouts first. Then the surplus gets split:
+    </p>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;max-width:700px;margin:0 auto 24px;">
+      <div style="background:rgba(12,12,22,0.6);border:1px solid rgba(200,168,96,0.15);border-radius:8px;padding:16px;text-align:center;">
+        <div style="font-size:9px;letter-spacing:2px;color:#c8a860;margin-bottom:4px;">STEP 1</div>
+        <div style="font-size:11px;color:#888;line-height:1.5;">Losers' coins pay winners at their fixed odds</div>
+      </div>
+      <div style="background:rgba(12,12,22,0.6);border:1px solid rgba(200,168,96,0.15);border-radius:8px;padding:16px;text-align:center;">
+        <div style="font-size:9px;letter-spacing:2px;color:#c8a860;margin-bottom:4px;">STEP 2</div>
+        <div style="font-size:11px;color:#888;line-height:1.5;">Champion earns 15% of the surplus</div>
+      </div>
+      <div style="background:rgba(12,12,22,0.6);border:1px solid rgba(200,168,96,0.15);border-radius:8px;padding:16px;text-align:center;">
+        <div style="font-size:9px;letter-spacing:2px;color:#c8a860;margin-bottom:4px;">STEP 3</div>
+        <div style="font-size:11px;color:#888;line-height:1.5;">Rest flows into the Crucible Jackpot</div>
+      </div>
+    </div>
+
+    <div style="width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(200,168,96,0.15),transparent);margin:32px 0;"></div>
+
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+      <img src="/assets/art/icons/icon_champions_cut.png" width="36" height="36" alt="" style="filter:drop-shadow(0 0 6px rgba(200,168,96,0.3));">
+      <h2 style="font-size:18px;letter-spacing:4px;color:#c8a860;margin:0;">THE CHAMPION'S CUT</h2>
+    </div>
+    <p style="color:#999;line-height:1.8;margin-bottom:16px;">
+      When people bet <span style="color:#e05555;font-weight:700;">falls</span> on you and you hold your throne, you don't just win glory &mdash; you get <span style="color:#c8a860;font-weight:700;">15% of the surplus</span> after winners are paid.
+    </p>
+    <p style="color:#999;line-height:1.8;margin-bottom:24px;">
+      More people betting against you means more coins in your pocket when you prove them wrong. It's a reward for staying on top under pressure &mdash; and it makes being champion feel like something worth defending.
+    </p>
+
+    <div style="width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(200,168,96,0.15),transparent);margin:32px 0;"></div>
+
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+      <img src="/assets/art/icons/icon_jackpot.png" width="36" height="36" alt="" style="filter:drop-shadow(0 0 6px rgba(200,168,96,0.3));">
+      <h2 style="font-size:18px;letter-spacing:4px;color:#c8a860;margin:0;">THE CRUCIBLE JACKPOT</h2>
+    </div>
+    <p style="color:#999;line-height:1.8;margin-bottom:16px;">
+      After winners and champions are paid, every remaining coin flows into the <span style="color:#c8a860;font-weight:700;">Crucible Jackpot</span> &mdash; a community prize pool that grows with every resolved bet.
+    </p>
+    <p style="color:#999;line-height:1.8;margin-bottom:24px;">
+      The jackpot will fund tournaments, weekly challenges, seasonal events, and special rewards. The more the community bets, the bigger the prizes get for everyone.
+    </p>
+
+    <div style="background:rgba(200,168,96,0.04);border:1px solid rgba(200,168,96,0.12);border-radius:8px;padding:20px;max-width:600px;margin:0 auto 32px;">
+      <div style="font-size:10px;letter-spacing:3px;color:#c8a860;font-weight:700;margin-bottom:12px;text-align:center;">EXAMPLE</div>
+      <div style="font-size:12px;color:#888;line-height:1.8;">
+        10 players bet 500 coins each on the Tyrant champion falling (5,000 pool). 5 players bet 200 each on holds (1,000 pool). Champion holds &mdash; "holds" winners get 1,300 total (1.3x odds). From the 5,000 loser pool: 1,300 pays winners, the champion earns <span style="color:#c8a860;font-weight:700;">555 coins</span> (15% of 3,700 surplus), and <span style="color:#c8a860;font-weight:700;">3,145 coins</span> flow into the Crucible Jackpot.
+      </div>
+    </div>
+
+    <div style="width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(200,168,96,0.15),transparent);margin:32px 0;"></div>
+
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+      <img src="/assets/art/icons/icon_weekly_quests.png" width="36" height="36" alt="" style="filter:drop-shadow(0 0 6px rgba(200,168,96,0.3));">
+      <h2 style="font-size:18px;letter-spacing:4px;color:#c8a860;margin:0;">WEEKLY CHALLENGES</h2>
+    </div>
+    <p style="color:#999;line-height:1.8;margin-bottom:16px;">
+      Every week, the Crucible generates new challenges funded by the Jackpot. An AI Game Director analyzes player activity, class pick rates, and game health to create tailored objectives.
+    </p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:600px;margin:0 auto 24px;">
+      <div style="background:rgba(12,12,22,0.6);border:1px solid rgba(80,180,100,0.15);border-radius:8px;padding:16px;text-align:center;">
+        <div style="font-size:10px;letter-spacing:2px;color:#50b464;margin-bottom:4px;">CHALLENGE TYPES</div>
+        <div style="font-size:11px;color:#888;line-height:1.5;">Class wins, win streaks, class variety, underdog victories, and more</div>
+      </div>
+      <div style="background:rgba(12,12,22,0.6);border:1px solid rgba(80,180,100,0.15);border-radius:8px;padding:16px;text-align:center;">
+        <div style="font-size:10px;letter-spacing:2px;color:#50b464;margin-bottom:4px;">REWARDS</div>
+        <div style="font-size:11px;color:#888;line-height:1.5;">50&ndash;200 coins per challenge, drawn from the Jackpot</div>
+      </div>
+    </div>
+    <p style="color:#999;line-height:1.8;margin-bottom:32px;font-size:12px;">
+      Challenges rotate every Sunday. If a class is underplayed, expect challenges that reward exploring it. If activity is strong and balanced, expect fun variety objectives. The system adapts to keep the Crucible healthy.
+    </p>
+
+    <div style="width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(200,168,96,0.15),transparent);margin:32px 0;"></div>
+
+    <div style="text-align:center;">
+      <p style="color:#888;font-size:11px;letter-spacing:2px;margin-bottom:16px;">THE METAGAME IS LIVE</p>
+      <a href="/play/" style="display:inline-block;padding:12px 36px;font-size:12px;letter-spacing:4px;font-weight:700;background:linear-gradient(180deg,#8b0000,#5a0000);border:2px solid #c8a860;color:#c8a860;border-radius:4px;">PLAY NOW</a>
+    </div>
+  </div>
+
+  <div class="footer">&copy; 2026 Ebon Crucible. All rights reserved. <a href="/privacy/" style="color:#666;margin-left:12px;">Privacy Policy</a> <a href="/terms/" style="color:#666;margin-left:12px;">Terms of Service</a><div class="footer-alpha">Currently in Alpha &mdash; features and balance are actively evolving.</div></div>
+
+  <script>
+    (function() {
+      var c = document.querySelector('.hero');
+      for (var i = 0; i < 15; i++) {
+        var p = document.createElement('div');
+        var s = 2 + Math.random() * 4;
+        p.style.cssText = 'position:absolute;bottom:-10px;left:' + (Math.random()*100) + '%;width:' + s + 'px;height:' + s + 'px;border-radius:50%;background:rgba(200,168,96,0.6);opacity:0;pointer-events:none;animation:particleFloat ' + (6+Math.random()*6) + 's ' + (Math.random()*8) + 's ease-out infinite;';
+        c.appendChild(p);
+      }
+    })();
+  </script>
+<script>
+(function(){try{
+  var n=localStorage.getItem('ec_username');
+  if(n){
+    var el=document.getElementById('nav-auth');
+    if(el){
+      el.textContent=n+' \u25BE';
+      el.href='javascript:void(0)';
+      el.style.position='relative';
+      el.style.cursor='pointer';
+      var dd=document.createElement('div');
+      dd.style.cssText='display:none;position:absolute;top:100%;right:0;margin-top:8px;min-width:120px;background:rgba(12,12,22,0.98);border:1px solid #2a2a3a;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.5);overflow:hidden;z-index:9999;';
+      var profile=document.createElement('a');profile.href='/play/';profile.textContent='\u26E8 PROFILE';
+      profile.style.cssText='display:block;padding:10px 16px;font-size:9px;letter-spacing:2px;font-weight:700;color:#888;text-decoration:none;transition:background 0.2s;';
+      profile.onmouseenter=function(){this.style.background='rgba(255,255,255,0.04)'};profile.onmouseleave=function(){this.style.background='none'};
+      dd.appendChild(profile);
+      var logout=document.createElement('a');logout.href='javascript:void(0)';logout.textContent='\u23FB LOG OUT';
+      logout.style.cssText='display:block;padding:10px 16px;font-size:9px;letter-spacing:2px;font-weight:700;color:#cc6666;text-decoration:none;transition:background 0.2s;';
+      logout.onmouseenter=function(){this.style.background='rgba(255,255,255,0.04)'};logout.onmouseleave=function(){this.style.background='none'};
+      logout.onclick=function(e){e.stopPropagation();localStorage.removeItem('ec_username');localStorage.removeItem('CognitoIdentityServiceProvider.sn01blkd57e7oi7e7vq80mipv.LastAuthUser');var keys=Object.keys(localStorage);for(var i=0;i<keys.length;i++){if(keys[i].indexOf('CognitoIdentityServiceProvider')===0)localStorage.removeItem(keys[i]);}window.location.reload();};
+      dd.appendChild(logout);
+      el.appendChild(dd);
+      var open=false;
+      el.onclick=function(e){e.preventDefault();e.stopPropagation();open=!open;dd.style.display=open?'block':'none';};
+      document.addEventListener('click',function(){dd.style.display='none';open=false;});var pb=document.querySelector('.nav-play');if(pb)pb.textContent='PLAY NOW';
+    }
+  }
+}catch(e){}}());
+(function(){var tog=document.querySelector('.nav-toggle');var links=document.querySelector('.nav-links');if(tog)tog.onclick=function(){links.classList.toggle('open');};document.addEventListener('click',function(e){if(!e.target.closest('.nav'))links.classList.remove('open');});})();
+</script>
+<script src="/src/analytics/consent.js"></script>
+</body>
+</html>

@@ -265,13 +265,27 @@ async function regenerateModel(classId, { skipRig = false, rigOnlyTaskId = null,
     }
   }
 
-  // ── Step 2: Meshy Rigging ──
+  // ── Step 2: Remesh + Rig ──
   if (!skipRig) {
-    console.log('\n  ── Step 2: Meshy Auto-Rigging ──');
+    // Remesh to reduce poly count (rigging has a 300K face limit)
+    console.log('\n  ── Step 2a: Remeshing (reducing to 200K polys) ──');
     console.log(`  Input task: ${imageTo3dTaskId}`);
 
-    const rigResult = await apiPost('/openapi/v1/rigging', {
+    const remeshResult = await apiPost('/openapi/v1/remesh', {
       input_task_id: imageTo3dTaskId,
+      target_polycount: 200000,
+      topology: 'triangle',
+    });
+    const remeshTaskId = remeshResult.result;
+    console.log(`  Remesh Task ID: ${remeshTaskId}`);
+    console.log('  Waiting for remesh...');
+    await pollTask('/openapi/v1/remesh', remeshTaskId);
+    console.log('\n  Remesh complete!');
+
+    console.log('\n  ── Step 2b: Meshy Auto-Rigging ──');
+
+    const rigResult = await apiPost('/openapi/v1/rigging', {
+      input_task_id: remeshTaskId,
       height_meters: 1.8,
     });
 

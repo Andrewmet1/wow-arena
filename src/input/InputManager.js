@@ -3,6 +3,20 @@
  * WoW-style: A/D turn character, A/D + right-click = strafe.
  */
 export class InputManager {
+  /** True on phones/tablets — cached once on load.
+   *  Override with ?mobile=1 in URL for DevTools testing. */
+  static _isMobile = null;
+  static isMobile() {
+    if (InputManager._isMobile === null) {
+      const urlForce = new URLSearchParams(window.location.search).get('mobile');
+      if (urlForce === '1') { InputManager._isMobile = true; return true; }
+      if (urlForce === '0') { InputManager._isMobile = false; return false; }
+      InputManager._isMobile = ('ontouchstart' in window && navigator.maxTouchPoints > 0)
+        || (navigator.maxTouchPoints > 0 && window.innerWidth <= 1024);
+    }
+    return InputManager._isMobile;
+  }
+
   constructor() {
     this.keys = new Map(); // key -> isDown
     this.keybindings = new Map(); // key -> abilityId
@@ -44,6 +58,19 @@ export class InputManager {
 
     // Click-to-target
     this.clickQueue = [];
+
+    /** Reset all input state — call on match start to clear stuck keys */
+    this.reset = () => {
+      this.moveForward = this.moveBackward = this.moveLeft = this.moveRight = false;
+      this.abilityQueue = [];
+      this.moveQueue = null;
+      this.tabPressed = false;
+      this.jumpPressed = false;
+      this.shiftHeld = false;
+      this.dodgeRollQueued = false;
+      this.dodgeRollDirection = null;
+      this.clickQueue = [];
+    };
 
     // Callbacks
     this.onAbilityPress = null; // (abilityId) => void
@@ -126,12 +153,27 @@ export class InputManager {
   /**
    * Attach event listeners
    */
+  /**
+   * Set movement from a virtual joystick vector (mobile).
+   * @param {number} x - Left/right (-1 to 1)
+   * @param {number} z - Forward/back (-1 to 1, negative = forward)
+   */
+  setMobileMovement(x, z) {
+    this.moveForward = z < -0.3;
+    this.moveBackward = z > 0.3;
+    this.moveLeft = x < -0.3;
+    this.moveRight = x > 0.3;
+  }
+
   attach(element = document) {
     element.addEventListener('keydown', this._boundKeyDown);
     element.addEventListener('keyup', this._boundKeyUp);
     element.addEventListener('mousedown', this._boundMouseDown);
     element.addEventListener('mouseup', this._boundMouseUp);
     element.addEventListener('mousemove', this._boundMouseMove);
+    if (InputManager.isMobile()) {
+      document.body.style.touchAction = 'none';
+    }
   }
 
   /**
@@ -146,7 +188,9 @@ export class InputManager {
   }
 
   _onKeyDown(e) {
-    if (e.repeat) return;
+    if (e.repeat || !e.key) return;
+    // Don't process game input while typing in chat/input fields
+    if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
     this._inputMode = 'keyboard';
     const key = e.key.toLowerCase();
     this.keys.set(key, true);
@@ -170,6 +214,27 @@ export class InputManager {
     if (action === 'jump') {
       this.jumpPressed = true;
       e.preventDefault();
+    }
+
+    // Interact (F by default) — used for dungeon chests, levers, breakable
+    // walls. Independent of ability hotbar so it doesn't trigger an ability.
+    if (e.code === 'KeyF' && !e.repeat) {
+      this.interactPressed = true;
+    }
+    // Inventory panel (I) — opens the dungeon inventory mid-run so the player
+    // can equip/socket gear without leaving the dungeon.
+    if (e.code === 'KeyI' && !e.repeat) {
+      this.inventoryPressed = true;
+    }
+    // Pause menu (Escape) — opens the in-game pause menu with Resume, Settings,
+    // Exit Game, etc. Critical for Steam/Electron fullscreen where there's no
+    // window chrome to quit from. ALSO preventDefault + stopPropagation so no
+    // other listener (browser, library, leftover dashboard handler) can act
+    // on ESC and accidentally navigate away from the dungeon.
+    if (e.code === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!e.repeat) this.escapePressed = true;
     }
 
     // Dodge key tracking
@@ -201,6 +266,8 @@ export class InputManager {
   }
 
   _onKeyUp(e) {
+    if (!e.key) return;
+    if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
     const key = e.key.toLowerCase();
     this.keys.set(key, false);
 
@@ -263,6 +330,33 @@ export class InputManager {
   consumeTab() {
     if (this.tabPressed) {
       this.tabPressed = false;
+      return true;
+    }
+    return false;
+  }
+
+  /** Check + clear F (interact). */
+  consumeInteract() {
+    if (this.interactPressed) {
+      this.interactPressed = false;
+      return true;
+    }
+    return false;
+  }
+
+  /** Check + clear I (inventory toggle). */
+  consumeInventory() {
+    if (this.inventoryPressed) {
+      this.inventoryPressed = false;
+      return true;
+    }
+    return false;
+  }
+
+  /** Check + clear Escape (pause menu). */
+  consumeEscape() {
+    if (this.escapePressed) {
+      this.escapePressed = false;
       return true;
     }
     return false;
@@ -377,7 +471,11 @@ export class InputManager {
     // Right stick -> camera (axes 2, 3)
     const rx = Math.abs(gp.axes[2]) > deadzone ? gp.axes[2] : 0;
     const ry = Math.abs(gp.axes[3]) > deadzone ? gp.axes[3] : 0;
-    this._gpRightStick = { x: rx, y: ry };
+
+    // D-pad left/right (buttons 14/15) -> camera zoom (continuous hold)
+    const dpadLeft = gp.buttons[14]?.pressed ? -1 : 0;
+    const dpadRight = gp.buttons[15]?.pressed ? 1 : 0;
+    this._gpRightStick = { x: rx, y: ry, zoom: dpadLeft + dpadRight };
 
     // Button edge detection (trigger on press, not hold)
     for (let i = 0; i < gp.buttons.length && i < 17; i++) {

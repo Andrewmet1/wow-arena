@@ -6,13 +6,162 @@
  */
 
 import * as THREE from 'three';
-import { getAbilityIcon } from './IconGenerator.js';
+import { getAbilityIcon, getClassPortrait } from './IconGenerator.js';
+import { InputManager } from '../input/InputManager.js';
 
 // Class colors shared across HUD — used by unit frames and nameplates
 const CLASS_COLORS = {
   tyrant: '#8B0000', wraith: '#2D1B69',
   infernal: '#FF4500', harbinger: '#006400', revenant: '#F5F5DC'
 };
+
+// Nameplate aura filter sets (hoisted for perf — reused every frame)
+const NP_IMPORTANT_DEBUFFS = new Set([
+  'ravaged_flesh', 'shatter_guard_debuff', 'hex_rupture_vuln', 'thunder_spike_heal_reduce',
+  'divine_reckoning_debuff', 'hex_blight_dot', 'creeping_torment_dot', 'volatile_hex_dot',
+  'pyre_dot', 'serrated_wound_dot', 'crippling_poison', 'wound_poison_debuff',
+]);
+const NP_IMPORTANT_BUFFS = new Set([
+  'iron_resolve_buff', 'phantasm_dodge_buff', 'umbral_shroud_buff', 'warded_flesh_buff',
+  'aegis_of_dawn_buff', 'crystalline_ward_buff', 'arcane_bulwark_buff',
+  'iron_cyclone_active', 'pyroclasm_buff', 'frenzy_edge_buff', 'ember_wake_buff',
+  'soul_ignite_buff', 'ignition_proc', 'shade_shift_buff', 'unchained_grace_buff',
+  'cauterize_hot', 'blood_tincture_hot', 'warborn_rally',
+]);
+const NP_INTERRUPT_IDS = new Set(['skull_crack', 'throat_jab', 'spell_fracture', 'hex_silence', 'sanctified_rebuff']);
+const NP_DEFENSIVE_IDS = new Set(['iron_resolve', 'veil_of_night', 'phantasm_dodge', 'umbral_shroud', 'warded_flesh', 'crystalline_ward', 'aegis_of_dawn', 'arcane_bulwark']);
+
+// Aura ID → source ability ID for icon lookup (auras don't store source ability)
+const AURA_ABILITY_MAP = {
+  // Tyrant
+  ravaged_flesh: 'ravaging_cleave',
+  shatter_guard_debuff: 'shatter_guard',
+  iron_cyclone_active: 'iron_cyclone',
+  crippling_poison: 'crippling_strike',
+  thunder_spike_heal_reduce: 'thunder_spike',
+  iron_resolve_buff: 'iron_resolve',
+  warborn_rally: 'warborn_rally',
+  // Wraith
+  serrated_wound_dot: 'serrated_wound',
+  shade_shift_buff: 'shade_shift',
+  phantasm_dodge_buff: 'phantasm_dodge',
+  umbral_shroud_buff: 'umbral_shroud',
+  blood_tincture_hot: 'blood_tincture',
+  frenzy_edge_buff: 'frenzy_edge',
+  wound_poison_debuff: 'viper_lash',
+  // Infernal
+  pyre_dot: 'ember_brand',
+  ignition_proc: 'inferno_bolt',
+  pyroclasm_buff: 'pyroclasm',
+  crystalline_ward_buff: 'crystalline_ward',
+  arcane_bulwark_buff: 'arcane_bulwark',
+  cauterize_hot: 'searing_pulse',
+  // Harbinger
+  hex_blight_dot: 'hex_blight',
+  creeping_torment_dot: 'creeping_torment',
+  volatile_hex_dot: 'volatile_hex',
+  hex_rupture_vuln: 'hex_rupture',
+  warded_flesh_buff: 'warded_flesh',
+  soul_ignite_buff: 'soul_ignite',
+  // Revenant
+  divine_reckoning_debuff: 'divine_reckoning',
+  aegis_of_dawn_buff: 'aegis_of_dawn',
+  unchained_grace_buff: 'unchained_grace',
+  ember_wake_buff: 'ember_wake',
+};
+
+// School → border color (mirrors SCHOOL_COLORS[school].border in IconGenerator.js)
+const SCHOOL_BORDER_COLORS = {
+  physical: '#555566',
+  holy: '#d4a800',
+  fire: '#ff4400',
+  shadow: '#7733cc',
+  frost: '#3388dd',
+  nature: '#33aa44',
+  arcane: '#aa44dd',
+};
+
+// Canvas-drawn CC type icons (cached)
+const _ccIconCache = new Map();
+function getCCIcon(ccType, size = 16) {
+  const key = `cc:${ccType}:${size}`;
+  if (_ccIconCache.has(key)) return _ccIconCache.get(key);
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const cx = size / 2, cy = size / 2, s = size * 0.35;
+  const CC_CFG = {
+    stun: { color: '#ffcc00', bg: 'rgba(255,204,0,0.25)' },
+    silence: { color: '#aa44ff', bg: 'rgba(170,68,255,0.25)' },
+    root: { color: '#44cc44', bg: 'rgba(68,204,68,0.25)' },
+    fear: { color: '#cc44ff', bg: 'rgba(136,0,170,0.25)' },
+    incapacitate: { color: '#4488ff', bg: 'rgba(68,136,255,0.25)' },
+  };
+  const cfg = CC_CFG[ccType] || CC_CFG.stun;
+  // Background circle
+  ctx.beginPath();
+  ctx.arc(cx, cy, size * 0.45, 0, Math.PI * 2);
+  ctx.fillStyle = cfg.bg;
+  ctx.fill();
+  ctx.strokeStyle = cfg.color;
+  ctx.fillStyle = cfg.color;
+  ctx.lineWidth = Math.max(1.5, size * 0.08);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  switch (ccType) {
+    case 'stun': // Lightning bolt
+      ctx.beginPath();
+      ctx.moveTo(cx + s * 0.15, cy - s * 0.8);
+      ctx.lineTo(cx - s * 0.2, cy - s * 0.1);
+      ctx.lineTo(cx + s * 0.12, cy - s * 0.05);
+      ctx.lineTo(cx - s * 0.15, cy + s * 0.8);
+      ctx.stroke();
+      break;
+    case 'silence': // X mark
+      ctx.beginPath();
+      ctx.moveTo(cx - s * 0.5, cy - s * 0.5);
+      ctx.lineTo(cx + s * 0.5, cy + s * 0.5);
+      ctx.moveTo(cx + s * 0.5, cy - s * 0.5);
+      ctx.lineTo(cx - s * 0.5, cy + s * 0.5);
+      ctx.stroke();
+      break;
+    case 'root': // Chain links
+      for (let i = -1; i <= 1; i += 2) {
+        ctx.beginPath();
+        ctx.ellipse(cx, cy + i * s * 0.25, s * 0.25, s * 0.4, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      break;
+    case 'fear': // Spiral
+      ctx.beginPath();
+      for (let i = 0; i <= 40; i++) {
+        const t = i / 40;
+        const angle = t * Math.PI * 2 * 2;
+        const r = t * s * 0.7;
+        if (i === 0) ctx.moveTo(cx + r, cy);
+        else ctx.lineTo(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r);
+      }
+      ctx.stroke();
+      break;
+    case 'incapacitate': // Zzz
+      ctx.font = `bold ${Math.round(size * 0.5)}px serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Z', cx, cy);
+      break;
+  }
+  const dataUrl = canvas.toDataURL();
+  _ccIconCache.set(key, dataUrl);
+  return dataUrl;
+}
+
+// DALL-E icon path helper (try PNG first, fallback to procedural)
+function _setIconSrc(img, abilityId, school, size) {
+  const fallback = getAbilityIcon(abilityId, school, size);
+  img.onerror = () => { img.onerror = null; img.src = fallback; };
+  img.src = `/assets/icons/${abilityId}.png`;
+}
 
 export class HUD {
   // ───────────────────────────────────────────────
@@ -25,13 +174,21 @@ export class HUD {
     this.root.classList.add('hud-root');
     /** @type {Map<string, string>|null} classId → dataURL for 3D rendered portraits */
     this._classPortraits = options.classPortraits || null;
+    /** @type {import('../settings/SettingsManager.js').SettingsManager|null} */
+    this._settings = options.settingsManager || null;
+    /** Cosmetic overrides for player portrait frame/filter */
+    this._playerFrameStyle = options.playerFrameStyle || null; // { border, boxShadow }
+    this._playerPortraitFilter = options.playerPortraitFilter || null; // CSS filter string
+    this._playerFrameUrl = options.playerFrameUrl || null; // transparent PNG frame overlay
+    this._enemyFrameUrl = options.enemyFrameUrl || null; // transparent PNG frame overlay
+    this._playerSkinPortrait = null; // skin portrait URL override for player
+    this._enemySkinPortrait = null;  // skin portrait URL override for enemy
 
     // Inject all CSS first
     this.createStyles();
 
     // Build DOM skeleton
     this._buildMatchTimer();
-    this._buildModifierBar();
     this._buildEnemyFrame();
     this._buildEnemyCastBar();
     this._buildPlayerCastBar();
@@ -54,6 +211,42 @@ export class HUD {
     // Nameplate bookkeeping
     /** @type {Map<number, HTMLElement>} */
     this._nameplates = new Map();
+
+    // Apply saved HUD scale
+    const savedScale = this._settings?.get('graphics.hudScale');
+    if (savedScale && savedScale !== 100) this.setScale(savedScale / 100);
+
+    // Mobile layout
+    this._inputManager = null;
+    if (InputManager.isMobile()) {
+      this.root.classList.add('mobile');
+      const vw = window.innerWidth;
+      const scale = vw < 480 ? 0.75 : vw < 768 ? 0.85 : 1.0;
+      this.setScale(scale);
+    }
+  }
+
+  /** Set input manager ref for mobile touch ability triggers */
+  setInputManager(inputManager) {
+    this._inputManager = inputManager;
+  }
+
+  /**
+   * Scale the entire HUD. Used for smaller/larger screens or team modes.
+   * @param {number} scale — 0.5 to 1.5 (1 = default 100%)
+   */
+  setScale(scale) {
+    scale = Math.max(0.5, Math.min(1.5, scale));
+    this.root.style.transform = scale === 1 ? '' : `scale(${scale})`;
+    this.root.style.transformOrigin = scale === 1 ? '' : 'top left';
+    // Compensate width/height so scaled content still fills viewport
+    if (scale !== 1) {
+      this.root.style.width = (100 / scale) + '%';
+      this.root.style.height = (100 / scale) + '%';
+    } else {
+      this.root.style.width = '';
+      this.root.style.height = '';
+    }
   }
 
   // ───────────────────────────────────────────────
@@ -90,75 +283,173 @@ export class HUD {
 /* ========== Match Timer ========== */
 .match-timer {
   position: absolute;
-  top: 12px;
+  top: 4px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(0,0,0,0.7);
-  border: 1px solid #5a4a32;
-  border-radius: 4px;
-  padding: 4px 18px;
+  background: url('/assets/art/hud/match_timer_bg.png') center/100% 100% no-repeat;
+  border: none;
+  padding: 8px 32px;
   font-size: 22px;
   font-weight: 700;
   letter-spacing: 2px;
-  color: #e0d8c8;
-  text-shadow: 0 0 6px rgba(0,0,0,0.9);
-  min-width: 90px;
+  color: #f0e6d0;
+  text-shadow: 0 0 10px rgba(0,0,0,1), 0 0 20px rgba(0,0,0,0.6), 0 1px 2px rgba(0,0,0,0.8);
+  min-width: 120px;
   text-align: center;
+  z-index: 20;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.8));
 }
 
-/* ========== Modifier Bar ========== */
-.modifier-bar {
-  position: absolute;
-  top: 12px;
-  right: 16px;
-  display: flex;
-  gap: 6px;
-  flex-direction: row;
-}
-.modifier-icon {
-  width: 36px;
-  height: 36px;
-  background: rgba(0,0,0,0.65);
-  border: 1px solid #5a4a32;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 600;
-  color: #e0d8c8;
-  text-align: center;
-  line-height: 1.1;
-}
 
 /* ========== Unit Frames (shared) ========== */
 .unit-frame {
   position: absolute;
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  background: rgba(0,0,0,0.75);
-  border: 1px solid #5a4a32;
-  border-radius: 4px;
-  padding: 8px 10px;
+  gap: 6px;
+  background: url('/assets/art/hud/unit_frame_bg.png') center/100% 100% no-repeat;
+  border: none;
+  padding: 9px 11px 8px 9px;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.7));
+  /* Shrunk per user feedback — bars were eating the screen. 0.78 scale keeps
+     the painted frame readable but freed up ~25% of the top corners. */
+  transform: scale(0.78);
+  transform-origin: top left;
 }
 .unit-frame.player {
-  top: 20px;
-  left: 20px;
+  top: 18px;
+  left: 16px;
 }
 .unit-frame.enemy {
-  top: 20px;
+  top: 18px;
+  right: 16px;
+  left: auto;
+  transform-origin: top right;
+}
+.unit-frame.ally {
+  top: 165px;
+  left: 20px;
+  transform: scale(0.85);
+  transform-origin: top left;
+  opacity: 0.92;
+}
+.unit-frame.targeted {
+  filter: drop-shadow(0 0 8px rgba(200, 168, 96, 0.6)) drop-shadow(0 0 16px rgba(200, 168, 96, 0.3));
+}
+
+/* Arena frames — compact enemy list (2v2, right side) */
+.arena-frame {
+  position: absolute;
   right: 20px;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(10,8,6,0.88);
+  border: 1px solid #3a2a1a;
+  border-radius: 4px;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6));
+  cursor: pointer;
+  width: 180px;
+  transition: filter 0.15s;
+}
+.arena-frame:hover {
+  border-color: #5a4a32;
+}
+.arena-frame.targeted {
+  border-color: #c8a860;
+  filter: drop-shadow(0 0 8px rgba(200,168,96,0.5)) drop-shadow(0 0 14px rgba(200,168,96,0.25));
+}
+.arena-frame-0 { top: 65px; }
+.arena-frame-1 { top: 125px; }
+.arena-portrait {
+  width: 32px;
+  height: 32px;
+  border-radius: 3px;
+  border: 2px solid #5a4a32;
+  background-color: #1a1018;
+  background-size: cover;
+  background-position: center 15%;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 4px rgba(0,0,0,0.8);
+}
+.arena-content {
+  flex: 1;
+  min-width: 0;
+}
+.arena-name {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  margin-bottom: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #ddd;
+}
+.arena-hp-bar {
+  position: relative;
+  height: 10px;
+  background: #0c0c0c;
+  border: 1px solid #2a2a2a;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.arena-hp-fill {
+  position: absolute;
+  top: 0; left: 0;
+  height: 100%;
+  width: 100%;
+  transition: width 0.25s ease-out;
+}
+.arena-hp-fill::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 45%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 100%);
+  pointer-events: none;
+}
+.arena-hp-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,1);
+  z-index: 2;
+}
+.arena-dead-overlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #ff4444;
+  background: rgba(30,0,0,0.55);
+  border-radius: inherit;
+  z-index: 3;
+  text-shadow: 0 0 4px rgba(255,50,50,0.6);
 }
 .uf-portrait {
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   border-radius: 4px;
-  border: 2px solid #5a4a32;
-  object-fit: cover;
-  object-position: center 15%;
+  border: 2px solid #6b5a3e;
+  background-color: #1a1018;
+  background-size: cover;
+  background-position: center 15%;
   flex-shrink: 0;
-  background: #111;
+  box-shadow: inset 0 0 6px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.6);
 }
 .uf-content {
   flex: 1;
@@ -217,20 +508,21 @@ export class HUD {
 /* HP Bar */
 .uf-hp-bar {
   position: relative;
-  height: 22px;
-  background: #1a1a1a;
-  border: 1px solid #333;
-  border-radius: 3px;
+  height: 20px;
+  background: #0c0c0c;
+  border: 1px solid #2a2a2a;
+  border-radius: 2px;
   overflow: hidden;
   margin-bottom: 3px;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.8);
 }
 .uf-hp-ghost {
   position: absolute;
   top: 0; left: 0;
   height: 100%;
   width: 100%;
-  background: #aa4444;
-  transition: width 0.5s ease-out;
+  background: linear-gradient(180deg, #cc4444 0%, #882222 100%);
+  transition: width 0.6s ease-out;
   z-index: 1;
 }
 .uf-hp-fill {
@@ -238,19 +530,43 @@ export class HUD {
   top: 0; left: 0;
   height: 100%;
   width: 100%;
-  background: #44aa44;
-  transition: width 0.25s ease-out, background-color 0.3s;
+  transition: width 0.25s ease-out, background 0.4s;
   z-index: 2;
+}
+.uf-hp-fill::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 45%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 100%);
+  pointer-events: none;
 }
 .uf-hp-absorb {
   position: absolute;
   top: 0;
   height: 100%;
   width: 0%;
-  background: rgba(255,255,255,0.25);
-  border-left: 2px solid rgba(255,255,255,0.5);
+  background: linear-gradient(180deg, rgba(255,240,180,0.55) 0%, rgba(220,180,90,0.4) 100%);
+  border-left: 2px solid rgba(255,220,140,0.85);
+  box-shadow: 0 0 6px rgba(255,220,140,0.5), inset 0 0 4px rgba(255,255,255,0.3);
   z-index: 3;
   transition: width 0.25s ease-out, left 0.25s ease-out;
+  pointer-events: none;
+}
+.uf-hp-absorb-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  color: #fff4c8;
+  text-shadow: 0 1px 2px rgba(0,0,0,1), 0 0 4px rgba(180,120,40,0.9);
+  z-index: 5;
+  pointer-events: none;
+  letter-spacing: 0.5px;
+  font-variant-numeric: tabular-nums;
 }
 .uf-hp-text {
   position: absolute;
@@ -258,29 +574,39 @@ export class HUD {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   color: #fff;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+  text-shadow: 0 1px 2px rgba(0,0,0,1), 0 0 4px rgba(0,0,0,0.6);
   z-index: 4;
+  letter-spacing: 0.5px;
 }
 
 /* Resource Bar */
 .uf-resource-bar {
   position: relative;
-  height: 14px;
-  background: #1a1a1a;
-  border: 1px solid #333;
-  border-radius: 3px;
+  height: 12px;
+  background: #0a0a0a;
+  border: 1px solid #222;
+  border-radius: 2px;
   overflow: hidden;
   margin-bottom: 4px;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.6);
 }
 .uf-resource-fill {
   position: absolute;
   top: 0; left: 0;
   height: 100%;
   width: 0%;
-  transition: width 0.2s ease-out, background-color 0.3s;
+  transition: width 0.2s ease-out, background 0.3s;
+}
+.uf-resource-fill::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 45%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 100%);
+  pointer-events: none;
 }
 .uf-resource-text {
   position: absolute;
@@ -288,11 +614,12 @@ export class HUD {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
   color: #fff;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+  text-shadow: 0 1px 2px rgba(0,0,0,1);
   z-index: 2;
+  letter-spacing: 0.5px;
 }
 
 /* Resource bar — combo/holy power dots variant */
@@ -321,7 +648,7 @@ export class HUD {
   border-color: #aa9;
 }
 
-/* Auras (buffs / debuffs) */
+/* Auras (buffs / debuffs) — icon-based */
 .uf-auras {
   display: flex;
   flex-wrap: wrap;
@@ -332,23 +659,29 @@ export class HUD {
   width: 24px;
   height: 24px;
   border-radius: 3px;
-  border: 1px solid #5a4a32;
-  background: rgba(0,0,0,0.5);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: 8px;
-  font-weight: 600;
-  line-height: 1;
+  border: 1.5px solid #5a4a32;
+  background: rgba(0,0,0,0.8);
   position: relative;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.6), inset 0 0 2px rgba(0,0,0,0.4);
 }
-.aura-icon .aura-abbr {
-  font-size: 9px;
+.aura-icon-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 2px;
+  object-fit: cover;
 }
 .aura-icon .aura-dur {
-  font-size: 7px;
-  color: #ccc;
+  position: absolute;
+  bottom: -1px;
+  right: 0;
+  font-size: 8px;
+  font-weight: 900;
+  color: #ffd700;
+  text-shadow: 0 0 2px #000, 0 0 4px #000, 1px 1px 1px #000;
+  line-height: 1;
+  padding: 0 1px;
 }
 .aura-icon.debuff {
   border-color: #8b0000;
@@ -378,7 +711,9 @@ export class HUD {
   animation: cc-pill-pulse 0.8s ease-in-out infinite alternate;
 }
 .cc-pill-icon {
-  font-size: 11px;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 .cc-pill-label {
   font-size: 9px;
@@ -402,18 +737,21 @@ export class HUD {
   transform: translateX(-50%);
   width: 280px;
   height: 22px;
-  background: rgba(0,0,0,0.7);
-  border: 1px solid #5a4a32;
+  background: linear-gradient(180deg, rgba(12,10,8,0.9) 0%, rgba(18,14,10,0.92) 100%);
+  border: 1px solid #4a3a28;
+  border-top-color: #5a4a32;
+  border-bottom-color: #2d2218;
   border-radius: 3px;
   overflow: hidden;
   opacity: 0;
   transition: opacity 0.15s;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5), inset 0 1px 2px rgba(0,0,0,0.4);
 }
 .cast-bar.active {
   opacity: 1;
 }
 .cast-bar.enemy-cast {
-  top: 185px;
+  top: 175px;
 }
 .cast-bar.player-cast {
   bottom: 260px;
@@ -423,15 +761,23 @@ export class HUD {
   top: 0; left: 0;
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, #b8860b, #daa520);
+  background: linear-gradient(180deg, #daa520 0%, #b8860b 60%, #a07008 100%);
   transition: width 0.08s linear;
   z-index: 1;
 }
+.cast-fill::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 40%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 100%);
+  pointer-events: none;
+}
 .cast-bar.interruptible .cast-fill {
-  background: linear-gradient(90deg, #b8860b, #daa520);
+  background: linear-gradient(180deg, #daa520 0%, #b8860b 60%, #a07008 100%);
 }
 .cast-bar.uninterruptible .cast-fill {
-  background: linear-gradient(90deg, #666, #888);
+  background: linear-gradient(180deg, #888 0%, #666 60%, #555 100%);
 }
 .cast-name {
   position: absolute;
@@ -467,15 +813,21 @@ export class HUD {
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 6px;
+  gap: 3px;
+  padding: 6px 10px;
+  background: rgba(8,6,4,0.6);
+  border: 1px solid rgba(80,65,40,0.4);
+  border-radius: 6px;
+  backdrop-filter: blur(4px);
+  filter: drop-shadow(0 3px 10px rgba(0,0,0,0.6));
 }
 .ability-slot {
   position: relative;
   width: 52px;
   height: 56px;
-  background: rgba(10,10,10,0.85);
-  border: 2px solid #5a4a32;
-  border-radius: 6px;
+  background: url('/assets/art/hud/ability_slot_bg.png') center/100% 100% no-repeat;
+  border: none;
+  border-radius: 5px;
   overflow: hidden;
   cursor: default;
   display: flex;
@@ -498,12 +850,10 @@ export class HUD {
   pointer-events: none; border-radius: 4px;
 }
 .ability-slot.out-of-range {
-  border-color: #8b0000;
-  box-shadow: inset 0 0 8px rgba(139,0,0,0.5);
+  filter: brightness(0.7) drop-shadow(0 0 3px rgba(139,0,0,0.5));
 }
 .ability-slot.active-highlight {
-  border-color: #daa520;
-  box-shadow: 0 0 6px rgba(218,165,32,0.6);
+  filter: drop-shadow(0 0 4px rgba(218,165,32,0.7)) brightness(1.15);
 }
 .ability-icon {
   position: absolute;
@@ -628,7 +978,7 @@ export class HUD {
 }
 @keyframes abilityFailedFlash {
   0% { border-color: #ff3333; box-shadow: inset 0 0 12px rgba(255,50,50,0.6); }
-  100% { border-color: #444; box-shadow: none; }
+  100% { border-color: #4a3a28; box-shadow: none; }
 }
 .ability-slot .ability-fail-text {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
@@ -647,15 +997,16 @@ export class HUD {
   transform: translateX(-50%);
   width: 340px;
   height: 6px;
-  background: rgba(0,0,0,0.6);
-  border: 1px solid #333;
+  background: linear-gradient(180deg, #0a0a0a, #151515);
+  border: 1px solid #2a2a2a;
   border-radius: 3px;
   overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
 }
 .swing-timer-fill {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, #c08030, #e0a040);
+  background: linear-gradient(180deg, #e0a040 0%, #c08030 100%);
   transition: width 0.08s linear;
   border-radius: 2px;
 }
@@ -792,7 +1143,7 @@ export class HUD {
   white-space: nowrap;
 }
 .nameplate-name {
-  font-size: 11px;
+  font-size: ${InputManager.isMobile() ? '9px' : '11px'};
   font-weight: 700;
   color: #fff;
   text-shadow: 0 0 4px rgba(0,0,0,1), 0 1px 2px rgba(0,0,0,0.9);
@@ -801,8 +1152,8 @@ export class HUD {
   text-transform: uppercase;
 }
 .nameplate-hp-bar {
-  width: 80px;
-  height: 6px;
+  width: ${InputManager.isMobile() ? '60px' : '80px'};
+  height: ${InputManager.isMobile() ? '4px' : '6px'};
   background: #1a1a1a;
   border: 1px solid #333;
   border-radius: 3px;
@@ -813,6 +1164,185 @@ export class HUD {
   width: 100%;
   transition: width 0.2s ease-out;
   border-radius: 2px;
+}
+
+/* Nameplate WeakAura System */
+.nameplate-wa {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-top: 2px;
+  max-width: 180px;
+}
+
+/* CC Indicator — pill with canvas icon */
+.np-cc {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  animation: np-cc-pulse 0.8s ease-in-out infinite alternate;
+}
+.np-cc-icon { width: 14px; height: 14px; flex-shrink: 0; }
+.np-cc-label { font-size: 9px; }
+.np-cc.stun     { background: rgba(255,204,0,0.3); color: #ffcc00; border: 1px solid #ffcc00; }
+.np-cc.silence  { background: rgba(170,68,255,0.3); color: #aa44ff; border: 1px solid #aa44ff; }
+.np-cc.root     { background: rgba(68,204,68,0.3); color: #44cc44; border: 1px solid #44cc44; }
+.np-cc.fear     { background: rgba(136,0,170,0.3); color: #cc44ff; border: 1px solid #8800aa; }
+.np-cc.incapacitate { background: rgba(68,136,255,0.3); color: #4488ff; border: 1px solid #4488ff; }
+@keyframes np-cc-pulse { from { opacity: 1; } to { opacity: 0.6; } }
+.np-cc-timer {
+  font-size: 10px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Aura row — icon-based (DALL-E + procedural fallback) */
+.np-aura-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+}
+.np-aura {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  border: 1px solid #5a4a32;
+  background: rgba(0,0,0,0.85);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 2px rgba(0,0,0,0.8);
+}
+.np-aura-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 2px;
+  object-fit: cover;
+}
+.np-aura-dur {
+  position: absolute;
+  bottom: -2px;
+  right: 0;
+  font-size: 7px;
+  font-weight: 900;
+  color: #ffd700;
+  text-shadow: 0 0 2px #000, 0 0 4px #000, 1px 1px 1px #000;
+  line-height: 1;
+  padding: 0 1px;
+}
+.np-aura.debuff { border-color: #8b0000; }
+.np-aura.buff   { border-color: #2e7d32; }
+
+/* Cooldown tracker — icon with sweep overlay */
+.np-cd-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+}
+.np-cd {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  border: 1px solid #444;
+  background: rgba(0,0,0,0.85);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 3px rgba(0,0,0,0.8);
+}
+.np-cd-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 2px;
+  object-fit: cover;
+  filter: grayscale(0.5) brightness(0.6);
+}
+.np-cd-sweep {
+  position: absolute;
+  inset: 0;
+  border-radius: 2px;
+  opacity: 0.6;
+  pointer-events: none;
+}
+.np-cd-timer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 900;
+  color: #ff6666;
+  text-shadow: 0 0 3px #000, 0 0 6px #000;
+  font-variant-numeric: tabular-nums;
+}
+.np-cd.interrupt { border-color: #aa44ff; }
+.np-cd.defensive { border-color: #44aaff; }
+.np-cd.offensive { border-color: #ff8844; }
+
+/* ========== Mobile HUD ========== */
+.hud-root.mobile .ability-bar {
+  left: auto; right: 12px; bottom: 12px;
+  transform: none;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 6px;
+}
+.hud-root.mobile .ability-slot {
+  width: 62px; height: 66px;
+}
+.hud-root.mobile .ability-keybind {
+  display: none;
+}
+.hud-root.mobile .unit-frame.player {
+  top: 8px; left: 8px;
+}
+.hud-root.mobile .unit-frame.enemy {
+  top: 8px; right: 8px;
+}
+.hud-root.mobile .uf-portrait {
+  width: 40px; height: 40px;
+}
+.hud-root.mobile .uf-content {
+  width: 180px;
+}
+.hud-root.mobile .uf-hp-text {
+  font-size: 9px;
+}
+.hud-root.mobile .uf-resource-text {
+  font-size: 8px;
+}
+.hud-root.mobile .aura-icon {
+  width: 20px; height: 20px;
+}
+.hud-root.mobile .aura-dur {
+  font-size: 7px;
+}
+.hud-root.mobile .match-timer {
+  font-size: 16px;
+  padding: 6px 20px;
+  min-width: 80px;
+}
+.hud-root.mobile .dodge-roll-indicator {
+  display: none !important;
+}
+/* Extra-small phones (landscape height ≤ 400px) */
+@media (max-height: 400px) and (orientation: landscape) {
+  .hud-root.mobile .uf-content { width: 140px; }
+  .hud-root.mobile .uf-portrait { width: 32px; height: 32px; }
+  .hud-root.mobile .ability-slot { width: 52px; height: 56px; }
+  .hud-root.mobile .ability-bar { bottom: 6px; right: 6px; padding: 4px; gap: 3px; }
+  .hud-root.mobile .aura-icon { width: 16px; height: 16px; }
 }
 `;
     document.head.appendChild(style);
@@ -825,11 +1355,6 @@ export class HUD {
   _buildMatchTimer() {
     this.matchTimer = this._el('div', 'match-timer', '0:00');
     this.root.appendChild(this.matchTimer);
-  }
-
-  _buildModifierBar() {
-    this.modifierBar = this._el('div', 'modifier-bar');
-    this.root.appendChild(this.modifierBar);
   }
 
   // --- Enemy Unit Frame ---
@@ -846,27 +1371,207 @@ export class HUD {
     this.root.appendChild(frame.root);
   }
 
+  // --- Ally Unit Frame (2v2) ---
+  _buildAllyFrame() {
+    const frame = this._buildUnitFrame('ally');
+    this.allyFrame = frame;
+    frame.root.style.display = 'none';
+    this.root.appendChild(frame.root);
+  }
+
+  // --- Arena Frames (compact enemy list, right side, 2v2) ---
+  _buildArenaFrames(count = 2) {
+    this._arenaFrames = [];
+    for (let i = 0; i < count; i++) {
+      const frame = this._buildArenaFrame(i);
+      this._arenaFrames.push(frame);
+      this.root.appendChild(frame.root);
+    }
+  }
+
+  _buildArenaFrame(index) {
+    const root = this._el('div', `arena-frame arena-frame-${index}`);
+
+    const portrait = this._el('div', 'arena-portrait');
+    root.appendChild(portrait);
+
+    const content = this._el('div', 'arena-content');
+    const name = this._el('span', 'arena-name', '---');
+    content.appendChild(name);
+
+    const hpBar = this._el('div', 'arena-hp-bar');
+    hpBar.style.position = 'relative';
+    const hpFill = this._el('div', 'arena-hp-fill');
+    const hpText = this._el('span', 'arena-hp-text', '');
+    const deadOverlay = this._el('div', 'arena-dead-overlay', 'DEAD');
+    hpBar.appendChild(hpFill);
+    hpBar.appendChild(hpText);
+    hpBar.appendChild(deadOverlay);
+    content.appendChild(hpBar);
+
+    root.appendChild(content);
+
+    const frame = { root, portrait, name, hpBar, hpFill, hpText, deadOverlay, _unitId: null, _currentClassId: null };
+
+    root.addEventListener('click', () => {
+      if (this._onArenaFrameClick && frame._unitId != null) {
+        this._onArenaFrameClick(frame._unitId);
+      }
+    });
+
+    return frame;
+  }
+
+  _updateArenaFrame(frame, unit) {
+    // Name
+    frame.name.textContent = unit.username || unit.name || '---';
+
+    // Portrait — use skin portrait if set, otherwise default class art
+    if (unit.classId && frame._currentClassId !== unit.classId) {
+      frame.portrait.style.backgroundImage = `url('${getClassPortrait(unit.classId)}')`;
+      frame._currentClassId = unit.classId;
+      const splash = `/assets/art/${unit.classId}_splash.webp`;
+      const probe = new Image();
+      probe.onload = () => { frame.portrait.style.backgroundImage = `url('${splash}')`; };
+      probe.src = splash;
+    }
+
+    // HP
+    const hp = Math.max(0, unit.hp ?? 0);
+    const maxHp = Math.max(1, unit.maxHp ?? 1);
+    const pct = Math.min(1, hp / maxHp);
+
+    let hpGrad;
+    if (pct > 0.5) hpGrad = 'linear-gradient(180deg, #4caf50 0%, #2e7d32 50%, #1b5e20 100%)';
+    else if (pct > 0.25) hpGrad = 'linear-gradient(180deg, #e8c438 0%, #c8a020 50%, #a08018 100%)';
+    else hpGrad = 'linear-gradient(180deg, #e04040 0%, #b02020 50%, #801010 100%)';
+
+    frame.hpFill.style.width = `${(pct * 100).toFixed(1)}%`;
+    frame.hpFill.style.background = hpGrad;
+    frame.hpText.textContent = `${Math.round(pct * 100)}%`;
+
+    // Dead state
+    if (hp <= 0) {
+      frame.deadOverlay.style.display = 'flex';
+      frame.hpFill.style.width = '0%';
+      frame.portrait.style.filter = 'brightness(0.3) saturate(0)';
+    } else {
+      frame.deadOverlay.style.display = 'none';
+      frame.portrait.style.filter = '';
+    }
+  }
+
+  setArenaFrameClickHandler(callback) {
+    this._onArenaFrameClick = callback;
+  }
+
+  setMode(mode) {
+    this._mode = mode;
+    if (mode === '2v2') {
+      if (!this.allyFrame) this._buildAllyFrame();
+      if (!this._arenaFrames) this._buildArenaFrames(2);
+      this.allyFrame.root.style.display = 'flex';
+      for (const af of this._arenaFrames) af.root.style.display = 'flex';
+    } else {
+      if (this.allyFrame) this.allyFrame.root.style.display = 'none';
+      if (this._arenaFrames) {
+        for (const af of this._arenaFrames) af.root.style.display = 'none';
+      }
+    }
+  }
+
+  updateAllFrames(mySlot, matchState, targetId, playerMeta) {
+    const _titleName = (id) => {
+      if (!id) return null;
+      const T = { title_slayer: 'Slayer', title_phantom: 'Phantom', title_doomcaller: 'Doomcaller', title_ebon_lord: 'Ebon Lord' };
+      return T[id] || null;
+    };
+    const _withTitle = (meta) => {
+      if (!meta?.username) return null;
+      const t = _titleName(meta.activeTitle);
+      return t ? `${t} ${meta.username}` : meta.username;
+    };
+
+    const myUnit = matchState.getUnit(mySlot);
+    if (!myUnit) return;
+
+    // Player frame
+    const adapted = HUD.adaptUnit(myUnit, matchState.tick);
+    if (playerMeta?.[mySlot]?.username) adapted.username = _withTitle(playerMeta[mySlot]);
+    if (playerMeta?.[mySlot]?.elo) adapted.elo = playerMeta[mySlot].elo;
+    this._updateUnitFrame(this.playerFrame, adapted, 'player');
+
+    // Ally frame — include dead allies (don't use getAllies which filters by isAlive)
+    const allAllies = matchState.units.filter(u => u.id !== mySlot && u.team != null && u.team === myUnit.team);
+    if (allAllies.length > 0 && this.allyFrame) {
+      const allyAdapted = HUD.adaptUnit(allAllies[0], matchState.tick);
+      if (playerMeta?.[allAllies[0].id]?.username) allyAdapted.username = _withTitle(playerMeta[allAllies[0].id]);
+      if (playerMeta?.[allAllies[0].id]?.elo) allyAdapted.elo = playerMeta[allAllies[0].id].elo;
+      this._updateUnitFrame(this.allyFrame, allyAdapted, 'ally');
+    }
+
+    // Get ALL enemies including dead (by team, not getEnemies which filters dead)
+    const allEnemies = matchState.units.filter(u => {
+      if (myUnit.team != null) return u.team !== myUnit.team;
+      return u.id !== mySlot;
+    });
+
+    // Update arena frames (compact, always show all enemies)
+    if (this._arenaFrames) {
+      for (let i = 0; i < this._arenaFrames.length && i < allEnemies.length; i++) {
+        const enemy = allEnemies[i];
+        const afAdapted = HUD.adaptUnit(enemy, matchState.tick);
+        if (playerMeta?.[enemy.id]?.username) afAdapted.username = _withTitle(playerMeta[enemy.id]);
+        this._updateArenaFrame(this._arenaFrames[i], afAdapted);
+        this._arenaFrames[i]._unitId = enemy.id;
+        // Highlight targeted
+        this._arenaFrames[i].root.classList.toggle('targeted', enemy.id === targetId);
+      }
+    }
+
+    // Target frame (main enemy frame) — shows whichever enemy is currently targeted
+    const targetUnit = targetId != null ? matchState.getUnit(targetId) : (allEnemies.length > 0 ? allEnemies[0] : null);
+    if (targetUnit) {
+      const targetAdapted = HUD.adaptUnit(targetUnit, matchState.tick);
+      if (playerMeta?.[targetUnit.id]?.username) targetAdapted.username = _withTitle(playerMeta[targetUnit.id]);
+      if (playerMeta?.[targetUnit.id]?.elo) targetAdapted.elo = playerMeta[targetUnit.id].elo;
+      this.updateEnemyFrame(targetAdapted);
+    }
+  }
+
   /**
    * Shared builder for unit frames. Returns an object with DOM refs.
    */
   _buildUnitFrame(type) {
     const root = this._el('div', `unit-frame ${type}`);
 
-    // Portrait
-    const portrait = document.createElement('img');
+    // Portrait with frame overlay wrapper
+    const portraitWrap = document.createElement('div');
+    portraitWrap.className = 'uf-portrait-wrap';
+    portraitWrap.style.cssText = 'position:relative;flex-shrink:0;';
+    const portrait = document.createElement('div');
     portrait.className = 'uf-portrait';
-    portrait.src = '';
-    portrait.alt = '';
-    root.appendChild(portrait);
+    portraitWrap.appendChild(portrait);
+    const frameOverlay = document.createElement('img');
+    frameOverlay.className = 'uf-frame-overlay';
+    frameOverlay.style.cssText = 'position:absolute;top:-4px;left:-4px;width:calc(100% + 8px);height:calc(100% + 8px);pointer-events:none;z-index:2;display:none;';
+    portraitWrap.appendChild(frameOverlay);
+    root.appendChild(portraitWrap);
 
     // Content wrapper (everything to right of portrait)
     const content = this._el('div', 'uf-content');
 
     // Header
     const header = this._el('div', 'uf-header');
+    const username = this._el('span', 'uf-username', '');
+    username.style.cssText = 'font-size:10px;color:#888;letter-spacing:1px;display:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;';
     const name = this._el('span', 'uf-name', '---');
     const classIcon = this._el('span', 'uf-class-icon');
+    const eloTag = this._el('span', 'uf-elo', '');
+    eloTag.style.cssText = 'font-size:8px;color:#888;letter-spacing:0.5px;display:none;margin-left:4px;opacity:0.7;';
+    header.appendChild(username);
     header.appendChild(name);
+    header.appendChild(eloTag);
     header.appendChild(classIcon);
     content.appendChild(header);
 
@@ -875,11 +1580,18 @@ export class HUD {
     const hpGhost = this._el('div', 'uf-hp-ghost');
     const hpFill = this._el('div', 'uf-hp-fill');
     const hpAbsorb = this._el('div', 'uf-hp-absorb');
+    const hpAbsorbText = this._el('span', 'uf-hp-absorb-text', '');
+    hpAbsorb.appendChild(hpAbsorbText);
     const hpText = this._el('span', 'uf-hp-text', '--- / ---');
     hpBar.appendChild(hpGhost);
     hpBar.appendChild(hpFill);
     hpBar.appendChild(hpAbsorb);
     hpBar.appendChild(hpText);
+    // Dead overlay
+    const deadOverlay = this._el('div', 'uf-dead-overlay', 'DEAD');
+    deadOverlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;display:none;align-items:center;justify-content:center;font-size:11px;font-weight:900;letter-spacing:3px;color:#ff4444;background:rgba(30,0,0,0.55);border-radius:inherit;z-index:5;text-shadow:0 0 6px rgba(255,50,50,0.8);';
+    hpBar.style.position = 'relative';
+    hpBar.appendChild(deadOverlay);
     content.appendChild(hpBar);
 
     // Resource bar
@@ -908,13 +1620,18 @@ export class HUD {
     return {
       root,
       portrait,
+      frameOverlay,
+      username,
       name,
+      eloTag,
       classIcon,
       hpBar,
       hpFill,
       hpGhost,
       hpAbsorb,
+      hpAbsorbText,
       hpText,
+      deadOverlay,
       resourceBar,
       resourceFill,
       resourceText,
@@ -989,6 +1706,21 @@ export class HUD {
       const slotIndex = i;
       slot.addEventListener('mouseenter', () => this._showTooltip(slotIndex));
       slot.addEventListener('mouseleave', () => this._hideTooltip());
+
+      // Mobile: touch handler + grid reorder (top row: 4,5,6  bottom row: 1,2,3)
+      if (InputManager.isMobile()) {
+        slot.style.order = i < 3 ? String(i + 3) : String(i - 3);
+        slot.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (this._abilityOrder && this._abilityOrder[slotIndex]) {
+            this._inputManager?.abilityQueue.push(this._abilityOrder[slotIndex]);
+            if (this._inputManager?.onAbilityPress) {
+              this._inputManager.onAbilityPress(this._abilityOrder[slotIndex]);
+            }
+          }
+        }, { passive: false });
+      }
     }
 
     // Tooltip element
@@ -1180,20 +1912,6 @@ export class HUD {
     }
   }
 
-  /**
-   * Show active modifier icons.
-   * @param {Array<{name: string, abbr: string}>} modifiers
-   */
-  updateModifiers(modifiers) {
-    this.modifierBar.innerHTML = '';
-    if (!modifiers || modifiers.length === 0) return;
-
-    for (const mod of modifiers) {
-      const icon = this._el('div', 'modifier-icon', mod.abbr || mod.name?.slice(0, 4) || '?');
-      icon.title = mod.name || '';
-      this.modifierBar.appendChild(icon);
-    }
-  }
 
   /**
    * Update the player unit frame.
@@ -1209,6 +1927,28 @@ export class HUD {
    * Update the enemy unit frame.
    * @param {object} unit — same shape as player
    */
+  setEnemyFrameUrl(url) {
+    this._enemyFrameUrl = url;
+    if (this.enemyFrame?.frameOverlay && url) {
+      this.enemyFrame.frameOverlay.src = url;
+      this.enemyFrame.frameOverlay.style.display = 'block';
+    }
+  }
+
+  setAllyFrameUrl(url) {
+    this._allyFrameUrl = url;
+    if (this.allyFrame?.frameOverlay && url) {
+      this.allyFrame.frameOverlay.src = url;
+      this.allyFrame.frameOverlay.style.display = 'block';
+    }
+  }
+
+  setPlayerSkinPortrait(url) { this._playerSkinPortrait = url || null; }
+  setEnemySkinPortrait(url) { this._enemySkinPortrait = url || null; }
+
+  // Legacy stub — enemy2Frame replaced by arena frames
+  setEnemy2FrameUrl(_url) {}
+
   updateEnemyFrame(unit) {
     if (!unit) return;
     this._updateUnitFrame(this.enemyFrame, unit, 'enemy');
@@ -1218,17 +1958,48 @@ export class HUD {
    * Internal unit-frame updater.
    */
   _updateUnitFrame(frame, unit, who) {
-    // Name
-    frame.name.textContent = unit.name || '---';
+    // Name + username — show username as primary if available
+    if (unit.username) {
+      frame.name.textContent = unit.username;
+      frame.username.textContent = unit.name || '';
+      frame.username.style.display = 'block';
+    } else {
+      frame.name.textContent = unit.name || '---';
+      frame.username.style.display = 'none';
+    }
 
-    // Portrait — prefer 3D rendered portrait, fall back to splash art
-    if (unit.classId && frame._currentClassId !== unit.classId) {
-      const splashFallback = `/assets/art/${unit.classId}_splash.webp`;
-      const portraitUrl = this._classPortraits?.get(unit.classId) || splashFallback;
-      frame.portrait.onerror = () => { frame.portrait.src = splashFallback; };
-      frame.portrait.src = portraitUrl;
-      frame.portrait.alt = unit.name || '';
-      frame._currentClassId = unit.classId;
+    // ELO badge
+    if (unit.elo && frame.eloTag) {
+      frame.eloTag.textContent = `${unit.elo}`;
+      frame.eloTag.style.display = 'inline-block';
+    } else if (frame.eloTag) {
+      frame.eloTag.style.display = 'none';
+    }
+
+    // Portrait — use skin portrait if set, otherwise default class art
+    if (unit.classId) {
+      // Re-run portrait swap when ANY of (classId, skin/monster portrait URL) changes.
+      // Without checking skinUrl, retargeting between two different monsters that
+      // share the same base class (e.g. two tyrant-derived monsters) leaves the
+      // previous monster's portrait in place.
+      const skinUrl = (who === 'player') ? this._playerSkinPortrait : (who === 'enemy') ? this._enemySkinPortrait : null;
+      if (frame._currentClassId !== unit.classId || frame._currentSkinPortrait !== (skinUrl || null)) {
+        frame.portrait.style.backgroundImage = `url('${getClassPortrait(unit.classId)}')`;
+        frame._currentClassId = unit.classId;
+        frame._currentSkinPortrait = skinUrl || null;
+        const splashUrl = skinUrl || `/assets/art/${unit.classId}_splash.webp`;
+        const probe = new Image();
+        probe.onload = () => { frame.portrait.style.backgroundImage = `url('${splashUrl}')`; };
+        probe.src = splashUrl;
+      }
+
+      // Apply cosmetic portrait filter (not frame overlay — frame PNGs have
+      // semi-opaque centers that obscure the small 52px portrait)
+      if (who === 'player') {
+        if (this._playerPortraitFilter) {
+          frame.portrait.style.filter = this._playerPortraitFilter;
+        }
+      }
     }
 
     // Class icon colour
@@ -1241,14 +2012,18 @@ export class HUD {
     const maxHp = Math.max(1, unit.maxHp ?? 1);
     const hpPct = Math.min(1, hp / maxHp);
 
-    // Fill colour based on %
-    let hpColor;
-    if (hpPct > 0.5) hpColor = '#44aa44';
-    else if (hpPct > 0.25) hpColor = '#aaaa44';
-    else hpColor = '#aa4444';
+    // HP fill colour — CSS gradient based on HP %
+    let hpGrad;
+    if (hpPct > 0.5) {
+      hpGrad = 'linear-gradient(180deg, #4caf50 0%, #2e7d32 50%, #1b5e20 100%)';
+    } else if (hpPct > 0.25) {
+      hpGrad = 'linear-gradient(180deg, #e8c438 0%, #c8a020 50%, #a08018 100%)';
+    } else {
+      hpGrad = 'linear-gradient(180deg, #e04040 0%, #b02020 50%, #801010 100%)';
+    }
 
     frame.hpFill.style.width = `${(hpPct * 100).toFixed(1)}%`;
-    frame.hpFill.style.backgroundColor = hpColor;
+    frame.hpFill.style.background = hpGrad;
 
     // Ghost bar logic — delayed drain
     const prevPctKey = who === 'player' ? '_prevPlayerHpPct' : '_prevEnemyHpPct';
@@ -1274,12 +2049,41 @@ export class HUD {
       const absorbPct = Math.min(1 - hpPct, absorb / maxHp);
       frame.hpAbsorb.style.left = `${(hpPct * 100).toFixed(1)}%`;
       frame.hpAbsorb.style.width = `${(absorbPct * 100).toFixed(1)}%`;
+      if (frame.hpAbsorbText) {
+        frame.hpAbsorbText.textContent = `+${this._formatNum(absorb)}`;
+      }
     } else {
       frame.hpAbsorb.style.width = '0%';
+      if (frame.hpAbsorbText) frame.hpAbsorbText.textContent = '';
     }
 
-    // HP text
-    frame.hpText.textContent = `${this._formatNum(hp)} / ${this._formatNum(maxHp)}`;
+    // HP text + dead state
+    if (frame.deadOverlay) {
+      if (hp <= 0) {
+        frame.deadOverlay.style.display = 'flex';
+        frame.hpFill.style.width = '0%';
+        frame.hpFill.style.background = 'linear-gradient(180deg, #e04040 0%, #801010 100%)';
+        frame.hpText.textContent = '0 / ' + this._formatNum(maxHp);
+        frame.portrait.style.filter = 'brightness(0.3) saturate(0)';
+        // Snap ghost bar to 0 immediately on death (no delayed drain)
+        if (this[ghostTimeoutKey]) clearTimeout(this[ghostTimeoutKey]);
+        frame.hpGhost.style.transition = 'none';
+        frame.hpGhost.style.width = '0%';
+        // Restore transition after a frame so future updates animate
+        requestAnimationFrame(() => { frame.hpGhost.style.transition = ''; });
+      } else {
+        frame.deadOverlay.style.display = 'none';
+        frame.hpText.textContent = `${this._formatNum(hp)} / ${this._formatNum(maxHp)}`;
+        // Restore portrait filter
+        if (who === 'player' && this._playerPortraitFilter) {
+          frame.portrait.style.filter = this._playerPortraitFilter;
+        } else if (!frame.portrait.style.filter || frame.portrait.style.filter === 'brightness(0.3) saturate(0)') {
+          frame.portrait.style.filter = '';
+        }
+      }
+    } else {
+      frame.hpText.textContent = `${this._formatNum(hp)} / ${this._formatNum(maxHp)}`;
+    }
 
     // Resource
     const resourceType = (unit.resourceType || 'mana').toLowerCase();
@@ -1323,16 +2127,16 @@ export class HUD {
     const maxRes = Math.max(1, unit.maxResource ?? 1);
     const pct = Math.min(1, res / maxRes);
 
-    const colorMap = {
-      rage: '#c03030',
-      energy: '#d4c438',
-      mana: '#3070cc',
-      focus: '#d4884a',
-      runic_power: '#5090c0'
+    const gradientMap = {
+      rage: 'linear-gradient(180deg, #d04040 0%, #a02828 50%, #801818 100%)',
+      energy: 'linear-gradient(180deg, #e0d050 0%, #c4a830 50%, #a08820 100%)',
+      mana: 'linear-gradient(180deg, #4088e0 0%, #2868b8 50%, #184898 100%)',
+      focus: 'linear-gradient(180deg, #e09850 0%, #c07838 50%, #a06028 100%)',
+      runic_power: 'linear-gradient(180deg, #60a8d8 0%, #4888b0 50%, #306888 100%)'
     };
 
     frame.resourceFill.style.width = `${(pct * 100).toFixed(1)}%`;
-    frame.resourceFill.style.backgroundColor = colorMap[resourceType] || '#3070cc';
+    frame.resourceFill.style.background = gradientMap[resourceType] || gradientMap.mana;
 
     const label = resourceType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     frame.resourceText.textContent = `${label}: ${Math.floor(res)}/${Math.floor(maxRes)}`;
@@ -1420,25 +2224,30 @@ export class HUD {
     frame.ccIcons.style.display = 'flex';
 
     const CC_DISPLAY = {
-      stun:         { label: 'STUN',  icon: '\u26A1', color: '#ffcc00', bg: 'rgba(255,204,0,0.15)' },
-      silence:      { label: 'SIL',   icon: '\uD83D\uDD07', color: '#aa44ff', bg: 'rgba(170,68,255,0.15)' },
-      root:         { label: 'ROOT',  icon: '\uD83C\uDF3F', color: '#44cc44', bg: 'rgba(68,204,68,0.15)' },
-      fear:         { label: 'FEAR',  icon: '\uD83D\uDC7B', color: '#8800aa', bg: 'rgba(136,0,170,0.15)' },
-      incapacitate: { label: 'INCAP', icon: '\uD83D\uDCA4', color: '#4488ff', bg: 'rgba(68,136,255,0.15)' },
+      stun:         { label: 'STUN',  color: '#ffcc00', bg: 'rgba(255,204,0,0.15)' },
+      silence:      { label: 'SIL',   color: '#aa44ff', bg: 'rgba(170,68,255,0.15)' },
+      root:         { label: 'ROOT',  color: '#44cc44', bg: 'rgba(68,204,68,0.15)' },
+      fear:         { label: 'FEAR',  color: '#8800aa', bg: 'rgba(136,0,170,0.15)' },
+      incapacitate: { label: 'INCAP', color: '#4488ff', bg: 'rgba(68,136,255,0.15)' },
     };
 
     for (const cc of ccEffects) {
-      const info = CC_DISPLAY[cc.type] || { label: cc.type?.toUpperCase(), icon: '\u26D4', color: '#fff', bg: 'rgba(255,255,255,0.1)' };
+      const info = CC_DISPLAY[cc.type] || { label: cc.type?.toUpperCase(), color: '#fff', bg: 'rgba(255,255,255,0.1)' };
       const pill = this._el('div', 'cc-pill');
       pill.style.borderColor = info.color;
       pill.style.background = info.bg;
       pill.style.color = info.color;
 
-      const iconSpan = this._el('span', 'cc-pill-icon', info.icon);
+      const ccImg = document.createElement('img');
+      ccImg.className = 'cc-pill-icon';
+      ccImg.src = getCCIcon(cc.type, 18);
+      ccImg.style.width = '16px';
+      ccImg.style.height = '16px';
+      pill.appendChild(ccImg);
+
       const labelSpan = this._el('span', 'cc-pill-label', info.label);
       const timerSpan = this._el('span', 'cc-pill-timer', `${cc.remaining.toFixed(1)}s`);
 
-      pill.appendChild(iconSpan);
       pill.appendChild(labelSpan);
       pill.appendChild(timerSpan);
       frame.ccIcons.appendChild(pill);
@@ -1451,18 +2260,25 @@ export class HUD {
 
     for (const aura of auras) {
       const type = aura.type || (who === 'enemy' ? 'debuff' : 'buff');
-      const icon = this._el('div', `aura-icon ${type}`);
+      const abilityId = AURA_ABILITY_MAP[aura.id] || aura.id;
+      const school = aura.school || 'physical';
+      const borderColor = SCHOOL_BORDER_COLORS[school] || '#5a4a32';
 
-      const abbr = this._el('span', 'aura-abbr', aura.abbr || (aura.name || '?').slice(0, 3).toUpperCase());
-      icon.appendChild(abbr);
+      const iconEl = this._el('div', `aura-icon ${type}`);
+      iconEl.style.borderColor = borderColor;
+
+      const img = document.createElement('img');
+      img.className = 'aura-icon-img';
+      _setIconSrc(img, abilityId, school, 32);
+      iconEl.appendChild(img);
 
       if (aura.duration != null && aura.duration > 0) {
         const dur = this._el('span', 'aura-dur', `${Math.ceil(aura.duration)}s`);
-        icon.appendChild(dur);
+        iconEl.appendChild(dur);
       }
 
-      icon.title = aura.name || '';
-      frame.auras.appendChild(icon);
+      iconEl.title = aura.name || '';
+      frame.auras.appendChild(iconEl);
     }
   }
 
@@ -1616,15 +2432,39 @@ export class HUD {
     for (const unit of units) {
       seen.add(unit.id);
 
-      // Hide nameplates for dead units
+      // Gray out nameplates for dead units (keep visible so name doesn't vanish)
       if (!unit.alive) {
-        const existing = this._nameplates.get(unit.id);
-        if (existing) existing.style.display = 'none';
+        let plate = this._nameplates.get(unit.id);
+        if (plate) {
+          plate.style.opacity = '0.35';
+          plate.style.filter = 'saturate(0)';
+          // Still update position (lowered to match live offset)
+          const deadNpY = InputManager.isMobile() ? 6 : 5;
+          const worldPos = new THREE.Vector3(unit.position.x, (unit.position.y || 0) + deadNpY, unit.position.z);
+          worldPos.project(camera);
+          if (worldPos.z <= 1) {
+            const screenX = (worldPos.x * 0.5 + 0.5) * canvasW;
+            const screenY = (-worldPos.y * 0.5 + 0.5) * canvasH;
+            plate._screenX = screenX;
+            plate._screenY = screenY;
+            plate.style.left = `${screenX}px`;
+            plate.style.top = `${screenY}px`;
+            plate.style.display = 'flex';
+            // Update HP to 0
+            const fill = plate.querySelector('.nameplate-hp-fill');
+            if (fill) fill.style.width = '0%';
+          } else {
+            plate.style.display = 'none';
+          }
+        }
         continue;
       }
 
-      // Project world position (x, y+4, z) to screen
-      const worldPos = new THREE.Vector3(unit.position.x, (unit.position.y || 0) + 8, unit.position.z);
+      // Project world position above character head — slightly higher on mobile
+      // Reduced from 8/9 (felt floating waaaay above the head) to a tighter
+      // 5/6 that sits just over the helmet for a 2.5x-scaled humanoid.
+      const npYOffset = InputManager.isMobile() ? 6 : 5;
+      const worldPos = new THREE.Vector3(unit.position.x, (unit.position.y || 0) + npYOffset, unit.position.z);
       worldPos.project(camera);
 
       // Behind camera — hide
@@ -1645,10 +2485,27 @@ export class HUD {
         document.body.appendChild(plate);
       }
 
-      // Update position
+      // Reset alive state (in case previously dead/grayed)
+      plate.style.opacity = '';
+      plate.style.filter = '';
+
+      // Update position (store for overlap resolution)
+      plate._screenX = screenX;
+      plate._screenY = screenY;
       plate.style.left = `${screenX}px`;
       plate.style.top = `${screenY}px`;
       plate.style.display = 'flex';
+
+      // Name priority: explicit username (PvP) → unit.name (dungeon monsters
+      // have a proper "Carrion Knight" name on the Unit) → capitalized classId
+      // fallback. Without unit.name, Tyrant-skeleton monsters showed "Tyrant".
+      const nameEl = plate.querySelector('.nameplate-name');
+      if (nameEl) {
+        const displayName = unit.username
+          || unit.name
+          || (unit.classId ? unit.classId.charAt(0).toUpperCase() + unit.classId.slice(1) : 'Unknown');
+        if (nameEl.textContent !== displayName) nameEl.textContent = displayName;
+      }
 
       // Update HP fill
       const hpPct = Math.max(0, Math.min(1, unit.hp / Math.max(1, unit.maxHp)));
@@ -1656,6 +2513,9 @@ export class HUD {
       if (fill) {
         fill.style.width = `${(hpPct * 100).toFixed(1)}%`;
       }
+
+      // Update nameplate WeakAura display (CC, auras, cooldowns)
+      this._updateNameplateWA(plate, unit);
     }
 
     // Remove nameplates for units that no longer exist
@@ -1663,6 +2523,41 @@ export class HUD {
       if (!seen.has(id)) {
         plate.remove();
         this._nameplates.delete(id);
+      }
+    }
+
+    // Nameplate overlap resolution — push apart vertically AND horizontally
+    // when in tight mob clusters (dungeon mode). With 4-5 mob packs, naive
+    // vertical-only stacking creates a tall column that hides distant plates.
+    // So: sort by screen Y. For each pair within X-threshold and Y-threshold,
+    // shift the lower one down by tight gap (32px ~ one plate height).
+    const visiblePlates = [];
+    for (const [, plate] of this._nameplates) {
+      if (plate.style.display !== 'none' && plate._screenX != null) {
+        visiblePlates.push(plate);
+      }
+    }
+    if (visiblePlates.length > 1) {
+      visiblePlates.sort((a, b) => a._screenY - b._screenY);
+      const MIN_GAP = 36; // plate height ~ 30px, leave a tiny breathing gap
+      const X_THRESH = 96; // only consider plates that horizontally overlap
+      // Multi-pass: ensures cluster of 5+ all get pushed apart, not just pairs.
+      for (let pass = 0; pass < 3; pass++) {
+        let moved = false;
+        for (let i = 1; i < visiblePlates.length; i++) {
+          const curr = visiblePlates[i];
+          for (let j = 0; j < i; j++) {
+            const prev = visiblePlates[j];
+            if (Math.abs(curr._screenX - prev._screenX) > X_THRESH) continue;
+            const need = (prev._screenY + MIN_GAP) - curr._screenY;
+            if (need > 0) {
+              curr._screenY += need;
+              curr.style.top = `${curr._screenY}px`;
+              moved = true;
+            }
+          }
+        }
+        if (!moved) break;
       }
     }
   }
@@ -1676,7 +2571,11 @@ export class HUD {
 
     const nameEl = document.createElement('div');
     nameEl.className = 'nameplate-name';
-    nameEl.textContent = unit.classId ? unit.classId.charAt(0).toUpperCase() + unit.classId.slice(1) : 'Unknown';
+    // Same priority order as the per-tick update path — username (PvP) →
+    // unit.name (dungeon monster name) → capitalized class fallback.
+    nameEl.textContent = unit.username
+      || unit.name
+      || (unit.classId ? unit.classId.charAt(0).toUpperCase() + unit.classId.slice(1) : 'Unknown');
     plate.appendChild(nameEl);
 
     const barOuter = document.createElement('div');
@@ -1688,7 +2587,134 @@ export class HUD {
     barOuter.appendChild(barFill);
 
     plate.appendChild(barOuter);
+
+    // WeakAura container (CC indicators, buffs/debuffs, cooldown tracking)
+    const waContainer = document.createElement('div');
+    waContainer.className = 'nameplate-wa';
+    plate.appendChild(waContainer);
+
     return plate;
+  }
+
+  /**
+   * Update nameplate WeakAura display (CC icons, filtered auras, cooldown trackers).
+   */
+  _updateNameplateWA(plate, unit) {
+    const container = plate.querySelector('.nameplate-wa');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const npSettings = this._settings?.get('nameplates') || {
+      showCCIndicators: true, showDebuffs: true, showBuffs: true, showCooldowns: true
+    };
+
+    // 1. CC Indicators — canvas-drawn icons, no emojis
+    if (npSettings.showCCIndicators && unit.ccEffects?.length > 0) {
+      const CC_LABELS = {
+        stun: 'STUN', silence: 'SILENCED', root: 'ROOTED',
+        fear: 'FEARED', incapacitate: 'INCAP'
+      };
+      for (const cc of unit.ccEffects) {
+        const pill = document.createElement('div');
+        pill.className = `np-cc ${cc.type}`;
+        const ccImg = document.createElement('img');
+        ccImg.className = 'np-cc-icon';
+        ccImg.src = getCCIcon(cc.type, 16);
+        pill.appendChild(ccImg);
+        const label = document.createElement('span');
+        label.className = 'np-cc-label';
+        label.textContent = CC_LABELS[cc.type] || cc.type;
+        pill.appendChild(label);
+        if (cc.remaining > 0) {
+          const timer = document.createElement('span');
+          timer.className = 'np-cc-timer';
+          timer.textContent = cc.remaining.toFixed(1) + 's';
+          pill.appendChild(timer);
+        }
+        container.appendChild(pill);
+      }
+    }
+
+    // 2. Filtered Auras — real ability icons (DALL-E + procedural fallback)
+    const debuffs = [];
+    const buffs = [];
+    if (unit.auras) {
+      for (const aura of unit.auras) {
+        if (aura.type === 'debuff' && NP_IMPORTANT_DEBUFFS.has(aura.id) && npSettings.showDebuffs) {
+          debuffs.push(aura);
+        } else if (aura.type === 'buff' && NP_IMPORTANT_BUFFS.has(aura.id) && npSettings.showBuffs) {
+          buffs.push(aura);
+        }
+      }
+    }
+
+    if (debuffs.length > 0 || buffs.length > 0) {
+      const auraRow = document.createElement('div');
+      auraRow.className = 'np-aura-row';
+      for (const aura of [...debuffs, ...buffs]) {
+        const abilityId = AURA_ABILITY_MAP[aura.id] || aura.id;
+        const school = aura.school || 'physical';
+        const borderColor = SCHOOL_BORDER_COLORS[school] || '#5a4a32';
+
+        const iconEl = document.createElement('div');
+        iconEl.className = `np-aura ${aura.type}`;
+        iconEl.style.borderColor = borderColor;
+        iconEl.title = aura.name || '';
+
+        const img = document.createElement('img');
+        img.className = 'np-aura-img';
+        _setIconSrc(img, abilityId, school, 32);
+        iconEl.appendChild(img);
+
+        if (aura.duration > 0) {
+          const dur = document.createElement('span');
+          dur.className = 'np-aura-dur';
+          dur.textContent = Math.ceil(aura.duration) + '';
+          iconEl.appendChild(dur);
+        }
+        auraRow.appendChild(iconEl);
+      }
+      container.appendChild(auraRow);
+    }
+
+    // 3. Cooldown Trackers — ability icons with conic-gradient sweep
+    if (npSettings.showCooldowns && unit.cooldowns?.length > 0) {
+      const cdRow = document.createElement('div');
+      cdRow.className = 'np-cd-row';
+      for (const cd of unit.cooldowns) {
+        const cdType = NP_INTERRUPT_IDS.has(cd.id) ? 'interrupt' : NP_DEFENSIVE_IDS.has(cd.id) ? 'defensive' : 'offensive';
+        const school = cd.school || 'physical';
+        const borderColor = SCHOOL_BORDER_COLORS[school] || '#444';
+
+        const iconEl = document.createElement('div');
+        iconEl.className = `np-cd ${cdType}`;
+        iconEl.style.borderColor = borderColor;
+        iconEl.title = `${cd.name} — ${Math.ceil(cd.remaining)}s remaining`;
+
+        const img = document.createElement('img');
+        img.className = 'np-cd-img';
+        _setIconSrc(img, cd.id, school, 32);
+        iconEl.appendChild(img);
+
+        // Cooldown sweep overlay
+        if (cd.remaining > 0 && cd.total > 0) {
+          const fraction = Math.min(1, cd.remaining / cd.total);
+          const degrees = Math.round(fraction * 360);
+          const sweep = document.createElement('div');
+          sweep.className = 'np-cd-sweep';
+          sweep.style.background = `conic-gradient(rgba(0,0,0,0.65) ${degrees}deg, transparent ${degrees}deg)`;
+          iconEl.appendChild(sweep);
+        }
+
+        const timer = document.createElement('span');
+        timer.className = 'np-cd-timer';
+        timer.textContent = cd.remaining >= 10 ? Math.ceil(cd.remaining) + '' : cd.remaining.toFixed(1);
+        iconEl.appendChild(timer);
+
+        cdRow.appendChild(iconEl);
+      }
+      container.appendChild(cdRow);
+    }
   }
 
   /**
@@ -1860,18 +2886,21 @@ export class HUD {
           // Clear text nodes without removing the <img> child element.
           // Using textContent = '' would destroy all children including iconImg.
           this._clearIconText(slot.icon, slot.iconImg);
-          // Attempt to load generated icon, fallback to procedural on error
+          // Set procedural icon immediately (data URL — no network, instant render)
           const img = slot.iconImg;
-          img.onerror = () => { img.onerror = null; img.src = proceduralFallback; };
-          img.src = generatedIconPath;
+          img.src = proceduralFallback;
           img.style.display = 'block';
+          // Try to upgrade to higher-quality DALL-E PNG
+          const probe = new Image();
+          probe.onload = () => { img.src = generatedIconPath; };
+          probe.src = generatedIconPath;
 
           // Set ability name as tooltip on the slot
           slot.root.title = ability.name;
 
-          // Color the slot border based on spell school
+          // Color the slot with school-colored glow accent
           const schoolColor = schoolColors[school] || '#888';
-          slot.root.style.borderColor = schoolColor;
+          slot.root.style.boxShadow = `inset 0 -2px 4px ${schoolColor}40, 0 0 6px ${schoolColor}30`;
 
           // Build cost string
           let costStr = '';
@@ -1946,10 +2975,12 @@ export class HUD {
     for (const aura of unit.auras.auras.values()) {
       if (aura.isHidden) continue;
       auras.push({
+        id: aura.id,
         name: aura.name,
         abbr: aura.name?.split(' ').map(w => w[0]).join('').slice(0, 3),
         type: aura.type === 'dot' || aura.type === 'debuff' ? 'debuff' : 'buff',
-        duration: aura.getRemainingSeconds ? aura.getRemainingSeconds(0) : 0
+        duration: aura.getRemainingSeconds ? aura.getRemainingSeconds(0) : 0,
+        school: aura.school || 'physical',
       });
     }
 

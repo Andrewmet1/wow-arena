@@ -1,0 +1,17 @@
+"DepotBuildConfig"
+{
+	"DepotID"	"4620191"
+	"contentroot"	"../../electron/release/win-unpacked/"
+	"FileMapping"
+	{
+		"LocalPath"	"*"
+		"DepotPath"	"."
+		"recursive"	"1"
+	}
+	"FileExclusion"	"*.pdb"
+	"FileExclusion"	"*.map"
+	"FileExclusion"	"resources/app/assets/animations/rigs/*"
+	"FileExclusion"	"*backup*"
+	"FileExclusion"	"wpn_infernal_staff_classic.glb"
+	"FileExclusion"	"steam_appid.txt"
+}
