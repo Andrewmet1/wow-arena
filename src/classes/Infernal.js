@@ -35,7 +35,10 @@ const cataclysmFlare = defineAbility({
   school: SCHOOL.FIRE,
   cost: { [RESOURCE_TYPE.MANA]: 500 },
   cooldown: 0,
-  castTime: 35, // 3.5s
+  castTime: 30, // 3.0s — the design cap. A hard cast longer than this is not
+                // realistically landable in arena: it outlives every kick
+                // window and most LoS breaks, so the ability reads as
+                // uncastable rather than as a commitment.
   range: 45,
   slot: 2,
   description: 'Launches an immense bolt of fire at the target. Deals 22000 damage if 4 Cinder stacks are consumed, otherwise 14000. Empowered cast grants Ignition (next fire spell is instant). Applies Pyre.',
