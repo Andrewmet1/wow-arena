@@ -1,6 +1,16 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clipTiming } from './ClipTiming.js';
+import { BASE_MOVE_SPEED } from '../constants.js';
+
+/**
+ * Travel speed the run clip's stride actually depicts, in yards/sec.
+ *
+ * Measured from the clip: one stride cycle per 0.77s at a ~2m stride. Kept as
+ * a named constant because it is a property of the animation, so replacing the
+ * run clip means re-measuring this rather than hunting for a magic number.
+ */
+const RUN_CLIP_YPS = 2.9;
 import { isModelCached, loadCharacter, loadWeapon, getClassScale, loadModel, cloneModel } from './ModelLoader.js';
 import { autoRig, attachWeapon } from './AutoRigger.js';
 import { resolveModelPath, ASSET_MANIFEST, SKIN_ANIMATIONS, getWeaponOffset, getClassAnimationMap, resolveAnimationPath } from './AssetManifest.js';
@@ -5058,14 +5068,32 @@ export default class CharacterRenderer {
         targetClip = 'idle';
         break;
       case 'moving':
-      case 'walk':
-        if (actions['run'] && (unitState.speed || 1) > 1.5) {
-          targetClip = 'run';
-        } else {
-          targetClip = actions['walk'] ? 'walk' : 'run';
-        }
-        timeScale = Math.max(0.5, Math.min(2.0, unitState.speed || 1));
+      case 'walk': {
+        // There is no walk clip, so both branches resolve to 'run'. The
+        // speed > 1.5 test also never fires at normal speed, because
+        // unitState.speed is a *multiplier* (1.0 baseline), not a rate — it
+        // worked only because the fallback happened to be correct.
+        targetClip = (actions['run'] && (unitState.speed || 1) > 1.5)
+          ? 'run'
+          : (actions['walk'] ? 'walk' : 'run');
+
+        // Match stride to travel, or the feet slide.
+        //
+        // The run clip is one stride cycle in 0.77s — a cadence of 1.30
+        // strides/sec, implying roughly 2.9 yd/s of travel. The character
+        // actually moves at BASE_MOVE_SPEED (14 yd/s), so at timeScale 1.0 the
+        // body outruns the legs by about 5x. That mismatch is what reads as
+        // floaty rather than fluid, and no amount of blending hides it.
+        //
+        // Playback is scaled by the ratio, clamped: past ~2.5x a run reads as
+        // comical rather than fast, so the clamp deliberately leaves some
+        // sliding rather than trading one artefact for a worse one. Closing
+        // the rest means either a lower move speed or a run clip authored for
+        // it — see RUN_CLIP_YPS.
+        const mult = unitState.speed || 1;
+        timeScale = Math.max(0.5, Math.min(2.5, (BASE_MOVE_SPEED * mult) / RUN_CLIP_YPS));
         break;
+      }
       case 'attacking':
       case 'attack': {
         const abilityId = unitState.attackAbilityId;
