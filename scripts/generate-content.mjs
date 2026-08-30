@@ -13,7 +13,8 @@
 // the same as the asset being reachable and loadable.
 
 import { PROPS } from '../content/queue.mjs';
-import { Budget, generateProp, COST } from './lib/genkit.mjs';
+import { Budget, generateProp, COST, loadEnv } from './lib/genkit.mjs';
+import { resolveProvider, preflight } from './lib/providers.mjs';
 
 const COMMIT = process.argv.includes('--commit');
 const CAP = process.argv.includes('--budget')
@@ -23,6 +24,18 @@ const CAP = process.argv.includes('--budget')
 if (!PROPS.length) {
   console.log('\n  Content queue is empty — add entries to content/queue.mjs\n');
   process.exit(0);
+}
+
+if (COMMIT) {
+  // Fail before the first image, not after the last one.
+  const env = loadEnv();
+  const prov = resolveProvider(null, env);
+  const pf = await preflight(prov, env);
+  if (!pf.ok) {
+    console.error(`\n  ${prov.name} cannot generate: ${pf.reason}`);
+    console.error('  nothing was spent.\n');
+    process.exit(2);
+  }
 }
 
 const budget = new Budget(CAP);

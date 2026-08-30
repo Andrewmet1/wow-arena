@@ -112,6 +112,8 @@ async function load() {
   // The dungeon's real look — dark ambient, torch colour, fog, bloom strength.
   if (theme?.atmosphere) sm.applyDungeonAtmosphere(theme.atmosphere);
 
+  // Exposed for the headless diagnostics probe.
+  window.__scene = scene; window.__camera = camera; window.__THREE = THREE;
   env = new DungeonEnvironment(scene, sm.renderer, camera);
   env.buildWing({ wing, roomType, theme, roomIndex });
 

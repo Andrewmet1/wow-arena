@@ -23,6 +23,38 @@ export const meshy = {
   // Rigs characters, broad plugin support, weaker guarantees on topology.
   best: 'characters, props, fast iteration',
   available: (env) => !!env.MESHY_API_KEY,
+  /**
+   * Can this account actually create tasks right now?
+   *
+   * A valid key and a positive balance are not sufficient: Meshy stopped
+   * allowing task creation on free plans regardless of credits, so a batch
+   * would generate every concept image, pay for them, and then fail on every
+   * mesh. Checking once up front costs one request.
+   */
+  async preflight(env) {
+    const key = env.MESHY_API_KEY;
+    try {
+      const r = await fetch('https://api.meshy.ai/openapi/v1/balance', {
+        headers: { Authorization: `Bearer ${key}` },
+      });
+      if (r.status === 401 || r.status === 403) return { ok: false, reason: 'API key rejected' };
+      const d = await r.json().catch(() => ({}));
+      // Balance alone does not prove task creation is permitted; probe it.
+      const probe = await fetch('https://api.meshy.ai/openapi/v1/image-to-3d', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),   // deliberately invalid — we want the gate, not a task
+      });
+      const pd = await probe.json().catch(() => ({}));
+      const msg = String(pd.message || '');
+      if (/free plan|upgrade your plan|NoMorePendingTasks/i.test(msg)) {
+        return { ok: false, reason: `plan does not permit task creation (balance ${d.balance ?? '?'} credits stranded)` };
+      }
+      return { ok: true, note: `balance ${d.balance ?? '?'} credits` };
+    } catch (e) {
+      return { ok: false, reason: e.message };
+    }
+  },
   async imageTo3D({ image, id, polycount = 2500, env, onProgress }) {
     const key = env.MESHY_API_KEY;
     const create = await fetch('https://api.meshy.ai/openapi/v1/image-to-3d', {
@@ -54,6 +86,16 @@ export const meshy = {
 export const tripo = {
   name: 'tripo',
   requiresKey: 'TRIPO_API_KEY',
+  async preflight(env) {
+    try {
+      const r = await fetch('https://api.tripo3d.ai/v2/openapi/user/balance', {
+        headers: { Authorization: `Bearer ${env.TRIPO_API_KEY}` },
+      });
+      if (!r.ok) return { ok: false, reason: `balance check returned ${r.status}` };
+      const d = await r.json().catch(() => ({}));
+      return { ok: true, note: `balance ${d.data?.balance ?? '?'}` };
+    } catch (e) { return { ok: false, reason: e.message }; }
+  },
   // Rated best for game-ready quad topology — the property kit pieces need to
   // mate cleanly at their edges.
   best: 'modular kit pieces, clean topology',
@@ -87,6 +129,15 @@ export const tripo = {
 };
 
 export const PROVIDERS = { meshy, tripo };
+
+/**
+ * Verify a provider can actually do work before a batch starts.
+ * Returns { ok, reason?, note? }. Providers without a preflight pass by default.
+ */
+export async function preflight(provider, env) {
+  if (!provider.preflight) return { ok: true, note: 'no preflight implemented' };
+  return provider.preflight(env);
+}
 
 /**
  * Resolve a provider by name, falling back to whatever is configured.

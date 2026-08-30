@@ -40,10 +40,76 @@ export const REQUIRED_ROLES = [ROLES.FLOOR, ROLES.WALL, ROLES.CORNER];
  * repetition is what makes tiled geometry read as tiled — the assembler picks
  * among them deterministically per cell.
  */
-export function piece({ id, role, footprint = [1, 1], height = 1, variants = [], prompt, tags = [] }) {
+/**
+ * Edge connectors, in grid-neighbour order: north, east, south, west.
+ *
+ * Adjacency is what separates a level generator from a shuffle. Picking a
+ * random piece per cell — which is what the first assembler did — cannot know
+ * that a wall must not open onto solid rock, or that an arch needs floor on
+ * both sides. Two pieces may sit next to each other only when their facing
+ * sockets match, and the solver enforces that everywhere at once.
+ *
+ * Socket ids are arbitrary strings; equal ids mate. Reserved conventions:
+ *   'open'  — walkable continuation (floor to floor)
+ *   'solid' — impassable backing (wall to wall, or wall to nothing)
+ *   'void'  — outside the room; only the outward faces of perimeter pieces
+ */
+export const DIRS = ['n', 'e', 's', 'w'];
+export const OPPOSITE = { n: 's', s: 'n', e: 'w', w: 'e' };
+
+export function piece({
+  id, role, footprint = [1, 1], height = 1, variants = [], prompt, tags = [],
+  sockets = null, rotatable = true, weight = null,
+}) {
   if (!id) throw new Error('kit piece needs an id');
   if (!Object.values(ROLES).includes(role)) throw new Error(`unknown role "${role}" on ${id}`);
-  return { id, role, footprint, height, variants, prompt, tags };
+  // Sensible defaults per role so a biome need not spell out every socket:
+  // floors open on all sides, walls back onto solid and open inward.
+  const defaults = {
+    [ROLES.FLOOR]:   { n: 'open', e: 'open', s: 'open', w: 'open' },
+    [ROLES.FILLER]:  { n: 'open', e: 'open', s: 'open', w: 'open' },
+    [ROLES.PILLAR]:  { n: 'open', e: 'open', s: 'open', w: 'open' },
+    [ROLES.STAIR]:   { n: 'open', e: 'solid', s: 'open', w: 'solid' },
+    [ROLES.WALL]:    { n: 'void', e: 'solid', s: 'open', w: 'solid' },
+    [ROLES.DOORWAY]: { n: 'void', e: 'solid', s: 'open', w: 'solid' },
+    // A corner's two inward faces butt against the wall runs leaving it, so
+    // they carry the wall-to-wall connector. Giving them 'open' (as if they
+    // faced the room) makes every corner unsatisfiable: the adjacent wall
+    // presents 'solid' and nothing can mate.
+    [ROLES.CORNER]:  { n: 'void', e: 'void', s: 'solid', w: 'solid' },
+    [ROLES.TRIM]:    { n: 'solid', e: 'open', s: 'open', w: 'open' },   // hugs a wall on one side
+    [ROLES.CEILING]: { n: 'open', e: 'open', s: 'open', w: 'open' },
+  };
+  // Selection weight. WFC picks uniformly among whatever remains legal, so
+  // without weighting a pillar is as likely as a floor tile and a third of the
+  // room fills with pillars. These defaults make plain surfaces the norm and
+  // punctuation rare; a biome can override any of them.
+  const defaultWeight = {
+    [ROLES.FLOOR]: 10, [ROLES.WALL]: 10, [ROLES.CORNER]: 10, [ROLES.CEILING]: 10,
+    [ROLES.FILLER]: 2, [ROLES.TRIM]: 4,
+    [ROLES.PILLAR]: 0.6, [ROLES.DOORWAY]: 0.5, [ROLES.STAIR]: 0.3,
+  };
+  return {
+    id, role, footprint, height, variants, prompt, tags, rotatable,
+    weight: weight ?? defaultWeight[role] ?? 1,
+    sockets: sockets ?? defaults[role] ?? { n: 'open', e: 'open', s: 'open', w: 'open' },
+  };
+}
+
+/** Sockets after rotating a piece by `turns` quarter-turns clockwise. */
+export function rotateSockets(sockets, turns) {
+  const t = ((turns % 4) + 4) % 4;
+  const order = ['n', 'e', 's', 'w'];
+  const out = {};
+  for (let i = 0; i < 4; i++) out[order[(i + t) % 4]] = sockets[order[i]];
+  return out;
+}
+
+/** May `a` (rotated) sit with its `dir` side against `b` (rotated)? */
+export function canMate(a, aTurns, b, bTurns, dir) {
+  const sa = rotateSockets(a.sockets, aTurns)[dir];
+  const sb = rotateSockets(b.sockets, bTurns)[OPPOSITE[dir]];
+  return sa === sb;
 }
 
 /**

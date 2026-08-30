@@ -20,6 +20,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ROLES, kitPath } from './KitSchema.js';
+import { buildModules, solve } from './WFC.js';
 
 const _loader = new GLTFLoader();
 const _cache = new Map();     // url -> Promise<THREE.Object3D|null>
@@ -91,6 +92,19 @@ export class KitAssembler {
     return all[Math.floor(rng() * all.length)];
   }
 
+  async _buildFallbackFloor(chamber, nx, nz, x0, z0) {
+    const c = this.cell;
+    const transforms = [];
+    for (let iz = 0; iz < nz; iz++) {
+      for (let ix = 0; ix < nx; ix++) {
+        transforms.push({ pos: new THREE.Vector3(x0 + ix * c, 0.125, z0 + iz * c) });
+      }
+    }
+    const floor = (this.biome.kit || []).find(p => p.role === ROLES.FLOOR);
+    await this._place(floor?.id ?? 'floor', transforms, [c, 0.25, c], 0x2f2722);
+    return 1;
+  }
+
   /**
    * Place one piece type at many transforms as a single InstancedMesh, falling
    * back to a box of the right size when the GLB does not exist yet.
@@ -119,6 +133,15 @@ export class KitAssembler {
       inst.setMatrixAt(i, m);
     });
     inst.instanceMatrix.needsUpdate = true;
+    // Frustum culling tests the *geometry's* bounding sphere, which is centred
+    // on the piece's own origin — not on where its instances actually sit. A
+    // chamber placed away from world origin therefore culls entirely and draws
+    // nothing. Recomputing over the instance transforms fixes it and keeps
+    // culling working, which matters once several chambers exist.
+    inst.computeBoundingSphere?.();
+    if (!inst.boundingSphere || !isFinite(inst.boundingSphere.radius)) {
+      inst.frustumCulled = false;
+    }
     inst.userData.kitPiece = pieceId;
     this.root.add(inst);
     this._built.push(inst);
@@ -132,60 +155,54 @@ export class KitAssembler {
   async buildChamber(chamber, doorways = []) {
     const rng = rngFor(chamber.id || `${chamber.cx},${chamber.cz}`);
     const c = this.cell;
-    const nx = Math.max(1, Math.round((chamber.halfX * 2) / c));
-    const nz = Math.max(1, Math.round((chamber.halfZ * 2) / c));
+    const nx = Math.max(3, Math.round((chamber.halfX * 2) / c));
+    const nz = Math.max(3, Math.round((chamber.halfZ * 2) / c));
     const x0 = chamber.cx - (nx * c) / 2 + c / 2;
     const z0 = chamber.cz - (nz * c) / 2 + c / 2;
 
-    const rules = this.biome.rules || {};
-    const groups = new Map();   // pieceId -> transforms[]
-    const add = (id, pos, rotY = 0, scale) => {
-      if (!id) return;
-      const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotY);
-      (groups.get(id) ?? groups.set(id, []).get(id)).push({ pos, quat: q, scale });
-    };
+    if (!this._mods) this._mods = buildModules(this.biome.kit);
+    const { modules, compat } = this._mods;
 
-    // Snap doorway points to perimeter cell indices so arches land in the wall.
+    // Snap doorway points to perimeter cells so arches land in the wall rather
+    // than wherever the solver finds them convenient.
     const doorCells = new Set();
     for (const d of doorways) {
-      const ix = Math.round((d.x - x0) / c), iz = Math.round((d.z - z0) / c);
+      const ix = Math.round((d.cx ?? d.x - x0) / c), iz = Math.round((d.cz ?? d.z - z0) / c);
       doorCells.add(`${Math.max(0, Math.min(nx - 1, ix))},${Math.max(0, Math.min(nz - 1, iz))}`);
     }
 
-    for (let iz = 0; iz < nz; iz++) {
-      for (let ix = 0; ix < nx; ix++) {
-        const x = x0 + ix * c, z = z0 + iz * c;
-        const edgeX = ix === 0 || ix === nx - 1;
-        const edgeZ = iz === 0 || iz === nz - 1;
-
-        if (edgeX && edgeZ) {
-          // Corner: rotate so the two finished faces point into the room.
-          const rot = (ix === 0 ? (iz === 0 ? 0 : Math.PI / 2) : (iz === 0 ? -Math.PI / 2 : Math.PI));
-          add(this._pick(ROLES.CORNER, rng), new THREE.Vector3(x, 0, z), rot);
-          continue;
-        }
-        if (edgeX || edgeZ) {
-          const isDoor = doorCells.has(`${ix},${iz}`);
-          // Wall faces inward: rotation depends on which edge it sits on.
-          const rot = edgeZ ? (iz === 0 ? 0 : Math.PI) : (ix === 0 ? Math.PI / 2 : -Math.PI / 2);
-          add(this._pick(isDoor ? ROLES.DOORWAY : ROLES.WALL, rng), new THREE.Vector3(x, 0, z), rot);
-          if (rules.trim) add(this._pick(ROLES.TRIM, rng), new THREE.Vector3(x, 0, z), rot);
-          continue;
-        }
-
-        // Interior floor, with occasional rubble and pillars for relief.
-        const filler = rules.fillerRate && rng() < rules.fillerRate;
-        const id = filler ? this._pick(ROLES.FILLER, rng) : this._pick(ROLES.FLOOR, rng);
-        // Quarter-turn jitter hides the grid without needing more variants.
-        const rot = rules.variantJitter ? Math.floor(rng() * 4) * (Math.PI / 2) : 0;
-        add(id, new THREE.Vector3(x, 0, z), rot);
-
-        if (rules.pillarRate && rng() < rules.pillarRate) {
-          add(this._pick(ROLES.PILLAR, rng), new THREE.Vector3(x, 0, z), rng() * Math.PI * 2);
-        }
+    // Pin what the room's shape dictates; the solver decides everything else.
+    const fixed = (x, y) => {
+      const edge = x === 0 || y === 0 || x === nx - 1 || y === nz - 1;
+      const cornerCell = (x === 0 || x === nx - 1) && (y === 0 || y === nz - 1);
+      if (cornerCell) return (m) => m.role === ROLES.CORNER;
+      if (edge) {
+        if (doorCells.has(`${x},${y}`)) return (m) => m.role === ROLES.DOORWAY;
+        return (m) => m.role === ROLES.WALL || m.role === ROLES.DOORWAY;
       }
+      return (m) => m.role === ROLES.FLOOR || m.role === ROLES.FILLER || m.role === ROLES.PILLAR;
+    };
+
+    const result = solve({ w: nx, h: nz, modules, compat, rng, fixed });
+    if (!result) {
+      // Over-constrained rooms are possible; a plain floor is better than a
+      // half-built chamber or a thrown error mid-render.
+      console.warn(`[KitAssembler] no solution for ${chamber.id}, falling back to floor only`);
+      return this._buildFallbackFloor(chamber, nx, nz, x0, z0);
     }
 
+    const groups = new Map();
+    result.forEach((m, i) => {
+      const x = x0 + (i % nx) * c;
+      const z = z0 + Math.floor(i / nx) * c;
+      const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -m.turns * Math.PI / 2);
+      if (!groups.has(m.pieceId)) groups.set(m.pieceId, []);
+      groups.get(m.pieceId).push({ pos: new THREE.Vector3(x, 0, z), quat: q });
+    });
+
+    // Emit one InstancedMesh per piece. Fallback block sizes come from the
+    // piece's role, so a kit that is only half generated still assembles into
+    // something with the right massing rather than a field of identical cubes.
     const kitById = Object.fromEntries((this.biome.kit || []).map(p => [p.id, p]));
     const roleOf = (id) => kitById[id]?.role
       ?? (this.biome.kit || []).find(p => (p.variants || []).includes(id))?.role;
@@ -198,10 +215,8 @@ export class KitAssembler {
                  : isPillar ? [c * 0.45, this.wallH * 1.4, c * 0.45]
                  : [c, 0.25, c];
       const color = vertical ? 0x3a2f28 : isPillar ? 0x4a3d33 : 0x2f2722;
-      // Fallback boxes are centred on origin; lift them so they sit on y=0.
-      const lifted = transforms.map(t => ({
-        ...t, pos: t.pos.clone().setY(t.pos.y + size[1] / 2),
-      }));
+      // Fallback boxes are origin-centred; lift so they rest on y=0.
+      const lifted = transforms.map(t => ({ ...t, pos: t.pos.clone().setY(t.pos.y + size[1] / 2) }));
       return this._place(id, lifted, size, color);
     }));
 

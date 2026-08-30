@@ -16,7 +16,27 @@
 import fs from 'fs';
 import path from 'path';
 import { validateBiome } from '../src/rendering/env/KitSchema.js';
-import { Budget, generateImage, imageTo3D, download, COST } from './lib/genkit.mjs';
+import { Budget, generateImage, imageTo3D, download, COST, loadEnv } from './lib/genkit.mjs';
+import { resolveProvider, preflight } from './lib/providers.mjs';
+
+/**
+ * Confirm the provider can create tasks before anything is generated.
+ * A previous run produced eight concept images, paid for them, then failed on
+ * every mesh because the account's plan forbade task creation — the check that
+ * would have caught it costs one request.
+ */
+async function assertProviderReady(name) {
+  const env = loadEnv();
+  const p = resolveProvider(name, env);
+  const r = await preflight(p, env);
+  if (!r.ok) {
+    console.error(`\n  ${p.name} cannot generate: ${r.reason}`);
+    console.error('  nothing was spent. resolve the provider, or pass --provider <other>\n');
+    process.exit(2);
+  }
+  console.log(`  provider: ${p.name} (${r.note})`);
+  return p.name;
+}
 
 const args = process.argv.slice(2);
 const PROMPT = args.filter(a => !a.startsWith('--'))[0];
@@ -34,6 +54,7 @@ if (BIOME_FILE) {
   const b = mod.default;
   const errs = validateBiome(b);
   if (errs.length) { console.error('  biome invalid:', errs); process.exit(1); }
+  await assertProviderReady(PROVIDER);
   const dir = path.resolve('public/assets/models/kits', b.id);
   fs.mkdirSync(dir, { recursive: true });
   const budget = new Budget(CAP);
@@ -150,6 +171,7 @@ if (!GENERATE) {
   process.exit(0);
 }
 
+await assertProviderReady(PROVIDER);
 const dir = path.resolve('public/assets/models/kits', shaped.id);
 fs.mkdirSync(dir, { recursive: true });
 const budget = new Budget(CAP);
