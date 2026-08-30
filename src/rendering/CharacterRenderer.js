@@ -2263,6 +2263,25 @@ const CLASS_BUILDERS = new Map([
 // CharacterRenderer
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Bones driven by an ability while the character is moving.
+ *
+ * Everything from the spine up, plus both arms. Hips and legs are excluded so
+ * locomotion keeps driving them — that split is what lets a character cast
+ * while running instead of stopping dead, which is how MMO combat reads.
+ */
+const UPPER_BODY_BONES = new Set([
+  'Spine', 'Spine01', 'Spine02', 'neck', 'Head', 'head_end', 'headfront',
+  'LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand',
+  'RightShoulder', 'RightArm', 'RightForeArm', 'RightHand',
+]);
+
+/** Bone name out of a track name such as "Hips.quaternion". */
+function trackBone(name) {
+  const m = /\[([^\]]+)\]/.exec(name) || /^([^.]+)\./.exec(name);
+  return m ? m[1] : null;
+}
+
 export default class CharacterRenderer {
   /**
    * @param {THREE.Scene} scene — the Three.js scene to add characters to.
@@ -5140,9 +5159,16 @@ export default class CharacterRenderer {
         //
         // Measuring stride properly — forward kinematics on the foot, then the
         // distance it travels while planted — the locomotion clips imply
-        // 1.2-3.6 yd/s. The clip previously mapped to 'run' was the slowest of
+        // 1.2-3.6 yd/s. The clip originally mapped to 'run' was the slowest of
         // them at 1.2, a jog, which is why the character glided; it is now
-        // lean_forward_sprint at 3.6.
+        // run_03 at 2.8.
+        //
+        // lean_forward_sprint is faster still at 3.6 but carries 316 units of
+        // root translation — it physically travels forward and snaps back at
+        // the loop point. A locomotion clip has to be authored in place,
+        // because movement is driven by the simulation; run, run_fast and
+        // run_03 all have zero net root drift, and run_03 is the quickest of
+        // those.
         //
         // The remainder is not closable by playback rate. 7 yd/s is 6.4 m/s,
         // sprint-athlete pace, and no believable cadence covers it — WoW slides

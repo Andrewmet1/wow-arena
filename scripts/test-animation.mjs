@@ -116,6 +116,40 @@ check('no animation outlives its GCD', longest <= GCD_SEC + 0.01, `longest ${lon
     'faded out in 0.3s — cannot act as a micro-stun');
 }
 
+// Locomotion clips must be authored in place. Movement comes from the
+// simulation, so a looping clip carrying root translation walks the character
+// forward and snaps it back every cycle. lean_forward_sprint is the fastest
+// run in the library and unusable for exactly this reason.
+{
+  const manifest = fs.readFileSync(path.resolve('src/rendering/AssetManifest.js'), 'utf-8');
+  const mapped = [...new Set(
+    [...manifest.matchAll(/run:\s*'rigs\/[^/]+\/([\w.]+)\.glb'/g)].map(m => m[1])
+  )];
+  check('a run clip is mapped', mapped.length > 0, mapped.join(', '));
+  for (const name of mapped) {
+    const f = path.join(RIGS, `${name}.glb`);
+    if (!fs.existsSync(f)) { check(`run clip ${name} exists`, false); continue; }
+    const buf = fs.readFileSync(f);
+    const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    const jl = dv.getUint32(12, true);
+    const js = JSON.parse(new TextDecoder().decode(buf.slice(20, 20 + jl)));
+    const binOff = 20 + jl + 8;
+    let drift = 0;
+    for (const ch of js.animations?.[0]?.channels ?? []) {
+      if (ch.target.path !== 'translation') continue;
+      if ((js.nodes[ch.target.node].name || '') !== 'Hips') continue;
+      const smp = js.animations[0].samplers[ch.sampler];
+      const a = js.accessors[smp.output], bv = js.bufferViews[a.bufferView];
+      const st = binOff + (bv.byteOffset || 0) + (a.byteOffset || 0);
+      const at = (i, c) => dv.getFloat32(st + (i * 3 + c) * 4, true);
+      const dx = at(a.count - 1, 0) - at(0, 0), dz = at(a.count - 1, 2) - at(0, 2);
+      drift = Math.hypot(dx, dz);
+    }
+    check(`run clip '${name}' is authored in place`, drift < 1.0,
+      `root drift ${drift.toFixed(1)} units`);
+  }
+}
+
 console.log('  ' + '─'.repeat(62));
 console.log(`  ${failures === 0 ? 'ALL ANIMATION CHECKS PASSED' : failures + ' CHECK(S) FAILED'}\n`);
 process.exit(failures ? 1 : 0);

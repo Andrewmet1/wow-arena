@@ -141,7 +141,7 @@ export const SHARED_ANIMATIONS = {
 // loaded eagerly; ability clips are loaded lazily on first use.
 export const CLASS_ANIMATIONS = {
   tyrant: {
-    idle: 'rest_pose', run: 'rigs/tyrant_frost_dragon/lean_forward_sprint.glb', death: 'rigs/tyrant_frost_dragon/dead.glb', hit: 'rigs/tyrant_frost_dragon/hit_reaction.glb', dodge: 'rigs/tyrant_frost_dragon/quick_step_spin_dodge.glb', stun: 'rigs/tyrant_frost_dragon/alert.glb', jump: 'rigs/tyrant_frost_dragon/basic_jump.glb', auto_attack: 'rigs/tyrant_frost_dragon/left_slash.glb',
+    idle: 'rest_pose', run: 'rigs/tyrant_frost_dragon/run_03.glb', death: 'rigs/tyrant_frost_dragon/dead.glb', hit: 'rigs/tyrant_frost_dragon/hit_reaction.glb', dodge: 'rigs/tyrant_frost_dragon/quick_step_spin_dodge.glb', stun: 'rigs/tyrant_frost_dragon/alert.glb', jump: 'rigs/tyrant_frost_dragon/basic_jump.glb', auto_attack: 'rigs/tyrant_frost_dragon/left_slash.glb',
     ravaging_cleave: 'rigs/tyrant_frost_dragon/double_combo_attack.glb', bloodrage_strike: 'rigs/tyrant_frost_dragon/right_hand_sword_slash.glb',
     brutal_slam: 'rigs/tyrant_frost_dragon/heavy_hammer_swing.glb', iron_cyclone: 'rigs/tyrant_frost_dragon/axe_spin_attack.glb',
     shatter_guard: 'rigs/tyrant_frost_dragon/sword_judgment.glb', warbringer_rush: 'rigs/tyrant_frost_dragon/run_and_shoot.glb',
@@ -150,7 +150,7 @@ export const CLASS_ANIMATIONS = {
     skull_crack: 'rigs/tyrant_frost_dragon/punch_combo.glb', thunder_spike: 'rigs/tyrant_frost_dragon/charged_ground_slam.glb',
   },
   wraith: {
-    idle: 'rigs/tyrant_frost_dragon/combat_stance.glb', run: 'rigs/tyrant_frost_dragon/lean_forward_sprint.glb', death: 'rigs/tyrant_frost_dragon/dying_backwards.glb', hit: 'rigs/tyrant_frost_dragon/hit_reaction_1.glb', dodge: 'rigs/tyrant_frost_dragon/quick_step_spin_dodge.glb', stun: 'rigs/tyrant_frost_dragon/alert.glb', jump: 'rigs/tyrant_frost_dragon/basic_jump.glb', auto_attack: 'rigs/tyrant_frost_dragon/attack.glb',
+    idle: 'rigs/tyrant_frost_dragon/combat_stance.glb', run: 'rigs/tyrant_frost_dragon/run_03.glb', death: 'rigs/tyrant_frost_dragon/dying_backwards.glb', hit: 'rigs/tyrant_frost_dragon/hit_reaction_1.glb', dodge: 'rigs/tyrant_frost_dragon/quick_step_spin_dodge.glb', stun: 'rigs/tyrant_frost_dragon/alert.glb', jump: 'rigs/tyrant_frost_dragon/basic_jump.glb', auto_attack: 'rigs/tyrant_frost_dragon/attack.glb',
     viper_lash: 'rigs/tyrant_frost_dragon/left_slash.glb', throat_opener: 'rigs/tyrant_frost_dragon/sword_judgment.glb',
     grim_flurry: 'rigs/tyrant_frost_dragon/rightward_spin.glb', nerve_strike: 'rigs/tyrant_frost_dragon/punch_combo.glb',
     serrated_wound: 'rigs/tyrant_frost_dragon/reaping_swing.glb', blackjack: 'rigs/tyrant_frost_dragon/heavy_hammer_swing.glb',
@@ -160,7 +160,7 @@ export const CLASS_ANIMATIONS = {
     frenzy_edge: 'rigs/tyrant_frost_dragon/sword_shout.glb', shadowmeld: 'rigs/tyrant_frost_dragon/mage_spell_cast_8.glb',
   },
   infernal: {
-    idle: 'rest_pose', run: 'rigs/tyrant_frost_dragon/lean_forward_sprint.glb', death: 'rigs/tyrant_frost_dragon/dead.glb', hit: 'rigs/tyrant_frost_dragon/hit_reaction_1.glb', dodge: 'rigs/tyrant_frost_dragon/stand_dodge.glb', stun: 'rigs/tyrant_frost_dragon/alert.glb', jump: 'rigs/tyrant_frost_dragon/basic_jump.glb', auto_attack: 'rigs/tyrant_frost_dragon/attack.glb',
+    idle: 'rest_pose', run: 'rigs/tyrant_frost_dragon/run_03.glb', death: 'rigs/tyrant_frost_dragon/dead.glb', hit: 'rigs/tyrant_frost_dragon/hit_reaction_1.glb', dodge: 'rigs/tyrant_frost_dragon/stand_dodge.glb', stun: 'rigs/tyrant_frost_dragon/alert.glb', jump: 'rigs/tyrant_frost_dragon/basic_jump.glb', auto_attack: 'rigs/tyrant_frost_dragon/attack.glb',
     inferno_bolt: 'rigs/tyrant_frost_dragon/mage_spell_cast_3.glb', cataclysm_flare: 'rigs/tyrant_frost_dragon/mage_spell_cast_8.glb',
     searing_pulse: 'rigs/tyrant_frost_dragon/punch_combo.glb', glacial_lance: 'rigs/tyrant_frost_dragon/charged_spell_cast.glb',
     permafrost_burst: 'rigs/tyrant_frost_dragon/charged_ground_slam.glb', phase_shift: 'rigs/tyrant_frost_dragon/roll_dodge.glb',
@@ -171,7 +171,7 @@ export const CLASS_ANIMATIONS = {
     ring_of_frost: 'rigs/tyrant_frost_dragon/rightward_spin.glb',
   },
   harbinger: {
-    idle: 'rest_pose', run: 'rigs/tyrant_frost_dragon/lean_forward_sprint.glb', death: 'rigs/tyrant_frost_dragon/dead.glb', hit: 'rigs/tyrant_frost_dragon/hit_reaction.glb', dodge: 'rigs/tyrant_frost_dragon/stand_dodge.glb', stun: 'rigs/tyrant_frost_dragon/alert.glb', jump: 'rigs/tyrant_frost_dragon/basic_jump.glb', auto_attack: 'rigs/tyrant_frost_dragon/attack.glb',
+    idle: 'rest_pose', run: 'rigs/tyrant_frost_dragon/run_03.glb', death: 'rigs/tyrant_frost_dragon/dead.glb', hit: 'rigs/tyrant_frost_dragon/hit_reaction.glb', dodge: 'rigs/tyrant_frost_dragon/stand_dodge.glb', stun: 'rigs/tyrant_frost_dragon/alert.glb', jump: 'rigs/tyrant_frost_dragon/basic_jump.glb', auto_attack: 'rigs/tyrant_frost_dragon/attack.glb',
     hex_blight: 'rigs/tyrant_frost_dragon/mage_spell_cast.glb', creeping_torment: 'rigs/tyrant_frost_dragon/mage_spell_cast_3.glb',
     volatile_hex: 'rigs/tyrant_frost_dragon/sword_judgment.glb', siphon_essence: 'rigs/tyrant_frost_dragon/mage_spell_cast_4.glb',
     hex_rupture: 'rigs/tyrant_frost_dragon/charged_ground_slam.glb', dread_howl: 'rigs/tyrant_frost_dragon/sword_shout.glb',
@@ -182,7 +182,7 @@ export const CLASS_ANIMATIONS = {
     abyssal_ground: 'rigs/tyrant_frost_dragon/mage_spell_cast_4.glb',
   },
   revenant: {
-    idle: 'rigs/tyrant_frost_dragon/combat_stance.glb', run: 'rigs/tyrant_frost_dragon/lean_forward_sprint.glb', death: 'rigs/tyrant_frost_dragon/dying_backwards.glb', hit: 'rigs/tyrant_frost_dragon/hit_reaction_1.glb', dodge: 'rigs/tyrant_frost_dragon/roll_dodge.glb', stun: 'rigs/tyrant_frost_dragon/alert.glb', jump: 'rigs/tyrant_frost_dragon/basic_jump.glb', auto_attack: 'rigs/tyrant_frost_dragon/attack.glb',
+    idle: 'rigs/tyrant_frost_dragon/combat_stance.glb', run: 'rigs/tyrant_frost_dragon/run_03.glb', death: 'rigs/tyrant_frost_dragon/dying_backwards.glb', hit: 'rigs/tyrant_frost_dragon/hit_reaction_1.glb', dodge: 'rigs/tyrant_frost_dragon/roll_dodge.glb', stun: 'rigs/tyrant_frost_dragon/alert.glb', jump: 'rigs/tyrant_frost_dragon/basic_jump.glb', auto_attack: 'rigs/tyrant_frost_dragon/attack.glb',
     hallowed_strike: 'rigs/tyrant_frost_dragon/left_slash.glb', divine_reckoning: 'rigs/tyrant_frost_dragon/mage_spell_cast_3.glb',
     radiant_verdict: 'rigs/tyrant_frost_dragon/sword_judgment.glb', sanctified_gale: 'rigs/tyrant_frost_dragon/reaping_swing.glb',
     ember_wake: 'rigs/tyrant_frost_dragon/rightward_spin.glb', gavel_of_light: 'rigs/tyrant_frost_dragon/charged_ground_slam.glb',
@@ -203,7 +203,7 @@ export const SKIN_ANIMATIONS = {
   revenant_frozen_ice_holy_paladin_fallen_dragon: {
     weaponsBakedIn: false,
     modelScale: 1.9,
-    idle: 'rest_pose', run: 'rigs/tyrant_frost_dragon/lean_forward_sprint.glb', death: 'rigs/tyrant_frost_dragon/dying_backwards.glb', hit: 'rigs/tyrant_frost_dragon/hit_reaction.glb', dodge: 'rigs/tyrant_frost_dragon/roll_dodge_2.glb', stun: 'rigs/tyrant_frost_dragon/alert.glb', jump: 'basic_jump', auto_attack: 'rigs/tyrant_frost_dragon/attack.glb',
+    idle: 'rest_pose', run: 'rigs/tyrant_frost_dragon/run_03.glb', death: 'rigs/tyrant_frost_dragon/dying_backwards.glb', hit: 'rigs/tyrant_frost_dragon/hit_reaction.glb', dodge: 'rigs/tyrant_frost_dragon/roll_dodge_2.glb', stun: 'rigs/tyrant_frost_dragon/alert.glb', jump: 'basic_jump', auto_attack: 'rigs/tyrant_frost_dragon/attack.glb',
     hallowed_strike: 'rigs/tyrant_frost_dragon/left_slash.glb', divine_reckoning: 'rigs/tyrant_frost_dragon/mage_spell_cast_3.glb',
     radiant_verdict: 'rigs/tyrant_frost_dragon/sword_judgment.glb', sanctified_gale: 'rigs/tyrant_frost_dragon/reaping_swing.glb',
     ember_wake: 'rigs/tyrant_frost_dragon/shield_push.glb', gavel_of_light: 'rigs/tyrant_frost_dragon/charged_ground_slam.glb',
@@ -215,7 +215,7 @@ export const SKIN_ANIMATIONS = {
   harbinger_frozen_ice_dragon_skeleton_warlock: {
     weaponsBakedIn: false,
     modelScale: 1.9,
-    idle: 'rest_pose', run: 'rigs/tyrant_frost_dragon/lean_forward_sprint.glb', death: 'rigs/tyrant_frost_dragon/dead.glb', hit: 'rigs/tyrant_frost_dragon/hit_reaction.glb', dodge: 'rigs/tyrant_frost_dragon/stand_dodge.glb', stun: 'rigs/tyrant_frost_dragon/alert.glb', jump: 'basic_jump', auto_attack: 'rigs/tyrant_frost_dragon/attack.glb',
+    idle: 'rest_pose', run: 'rigs/tyrant_frost_dragon/run_03.glb', death: 'rigs/tyrant_frost_dragon/dead.glb', hit: 'rigs/tyrant_frost_dragon/hit_reaction.glb', dodge: 'rigs/tyrant_frost_dragon/stand_dodge.glb', stun: 'rigs/tyrant_frost_dragon/alert.glb', jump: 'basic_jump', auto_attack: 'rigs/tyrant_frost_dragon/attack.glb',
     hex_blight: 'rigs/tyrant_frost_dragon/mage_spell_cast.glb', creeping_torment: 'rigs/tyrant_frost_dragon/mage_spell_cast_3.glb',
     volatile_hex: 'rigs/tyrant_frost_dragon/sword_judgment.glb', siphon_essence: 'rigs/tyrant_frost_dragon/mage_spell_cast_8.glb',
     hex_rupture: 'rigs/tyrant_frost_dragon/mage_spell_cast_6.glb', dread_howl: 'rigs/tyrant_frost_dragon/charged_spell_cast.glb',
@@ -228,7 +228,7 @@ export const SKIN_ANIMATIONS = {
   infernal_frost_dragon_skeleton_inspired_ice_wizar: {
     weaponsBakedIn: true,
     modelScale: 1.9,
-    idle: 'rest_pose', run: 'rigs/tyrant_frost_dragon/lean_forward_sprint.glb', death: 'shot_and_fall_forward', hit: 'rigs/tyrant_frost_dragon/hit_reaction_1.glb', dodge: 'rigs/tyrant_frost_dragon/stand_dodge.glb', stun: 'electrocution_reaction', jump: 'rigs/tyrant_frost_dragon/basic_jump.glb', auto_attack: 'rigs/tyrant_frost_dragon/attack.glb',
+    idle: 'rest_pose', run: 'rigs/tyrant_frost_dragon/run_03.glb', death: 'shot_and_fall_forward', hit: 'rigs/tyrant_frost_dragon/hit_reaction_1.glb', dodge: 'rigs/tyrant_frost_dragon/stand_dodge.glb', stun: 'electrocution_reaction', jump: 'rigs/tyrant_frost_dragon/basic_jump.glb', auto_attack: 'rigs/tyrant_frost_dragon/attack.glb',
     inferno_bolt: 'rigs/tyrant_frost_dragon/mage_spell_cast_3.glb', cataclysm_flare: 'rigs/tyrant_frost_dragon/mage_spell_cast_8.glb',
     searing_pulse: 'rigs/tyrant_frost_dragon/left_slash.glb', glacial_lance: 'rigs/tyrant_frost_dragon/charged_spell_cast.glb',
     permafrost_burst: 'rigs/tyrant_frost_dragon/charged_ground_slam.glb', phase_shift: 'rigs/tyrant_frost_dragon/victory_fist_pump.glb',
@@ -241,7 +241,7 @@ export const SKIN_ANIMATIONS = {
   tyrant_ashen_overlord: {
     weaponsBakedIn: false,
     modelScale: 1.9,
-    idle: 'rest_pose', run: 'rigs/tyrant_frost_dragon/lean_forward_sprint.glb', death: 'rigs/tyrant_frost_dragon/dead.glb', hit: 'rigs/tyrant_frost_dragon/hit_reaction.glb', dodge: 'rigs/tyrant_frost_dragon/roll_dodge_2.glb', stun: 'rigs/tyrant_frost_dragon/block_3.glb', jump: 'basic_jump', auto_attack: 'rigs/tyrant_frost_dragon/left_slash.glb',
+    idle: 'rest_pose', run: 'rigs/tyrant_frost_dragon/run_03.glb', death: 'rigs/tyrant_frost_dragon/dead.glb', hit: 'rigs/tyrant_frost_dragon/hit_reaction.glb', dodge: 'rigs/tyrant_frost_dragon/roll_dodge_2.glb', stun: 'rigs/tyrant_frost_dragon/block_3.glb', jump: 'basic_jump', auto_attack: 'rigs/tyrant_frost_dragon/left_slash.glb',
     ravaging_cleave: 'rigs/tyrant_frost_dragon/double_combo_attack.glb', bloodrage_strike: 'rigs/tyrant_frost_dragon/right_hand_sword_slash.glb',
     brutal_slam: 'rigs/tyrant_frost_dragon/heavy_hammer_swing.glb', iron_cyclone: 'rigs/tyrant_frost_dragon/axe_spin_attack.glb',
     shatter_guard: 'rigs/tyrant_frost_dragon/sword_judgment.glb', warbringer_rush: 'rigs/tyrant_frost_dragon/standard_forward_charge.glb',
@@ -251,7 +251,7 @@ export const SKIN_ANIMATIONS = {
   },
   tyrant_frost_dragon: {
     weaponsBakedIn: false,
-    run: 'rigs/tyrant_frost_dragon/lean_forward_sprint.glb', death: 'rigs/tyrant_frost_dragon/dead.glb',
+    run: 'rigs/tyrant_frost_dragon/run_03.glb', death: 'rigs/tyrant_frost_dragon/dead.glb',
     hit: 'rigs/tyrant_frost_dragon/hit_reaction.glb',
     ravaging_cleave: 'rigs/tyrant_frost_dragon/left_slash.glb',
     auto_attack: 'rigs/tyrant_frost_dragon/left_slash.glb',
@@ -259,7 +259,7 @@ export const SKIN_ANIMATIONS = {
   wraith_frozen_reaper: {
     weaponsBakedIn: false,
     modelScale: 1.9,
-    idle: 'rigs/tyrant_frost_dragon/idle.glb', run: 'rigs/tyrant_frost_dragon/lean_forward_sprint.glb', death: 'rigs/tyrant_frost_dragon/dying_backwards.glb', hit: 'rigs/tyrant_frost_dragon/hit_reaction_1.glb', dodge: 'rigs/tyrant_frost_dragon/roll_dodge_1.glb', stun: 'rigs/tyrant_frost_dragon/block_2.glb', jump: 'basic_jump', auto_attack: 'rigs/tyrant_frost_dragon/attack.glb',
+    idle: 'rigs/tyrant_frost_dragon/idle.glb', run: 'rigs/tyrant_frost_dragon/run_03.glb', death: 'rigs/tyrant_frost_dragon/dying_backwards.glb', hit: 'rigs/tyrant_frost_dragon/hit_reaction_1.glb', dodge: 'rigs/tyrant_frost_dragon/roll_dodge_1.glb', stun: 'rigs/tyrant_frost_dragon/block_2.glb', jump: 'basic_jump', auto_attack: 'rigs/tyrant_frost_dragon/attack.glb',
     viper_lash: 'rigs/tyrant_frost_dragon/left_slash.glb', throat_opener: 'rigs/tyrant_frost_dragon/sword_judgment.glb',
     grim_flurry: 'rigs/tyrant_frost_dragon/double_blade_spin.glb', nerve_strike: 'rigs/tyrant_frost_dragon/double_combo_attack.glb',
     serrated_wound: 'rigs/tyrant_frost_dragon/reaping_swing.glb', blackjack: 'rigs/tyrant_frost_dragon/heavy_hammer_swing.glb',
@@ -271,7 +271,7 @@ export const SKIN_ANIMATIONS = {
   tyrant_forest_inspired_dark_bear_skin: {
     weaponsBakedIn: false,
     modelScale: 1.9,
-    idle: 'rest_pose', run: 'rigs/tyrant_frost_dragon/lean_forward_sprint.glb', death: 'rigs/tyrant_frost_dragon/dead.glb', hit: 'rigs/tyrant_frost_dragon/hit_reaction.glb', dodge: 'rigs/tyrant_frost_dragon/quick_step_spin_dodge.glb', stun: 'rigs/tyrant_frost_dragon/alert.glb', jump: 'rigs/tyrant_frost_dragon/basic_jump.glb', auto_attack: 'rigs/tyrant_frost_dragon/left_slash.glb',
+    idle: 'rest_pose', run: 'rigs/tyrant_frost_dragon/run_03.glb', death: 'rigs/tyrant_frost_dragon/dead.glb', hit: 'rigs/tyrant_frost_dragon/hit_reaction.glb', dodge: 'rigs/tyrant_frost_dragon/quick_step_spin_dodge.glb', stun: 'rigs/tyrant_frost_dragon/alert.glb', jump: 'rigs/tyrant_frost_dragon/basic_jump.glb', auto_attack: 'rigs/tyrant_frost_dragon/left_slash.glb',
     ravaging_cleave: 'rigs/tyrant_frost_dragon/double_combo_attack.glb', bloodrage_strike: 'rigs/tyrant_frost_dragon/right_hand_sword_slash.glb',
     brutal_slam: 'rigs/tyrant_frost_dragon/heavy_hammer_swing.glb', iron_cyclone: 'rigs/tyrant_frost_dragon/axe_spin_attack.glb',
     shatter_guard: 'rigs/tyrant_frost_dragon/sword_judgment.glb', warbringer_rush: 'rigs/tyrant_frost_dragon/run_and_shoot.glb',
