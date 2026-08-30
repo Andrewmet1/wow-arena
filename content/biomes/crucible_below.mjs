@@ -26,7 +26,11 @@ export default {
   // fewer, larger, more detailed pieces. The player is ~2.5 units tall, so a
   // cell is about three characters wide — enough to hold composition rather
   // than a single tile of texture.
-  grid: { cell: 8, wallHeight: 6 },
+  // Walls at 14 units — about five and a half character heights. At 6 they
+  // read as a lip around a floor plate rather than as enclosure; a top-down
+  // camera still sees over them, but they now occlude enough to feel like a
+  // room. The overhead camera is why they cannot simply be taller still.
+  grid: { cell: 8, wallHeight: 14 },
 
   atmosphere: {
     ambientColor: 0x2a1410, ambientIntensity: 0.25,
@@ -87,9 +91,28 @@ export default {
   // Assembly rules. Rates are per eligible cell, resolved with the wing seed so
   // a given seed always produces the same room.
   rules: {
-    fillerRate: 0.10,       // floor cells swapped for rubble
+    fillerRate: 0.22,       // floor cells swapped for rubble
     pillarRate: 0.05,       // interior cells given a free-standing pillar
     trim: true,             // skirting along interior wall faces
     variantJitter: true,    // rotate/mirror tiles to break visible repetition
+
+    // Scatter: small debris strewn across otherwise clear floor. Density alone
+    // is not what reads as "dressed" — Diablo floors carry debris at several
+    // sizes at once, so a single scale of prop on a clean plane still looks
+    // sparse however many you add.
+    scatter: { rate: 0.55, scaleRange: [0.25, 0.7], perCell: 3 },
+
+    // Light pools. Strong local sources with real falloff and darkness between
+    // them, rather than flat ambient — contrast is what gives a top-down scene
+    // depth. Deliberately few: each is a real light, and the render features
+    // were switched off once already to buy back frames.
+    lights: {
+      spacingCells: 3,        // roughly one per 24 units of wall
+      color: 0xff8a4c,
+      intensity: 900,
+      distance: 60,           // falloff radius — darkness between pools
+      height: 9,
+      flicker: 0.12,
+    },
   },
 };

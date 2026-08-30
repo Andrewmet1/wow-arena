@@ -181,7 +181,14 @@ document.getElementById('kit').onclick = async (e) => {
   kitOn = !kitOn;
   e.target.textContent = `Kit: ${kitOn ? 'on' : 'off'}`;
   e.target.classList.toggle('on', kitOn);
-  if (!kitOn) { assembler?.dispose(); assembler = null; return; }
+  if (!kitOn) {
+    assembler?.dispose(); assembler = null;
+    env.group.visible = true;
+    if (sm._ambientLight?.userData._kitSaved != null) {
+      sm._ambientLight.intensity = sm._ambientLight.userData._kitSaved;
+    }
+    return;
+  }
   try {
     if (!biome) {
       biome = (await import('/content/biomes/crucible_below.mjs')).default;
@@ -191,6 +198,17 @@ document.getElementById('kit').onclick = async (e) => {
     // Hide the greybox so the two constructions aren't drawn on top of
     // each other — the comparison is the point.
     env.group.visible = false;
+    // Drop ambient hard while the kit is shown. Light pools only read as pools
+    // if the space between them is genuinely dark — with the atmosphere's
+    // ambient still up they wash out and the scene goes flat again, which is
+    // the thing they exist to fix.
+    if (sm._ambientLight) {
+      sm._ambientLight.userData._kitSaved ??= sm._ambientLight.intensity;
+      // Low, not zero. At 0.06 the scene measured 93% near-black — pools have
+      // nothing to sit against and the room reads as a void rather than as a
+      // dark room. A dim floor keeps shape legible between them.
+      sm._ambientLight.intensity = 0.55;
+    }
     assembler = new KitAssembler(scene, biome);
     let pieces = 0;
     for (const ch of wing.chambers) {
@@ -293,7 +311,12 @@ function frame() {
     );
     camera.lookAt(pos);
   } else orbit.update();
-  try { sm.tickDungeonAtmosphere?.(t); env?.tick?.(t); env?.setCeilingVisibility?.(camera.position.y); } catch {}
+  try {
+    sm.tickDungeonAtmosphere?.(t);
+    env?.tick?.(t);
+    env?.setCeilingVisibility?.(camera.position.y);
+    assembler?.tick?.(t);          // light-pool flicker
+  } catch {}
   sm.renderer.info.reset();
   sm.render();
   if (++fCount >= 30) {

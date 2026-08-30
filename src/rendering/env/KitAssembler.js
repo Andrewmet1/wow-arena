@@ -82,6 +82,7 @@ export class KitAssembler {
       if (o.material?.dispose) o.material.dispose();
     }
     this._built.length = 0;
+    this._lights = [];
   }
 
   _pick(role, rng) {
@@ -209,6 +210,96 @@ export class KitAssembler {
     return { merged, consumed };
   }
 
+
+  /**
+   * Light pools along the walls.
+   *
+   * A top-down scene reads as flat when it is evenly lit: with no darkness
+   * between sources there is nothing for the eye to use as depth. Diablo-style
+   * lighting is mostly dark with strong local pools, so these are deliberately
+   * few, bright and short-range rather than many and dim.
+   *
+   * Count is capped because each is a real light and the render features were
+   * already switched off once to buy back frames.
+   */
+  _placeLights(chamber, nx, nz, x0, z0, rng) {
+    const cfg = this.biome.rules?.lights;
+    if (!cfg) return 0;
+    const c = this.cell;
+    const step = Math.max(2, cfg.spacingCells ?? 3);
+    const spots = [];
+    for (let x = 1; x < nx - 1; x += step) {
+      spots.push([x, 0], [x, nz - 1]);
+    }
+    for (let z = step; z < nz - 1; z += step) {
+      spots.push([0, z], [nx - 1, z]);
+    }
+    const MAX = 10;
+    while (spots.length > MAX) spots.splice(Math.floor(rng() * spots.length), 1);
+
+    for (const [gx, gz] of spots) {
+      // Pull inward off the wall face so the pool lands on the floor rather
+      // than washing the wall it sits on.
+      const inX = gx === 0 ? 1 : gx === nx - 1 ? -1 : 0;
+      const inZ = gz === 0 ? 1 : gz === nz - 1 ? -1 : 0;
+      const l = new THREE.PointLight(cfg.color ?? 0xff7a3c, cfg.intensity ?? 26, cfg.distance ?? 34, 2);
+      l.position.set(x0 + gx * c + inX * c * 0.35, cfg.height ?? 7, z0 + gz * c + inZ * c * 0.35);
+      l.userData.flickerBase = l.intensity;
+      l.userData.flickerAmt = cfg.flicker ?? 0;
+      l.userData.flickerPhase = rng() * Math.PI * 2;
+      this.root.add(l);
+      this._built.push(l);
+      (this._lights ??= []).push(l);
+    }
+    return spots.length;
+  }
+
+  /** Per-frame flicker, so pools breathe instead of sitting static. */
+  tick(t) {
+    for (const l of this._lights ?? []) {
+      const a = l.userData.flickerAmt;
+      if (!a) continue;
+      l.intensity = l.userData.flickerBase * (1 + a * Math.sin(t * 7 + l.userData.flickerPhase));
+    }
+  }
+
+  /**
+   * Small debris across open floor, at mixed sizes.
+   *
+   * Filler swaps a whole cell for a rubble tile; this is the layer beneath
+   * that — several small pieces per cell at a quarter to two-thirds scale.
+   * A single size of prop on a clean plane reads as sparse no matter how many
+   * are placed, because real floors carry detail at several scales at once.
+   */
+  _scatterDebris(result, nx, nz, x0, z0, rng, groups) {
+    const cfg = this.biome.rules?.scatter;
+    if (!cfg) return 0;
+    const pool = (this.biome.kit || []).filter(p => p.role === ROLES.FILLER);
+    if (!pool.length) return 0;
+    const c = this.cell;
+    const [lo, hi] = cfg.scaleRange ?? [0.25, 0.7];
+    let n = 0;
+    result.forEach((m, i) => {
+      if (m.role !== ROLES.FLOOR) return;          // only open floor
+      if (rng() > (cfg.rate ?? 0.5)) return;
+      const cx = x0 + (i % nx) * c;
+      const cz = z0 + Math.floor(i / nx) * c;
+      for (let k = 0; k < (cfg.perCell ?? 2); k++) {
+        const piece = pool[Math.floor(rng() * pool.length)];
+        const sc = lo + rng() * (hi - lo);
+        const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rng() * Math.PI * 2);
+        const pos = new THREE.Vector3(
+          cx + (rng() - 0.5) * c * 0.8, 0,
+          cz + (rng() - 0.5) * c * 0.8,
+        );
+        if (!groups.has(piece.id)) groups.set(piece.id, []);
+        groups.get(piece.id).push({ pos, quat: q, scale: new THREE.Vector3(sc, sc, sc) });
+        n++;
+      }
+    });
+    return n;
+  }
+
   async buildChamber(chamber, doorways = []) {
     const rng = rngFor(chamber.id || `${chamber.cx},${chamber.cz}`);
     const c = this.cell;
@@ -264,6 +355,9 @@ export class KitAssembler {
       push(run.module.pieceId, new THREE.Vector3(x, 0, z), q);
     }
 
+    this._placeLights(chamber, nx, nz, x0, z0, rng);
+    this._scatterDebris(result, nx, nz, x0, z0, rng, groups);
+
     result.forEach((m, i) => {
       if (consumed.has(i)) return;
       const x = x0 + (i % nx) * c;
@@ -286,7 +380,13 @@ export class KitAssembler {
       const size = vertical ? [c, this.wallH, c]
                  : isPillar ? [c * 0.45, this.wallH * 1.4, c * 0.45]
                  : [c, 0.25, c];
-      const color = vertical ? 0x3a2f28 : isPillar ? 0x4a3d33 : 0x2f2722;
+      // Placeholder albedo has to be light enough to show lighting. At
+      // 0x2f2722 — RGB(47,39,34) — a fully lit surface still tops out around
+      // 18% brightness, so the scene measured 98% near-black no matter how the
+      // lights were tuned. Dark stone is the right *final* look, but only once
+      // real materials exist; a blockout that cannot show its own lighting
+      // cannot be judged.
+      const color = vertical ? 0x8a7f72 : isPillar ? 0x9a8d7f : 0x6f665c;
       // Fallback boxes are origin-centred; lift so they rest on y=0.
       const lifted = transforms.map(t => ({ ...t, pos: t.pos.clone().setY(t.pos.y + size[1] / 2) }));
       return this._place(id, lifted, size, color);
