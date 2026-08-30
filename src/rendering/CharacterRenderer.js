@@ -4989,9 +4989,76 @@ export default class CharacterRenderer {
     a.fadeOut(0.3);
   }
 
+
+  /**
+   * Play an ability on the upper body only, over whatever the legs are doing.
+   *
+   * Previously an attack replaced the entire animation, so attacking while
+   * running froze the legs mid-stride and the character slid forward on a
+   * static pose. Splitting the body is how this is normally solved: the legs
+   * stay on locomotion and the ability drives the spine and arms.
+   *
+   * The masked clip is made additive — a delta from its own rest pose — so it
+   * layers onto the running pose rather than averaging with it. Two plain
+   * actions writing the same bones would blend 50/50 and produce neither
+   * animation.
+   */
+  _playUpperBody(model, clipName, windowSec, startedAt) {
+    const ud = model.userData;
+    if (!ud?.mixer || !ud.actions || !clipName) return;
+    if (ud._upperKey === `${clipName}:${startedAt}`) return;   // already running
+    ud._upperKey = `${clipName}:${startedAt}`;
+
+    ud._upperCache ??= new Map();
+    let action = ud._upperCache.get(clipName);
+
+    if (!action) {
+      const base = ud.actions[clipName]?.getClip?.();
+      if (!base) return;
+      const tracks = base.tracks.filter(t => UPPER_BODY_BONES.has(trackBone(t.name)));
+      if (!tracks.length) return;          // nothing upper-body in this clip
+      const masked = new THREE.AnimationClip(`${clipName}__upper`, base.duration, tracks);
+      THREE.AnimationUtils.makeClipAdditive(masked);
+      action = ud.mixer.clipAction(masked);
+      action.blendMode = THREE.AdditiveAnimationBlendMode;
+      action.loop = THREE.LoopOnce;
+      action.clampWhenFinished = false;
+      ud._upperCache.set(clipName, action);
+    }
+
+    // Same window rule as a full-body one-shot: play the useful span, at
+    // roughly natural speed, ending when the ability does.
+    const t = clipTiming(clipName);
+    const span = t?.useful ?? action.getClip().duration;
+    action.timeScale = Math.max(0.85, Math.min(1.35, span / (windowSec || 1.5)));
+    action.stopFading();
+    action.reset();
+    if (t) action.time = t.start;
+    action.setEffectiveWeight(1.0);
+    action.play();
+  }
+
+  /** Drop the upper-body layer when no ability is active. */
+  _clearUpperBody(model) {
+    const ud = model.userData;
+    if (!ud?._upperKey) return;
+    ud._upperKey = null;
+    for (const a of (ud._upperCache?.values() ?? [])) {
+      if (a.isRunning()) a.fadeOut(0.18);
+    }
+  }
+
   _updateMixerAnimation(model, unitState, time) {
     // Additive flinch is independent of the state machine below.
     if (unitState.hitAt != null) this._playAdditiveHit(model, unitState.hitAt);
+
+    // Upper-body ability layer, likewise independent: the legs below carry on
+    // with locomotion while this drives the spine and arms.
+    if (unitState.upperClip) {
+      this._playUpperBody(model, unitState.upperClip, unitState.animWindowSec, unitState.upperAt);
+    } else {
+      this._clearUpperBody(model);
+    }
 
     const mixer = model.userData.mixer;
     const actions = model.userData.actions;

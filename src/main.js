@@ -17797,6 +17797,11 @@ class Game {
     // Seconds the animation must occupy, so the renderer can time-scale the
     // clip to exactly fit rather than truncating it.
     let animWindowSec = 0;
+    // Identifies one use of an ability, so the upper-body layer restarts per
+    // cast rather than every frame the state persists.
+    let attackStartedAt = null;
+    let upperClip = null;
+    let upperAt = null;
 
     if (!unit.isAlive) {
       state = 'dead';
@@ -17850,6 +17855,7 @@ class Game {
           if (ticksSinceSwing >= 0 && ticksSinceSwing < swingAnimDuration) {
             bestProgress = ticksSinceSwing / swingAnimDuration;
             attackAbilityId = 'auto_attack';
+            attackStartedAt = swingTick;
             animWindowSec = swingAnimDuration / TICKS_PER_SECOND;
           }
         }
@@ -17876,14 +17882,25 @@ class Game {
           if (p < bestProgress || bestProgress < 0) {
             bestProgress = p;
             attackAbilityId = lastAnim.abilityId;
+            attackStartedAt = lastAnim.tick;
             animWindowSec = abilityAnimDuration / TICKS_PER_SECOND;
           }
         }
       }
 
       if (bestProgress >= 0) {
-        state = 'attacking';
         attackProgress = bestProgress;
+        if (state === 'moving') {
+          // Keep running. Overwriting the state here froze the legs mid-stride
+          // and let the body keep travelling on a static pose — the sliding
+          // that made combat look wrong while moving. The ability plays on the
+          // spine and arms instead, which is how casting-while-running reads in
+          // an MMO.
+          upperClip = attackAbilityId;
+          upperAt = attackStartedAt;
+        } else {
+          state = 'attacking';
+        }
       }
     }
 
@@ -17901,7 +17918,7 @@ class Game {
       }
     }
 
-    const result = { position: { x: unit.position.x, y: unit.position.y || 0, z: unit.position.z }, rotation: unit.facing, stealthed: unit.stealthed, state, speed: unit.getEffectiveMoveSpeed(), castProgress, attackProgress, rollProgress, whirlwind, castAbilityId, attackAbilityId, animWindowSec, hitAt };
+    const result = { position: { x: unit.position.x, y: unit.position.y || 0, z: unit.position.z }, rotation: unit.facing, stealthed: unit.stealthed, state, speed: unit.getEffectiveMoveSpeed(), castProgress, attackProgress, rollProgress, whirlwind, castAbilityId, attackAbilityId, animWindowSec, hitAt, upperClip, upperAt };
 
     // Jump Y offset
     const jumpState = this._jumpStates?.get(unit.id);
