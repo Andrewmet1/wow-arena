@@ -140,6 +140,19 @@ function animSavePlugin() {
         res.end(JSON.stringify(_deployStatus));
       });
       // ── Save weapon offsets + weaponsBakedIn ──
+      server.middlewares.use('/api/dungeon-theme', async (req, res) => {
+        try {
+          const url = new URL(req.url, 'http://x');
+          const id = url.searchParams.get('themeId') || 'crucible_below';
+          const mod = await server.ssrLoadModule('/server/dungeon/themes.js');
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(mod.THEMES?.[id] ?? { error: `unknown theme ${id}` }));
+        } catch (err) {
+          res.statusCode = 500;
+          res.end(JSON.stringify({ error: err.message }));
+        }
+      });
+
       // Same verdict content-check prints, as JSON, so the studio header and
       // the CLI gate read from one implementation rather than two.
       server.middlewares.use('/api/content-audit', async (req, res) => {

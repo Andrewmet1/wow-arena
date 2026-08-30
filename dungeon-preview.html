@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Wing Preview</title>
+<style>
+  html,body{margin:0;height:100%;background:#0d0b0a;overflow:hidden;font:12px ui-monospace,Menlo,monospace;color:#8b7d72}
+  canvas{display:block;width:100%;height:100%}
+  #hud{position:fixed;left:10px;bottom:10px;background:#000b;padding:7px 11px;border-radius:3px;font-size:11px;line-height:1.6}
+  #err{position:fixed;inset:20px;background:#1a0f0d;border:1px solid #5c2e2e;color:#e08b7a;padding:14px;border-radius:4px;display:none;white-space:pre-wrap;overflow:auto}
+</style></head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">loading…</div>
+<div id="err"></div>
+<script type="module">
+// Lives at the project root, not public/, so vite transforms it and there is
+// exactly one three.js instance. Loading the real DungeonEnvironment from a
+// public/ page with an importmap gives two copies and silently breaks
+// instanceof checks inside the renderer.
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { DungeonEnvironment } from '/src/rendering/DungeonEnvironment.js';
+
+const hud = document.getElementById('hud');
+const errBox = document.getElementById('err');
+const fail = (e) => { errBox.style.display = 'block'; errBox.textContent = String(e?.stack || e); };
+window.addEventListener('error', ev => fail(ev.error || ev.message));
+
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.5;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0d0b0a);
+scene.fog = new THREE.Fog(0x0d0b0a, 90, 320);
+
+const camera = new THREE.PerspectiveCamera(55, 1, 0.5, 2000);
+camera.position.set(0, 110, 130);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.target.set(0, 0, 0);
+
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+
+// DungeonEnvironment's own lighting is tuned for the game, where SceneManager
+// supplies an environment map and bloom. Without those the wing renders almost
+// black — true to the engine, useless for authoring. These fill lights exist
+// only to make geometry legible here; press L to drop them and see what the
+// scene looks like on the engine's own lighting alone.
+const fill = new THREE.Group();
+// Dungeon stone is deliberately near-black (STONE_DARK 0x2a221c) and the game
+// lifts it with an env map and bloom. An editor view needs far more than the
+// game's own key light to read shape.
+fill.add(new THREE.AmbientLight(0xffffff, 1.2));
+fill.add(new THREE.HemisphereLight(0xcfc0a4, 0x3a2f26, 2.2));
+const sun = new THREE.DirectionalLight(0xffe6c0, 3.0);
+sun.position.set(80, 180, 80); fill.add(sun);
+const back = new THREE.DirectionalLight(0x99aaff, 1.2);
+back.position.set(-90, 80, -90); fill.add(back);
+scene.add(fill);
+let fillOn = true;
+addEventListener('keydown', (e) => {
+  if (e.key !== 'l' && e.key !== 'L') return;
+  fillOn = !fillOn;
+  if (fillOn) scene.add(fill); else scene.remove(fill);
+  document.getElementById('lightmode').textContent = fillOn ? 'preview lighting' : 'engine lighting';
+});
+
+const env = new DungeonEnvironment(scene, renderer, camera);
+
+const params = new URLSearchParams(location.search);
+const roomType = params.get('roomType') || 'combat';
+const seed = params.get('seed') || '12345';
+const roomIndex = params.get('roomIndex') || '2';
+
+try {
+  const [wing, theme] = await Promise.all([
+    fetch(`/api/preview-wing?roomType=${roomType}&seed=${seed}&roomIndex=${roomIndex}`).then(r => r.json()),
+    fetch('/api/dungeon-theme?themeId=crucible_below').then(r => r.json()).catch(() => null),
+  ]);
+  if (wing.error) throw new Error(wing.error);
+
+  env.buildWing({ wing, roomType, theme: theme && !theme.error ? theme : null, roomIndex: Number(roomIndex) });
+
+  // Frame from the geometry that actually got built, not the declared bounds.
+  // Bounds include padding and don't account for props, so framing off them
+  // left most of the wing outside the view.
+  await new Promise(r => setTimeout(r, 1200)); // let async prop loads land
+  const box = new THREE.Box3().setFromObject(scene);
+  const size = box.getSize(new THREE.Vector3());
+  const mid = box.getCenter(new THREE.Vector3());
+  const span = Math.max(size.x, size.z) || 200;
+  camera.position.set(mid.x + span * 0.5, span * 0.85, mid.z + span * 0.85);
+  controls.target.copy(mid); controls.target.y = 0;
+  camera.far = span * 6; camera.updateProjectionMatrix();
+  scene.fog = new THREE.Fog(0x0d0b0a, span * 1.2, span * 4);
+  controls.update();
+
+  const hz = (wing.features || []).filter(f => f.isHazard);
+  hud.innerHTML = `<b style="color:#c9a227">${wing.mainTemplate}</b> · seed ${seed} · ${roomType}<br>`
+    + `${wing.chambers.length} chambers · ${wing.corridors.length} corridors · ${(wing.features || []).length} features`
+    + (hz.length ? ` · <span style="color:#d24a30">${hz.length} hazards: ${hz.map(h => h.kind).join(', ')}</span>` : '')
+    + `<br>drag to orbit · scroll to zoom · <b>L</b> toggles <span id="lightmode">preview lighting</span>`;
+} catch (e) { fail(e); hud.textContent = 'failed — see error'; }
+
+let t = 0;
+function frame() {
+  requestAnimationFrame(frame);
+  t += 0.016;
+  controls.update();
+  try { env.tick?.(t); } catch {}
+  renderer.render(scene, camera);
+}
+frame();
+</script></body></html>
