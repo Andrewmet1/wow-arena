@@ -23,6 +23,11 @@ export class GameRoom {
     this.engine = null;
     this.tickInterval = null;
     this.pendingInputs = Array.from({ length: playerCount }, () => []);
+    // Highest input sequence number applied per slot. Sent back with state so a
+    // client knows exactly which of its inputs the server has seen, and can
+    // replay only the ones still in flight. Without it a client can only guess
+    // — which is what a fixed rollback timeout is, a guess.
+    this.lastAckedSeq = Array.from({ length: playerCount }, () => 0);
     this.eventBuffer = []; // events accumulated during current tick
     this.ranked = opts.ranked || false;
     this.playerMeta = opts.playerMeta || {}; // slot -> { sub, elo, username, classId }
@@ -369,6 +374,12 @@ export class GameRoom {
       const inputs = this.pendingInputs[i];
       for (const input of inputs) {
         this._applyInput(i, input);
+        // Sequence numbers are monotonic per client; hold the highest applied
+        // rather than the last, so an out-of-order arrival cannot walk the ack
+        // backwards and cause the client to replay inputs twice.
+        if (typeof input.seq === 'number' && input.seq > this.lastAckedSeq[i]) {
+          this.lastAckedSeq[i] = input.seq;
+        }
       }
       this.pendingInputs[i] = [];
     }
@@ -445,7 +456,10 @@ export class GameRoom {
       type: 'tick',
       t: this.match.tick,
       u: this.match.units.map(u => this._serializeUnit(u)),
-      e: this.eventBuffer
+      e: this.eventBuffer,
+      // Per-slot input acknowledgement, indexed by slot. Broadcast to everyone
+      // because the packet already is; each client reads its own entry.
+      ack: this.lastAckedSeq,
     };
 
     const msg = JSON.stringify(state);
@@ -514,6 +528,10 @@ export class GameRoom {
       // Cap abilities array to prevent tick flooding
       if (msg.abilities && msg.abilities.length > 6) {
         msg.abilities = msg.abilities.slice(0, 6);
+      }
+      // Sequence must be a finite number or the ack it produces is meaningless.
+      if (msg.seq !== undefined && (typeof msg.seq !== 'number' || !Number.isFinite(msg.seq))) {
+        delete msg.seq;
       }
       this.pendingInputs[slot].push(msg);
     }

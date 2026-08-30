@@ -13369,6 +13369,10 @@ class Game {
     this._predictedPos = null;
     this._predictedFacing = null;
     this._predictedCast = null;
+    this._inputSeq = 0;
+    this._unackedInputs = [];
+    this._moveAccum = { x: 0, z: 0 };
+    this._queuedAbility = null;
     this._lastReconcileTick = 0;
     this._correctionDx = 0;
     this._correctionDz = 0;
@@ -16474,7 +16478,36 @@ class Game {
     if (!unit || !unit.isAlive) return;
 
     // Read abilities
-    const abilities = this.inputManager.consumeAbilities();
+    let abilities = this.inputManager.consumeAbilities();
+
+    // Spell queue window.
+    //
+    // Pressing during a GCD or an active cast used to drop the input entirely,
+    // so chaining abilities meant waiting for the bar to clear and pressing
+    // again — every rotation loses whatever fraction of a tick the player was
+    // early by. WoW's equivalent is 400ms: a press inside the window is held
+    // and fires the instant the character can act.
+    //
+    // Only the most recent press is kept. Queueing a backlog would replay
+    // stale intent — by the time the character is free the player has usually
+    // changed their mind.
+    const SPELL_QUEUE_MS = 400;
+    const nowMs = performance.now();
+    const tickNow = this.matchState?.tick ?? 0;
+    const busy = (unit.gcdEndTick && tickNow < unit.gcdEndTick) || !!unit.castState;
+
+    if (abilities.length && busy) {
+      this._queuedAbility = { id: abilities[abilities.length - 1], at: nowMs };
+      abilities = [];
+    } else if (this._queuedAbility) {
+      const fresh = nowMs - this._queuedAbility.at <= SPELL_QUEUE_MS;
+      if (!fresh) {
+        this._queuedAbility = null;          // window closed, intent expired
+      } else if (!busy) {
+        abilities = [this._queuedAbility.id];
+        this._queuedAbility = null;
+      }
+    }
 
     // Read movement
     const cameraAngle = this.cameraController?.rotationAngle || 0;
@@ -16534,6 +16567,21 @@ class Game {
 
     this._lastSentMoveDir = !!moveDir;
     this._lastSentTargetId = currentTarget;
+
+    // Stamp a monotonic sequence so the server can tell us exactly which input
+    // it has processed, and record what this input moved us by so it can be
+    // replayed if the server's answer differs.
+    this._inputSeq = (this._inputSeq || 0) + 1;
+    input.seq = this._inputSeq;
+    if (!this._unackedInputs) this._unackedInputs = [];
+    const acc = this._moveAccum || { x: 0, z: 0 };
+    this._unackedInputs.push({ seq: input.seq, dx: acc.x, dz: acc.z });
+    this._moveAccum = { x: 0, z: 0 };
+    // If acks stop arriving (stalled server, dead connection) the buffer must
+    // not grow without bound; two seconds of input at 20Hz is far more than
+    // any healthy round trip needs.
+    if (this._unackedInputs.length > 40) this._unackedInputs.splice(0, this._unackedInputs.length - 40);
+
     net.sendInput(input);
 
     // Client-side cooldown prediction: as soon as we send an ability, start
@@ -16599,7 +16647,11 @@ class Game {
 
     if (!this._snapshots) this._snapshots = [];
     // Use server tick number for ordering, client time for interpolation timing
-    const snapshot = { time: now, serverTick: tickData.t, units: {} };
+    // ack[] is indexed by slot; keep only our own entry, which is the only one
+    // that says anything about our prediction.
+    const mySlot = this._pvpMySlot ?? 0;
+    const ackSeq = Array.isArray(tickData.ack) ? tickData.ack[mySlot] : undefined;
+    const snapshot = { time: now, serverTick: tickData.t, ack: ackSeq, units: {} };
     for (const su of tickData.u) {
       snapshot.units[su.id] = {
         x: su.pos[0], y: su.pos[1], z: su.pos[2], f: su.f
@@ -17987,38 +18039,67 @@ class Game {
             this._lastReconcileTick = 0;
           }
 
-          // Predict movement every frame (immediate response)
+          // Predict movement every frame (immediate response). The delta is
+          // also accumulated into the current input window so it can be
+          // replayed after a correction — the server acknowledges inputs, not
+          // frames, so the client has to remember what each input moved it by.
           if (moveDir && this.matchState?.los?.gatesOpen) {
             const speed = 14 * (unit.getEffectiveMoveSpeed?.() || 1);
-            this._predictedPos.x += moveDir.x * speed * deltaTime;
-            this._predictedPos.z += moveDir.z * speed * deltaTime;
+            const mx = moveDir.x * speed * deltaTime;
+            const mz = moveDir.z * speed * deltaTime;
+            this._predictedPos.x += mx;
+            this._predictedPos.z += mz;
+            if (!this._moveAccum) this._moveAccum = { x: 0, z: 0 };
+            this._moveAccum.x += mx;
+            this._moveAccum.z += mz;
             // Predicted facing — matches server's MovementSystem.js formula
             this._predictedFacing = Math.atan2(moveDir.x, moveDir.z);
           }
 
-          // Reconcile ONLY when a new server tick arrived (not every frame)
+          // Reconcile ONLY when a new server tick arrived (not every frame).
+          //
+          // Server reconciliation proper: take the server's authoritative
+          // position, then re-apply every input it has not yet acknowledged.
+          // The result is where the client should be *given what the server
+          // knows so far*, so an accepted prediction produces no visible
+          // correction at all — the old error-threshold approach corrected
+          // toward a position that was always one round trip stale, which is
+          // what produced the rubber-banding it then had to hide with a
+          // deadzone.
           const latestSnap = this._snapshots[this._snapshots.length - 1];
           if (latestSnap && latestSnap.serverTick !== this._lastReconcileTick) {
             this._lastReconcileTick = latestSnap.serverTick;
             const serverU = latestSnap.units[unit.id];
             if (serverU) {
-              const dx = serverU.x - this._predictedPos.x;
-              const dz = serverU.z - this._predictedPos.z;
-              const errSq = dx * dx + dz * dz;
-              if (errSq > 25) {
-                // Large error (>5 units): snap — teleport, knockback, etc.
-                this._predictedPos.x = serverU.x;
-                this._predictedPos.z = serverU.z;
-              } else if (errSq > 0.36) {
-                // Threshold raised 0.04 → 0.36 (small reconciliations under
-                // ~0.6u are now ignored entirely). Those tiny corrections
-                // were causing visible camera bouncing and a slide-on-stop
-                // feel. When we DO correct, do it in 1 frame (snap).
-                this._predictedPos.x += dx;
-                this._predictedPos.z += dz;
-                this._correctionDx = 0;
-                this._correctionDz = 0;
-                this._correctionFrames = 0;
+              const ackSeq = latestSnap.ack ?? -1;
+              if (ackSeq >= 0 && this._unackedInputs) {
+                // Drop what the server has confirmed; whatever remains is
+                // still in flight and must be re-applied on top of its state.
+                this._unackedInputs = this._unackedInputs.filter(i => i.seq > ackSeq);
+                let rx = serverU.x, rz = serverU.z;
+                for (const i of this._unackedInputs) { rx += i.dx; rz += i.dz; }
+                const ddx = rx - this._predictedPos.x;
+                const ddz = rz - this._predictedPos.z;
+                // Sub-millimetre disagreement is float noise from replaying in
+                // a different order than the server integrated; snapping on it
+                // would jitter every tick.
+                if (ddx * ddx + ddz * ddz > 0.0004) {
+                  this._predictedPos.x = rx;
+                  this._predictedPos.z = rz;
+                }
+              } else {
+                // Server predates acking (or first tick) — fall back to the
+                // old error correction so an older server stays playable.
+                const dx = serverU.x - this._predictedPos.x;
+                const dz = serverU.z - this._predictedPos.z;
+                const errSq = dx * dx + dz * dz;
+                if (errSq > 25) {
+                  this._predictedPos.x = serverU.x;
+                  this._predictedPos.z = serverU.z;
+                } else if (errSq > 0.36) {
+                  this._predictedPos.x += dx;
+                  this._predictedPos.z += dz;
+                }
               }
               this._predictedPos.y = serverU.y;
             }

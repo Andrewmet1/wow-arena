@@ -19,8 +19,9 @@
     "content:generate": "node scripts/generate-content.mjs",
     "test:dungeon": "cd server && node ../scripts/smoke-test-dungeon.mjs",
     "test:hazards": "cd server && node ../scripts/test-hazards.mjs",
-    "test:all": "npm run test:dungeon && npm run test:hazards && npm run content:check",
-    "biome": "node scripts/generate-biome.mjs"
+    "test:all": "npm run test:dungeon && npm run test:hazards && npm run test:netcode && npm run content:check",
+    "biome": "node scripts/generate-biome.mjs",
+    "test:netcode": "cd server && node ../scripts/test-netcode.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-sesv2": "^3.1042.0",
