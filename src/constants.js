@@ -163,3 +163,36 @@ export const BALANCE_WIN_RATE_TOLERANCE = 0.03;
 export const BALANCE_MAX_ITERATIONS = 50;
 export const BALANCE_ADJUSTMENT_RATE = 0.03;
 export const BALANCE_MAX_STAT_DEVIATION = 0.40;
+
+// ── Free skins ──────────────────────────────────────────────────────────
+//
+// One skin per class that every player owns without buying it. Shared by the
+// client (so the UI shows it unlocked) and the server (so equipping it passes
+// validation) — the two check ownership independently, and a list that lived
+// in only one of them would either show a locked skin as available or reject
+// an equip the UI had already offered.
+//
+// Stored as skinId per class; the inventory item id is derived, so the naming
+// convention lives in one place.
+export const FREE_SKINS = {
+  tyrant:    'ashen_overlord',
+  wraith:    'frozen_reaper',
+  infernal:  'frost_dragon_skeleton_inspired_ice_wizar',
+  harbinger: 'frozen_ice_dragon_skeleton_warlock',
+  revenant:  'frozen_ice_holy_paladin_fallen_dragon',
+};
+
+/** Inventory item id for a class skin. One definition, both sides. */
+export function skinItemId(classId, skinId) {
+  return `skin_${classId}_${skinId}`;
+}
+
+/** Is this skin free for everyone? */
+export function isFreeSkin(classId, skinId) {
+  return !!classId && FREE_SKINS[classId] === skinId;
+}
+
+/** Every free skin as an inventory item id — for merging into a UI's owned set. */
+export function freeSkinItemIds() {
+  return Object.entries(FREE_SKINS).map(([c, s]) => skinItemId(c, s));
+}

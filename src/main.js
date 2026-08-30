@@ -23,7 +23,7 @@ import { SeededRandom } from './utils/Random.js';
 import { EventBus, EVENTS } from './utils/EventBus.js';
 import { getAbilityIcon, getClassEmblem, getClassPortrait } from './ui/IconGenerator.js';
 import { AudioManager } from './audio/AudioManager.js';
-import { DODGE_ROLL_DURATION, DODGE_ROLL_COOLDOWN, DODGE_ROLL_SNARE, DODGE_ROLL_SNARE_RANGE, DODGE_ROLL_SNARE_DURATION, GCD_DURATION, TICKS_PER_SECOND, BASE_MOVE_SPEED } from './constants.js';
+import { DODGE_ROLL_DURATION, DODGE_ROLL_COOLDOWN, DODGE_ROLL_SNARE, DODGE_ROLL_SNARE_RANGE, DODGE_ROLL_SNARE_DURATION, GCD_DURATION, TICKS_PER_SECOND, BASE_MOVE_SPEED, freeSkinItemIds } from './constants.js';
 import { Aura } from './engine/Aura.js';
 import { preloadAll as preloadModels } from './rendering/ModelLoader.js';
 import { SettingsManager } from './settings/SettingsManager.js';
@@ -2309,7 +2309,14 @@ class Game {
           .map(([key, s]) => ({ ...s, key, itemId: `skin_${key}` }));
 
         if (classCatalogSkins.length > 0) {
-          const ownedIds = new Set(this._authProfile?.inventory || []);
+          const ownedIds = new Set([
+            // One skin per class is free for everyone. Merged in where the
+            // owned set is built rather than special-cased at each of the
+            // several places that read it, so the shop, the profile and the
+            // class-select all agree without each needing to know the rule.
+            ...(this._authProfile?.inventory || []),
+            ...freeSkinItemIds(),
+          ]);
           const currentSkinId = this._selectedSkinId || this._authProfile?.activeSkins?.[cDef.id] || null;
           const RARITY_COLORS_LS = { common: '#888', rare: '#4a9eff', epic: '#a855f7', legendary: '#c8a860' };
 
@@ -8253,7 +8260,14 @@ class Game {
       .map(([key, s]) => ({ ...s, key, itemId: `skin_${key}` }));
 
     if (classCatalogSkins.length > 0) {
-      const ownedIds = new Set(this._authProfile?.inventory || []);
+      const ownedIds = new Set([
+            // One skin per class is free for everyone. Merged in where the
+            // owned set is built rather than special-cased at each of the
+            // several places that read it, so the shop, the profile and the
+            // class-select all agree without each needing to know the rule.
+            ...(this._authProfile?.inventory || []),
+            ...freeSkinItemIds(),
+          ]);
       const RARITY_COLORS_LOADOUT = { common: '#888', rare: '#4a9eff', epic: '#a855f7', legendary: '#c8a860' };
       const currentSkinId = this._selectedSkinId || this._authProfile?.activeSkins?.[classId] || null;
       const classClr = classDef?.color || '#c8a860';
@@ -9844,7 +9858,12 @@ class Game {
     // ── Character Skins (filtered to avatar class) ──
     const classSkins = Object.entries(SKIN_CATALOG).filter(([, data]) => data.classId === avatarClass);
     {
-      const ownedSkinIds = (inventory || []).filter(id => id.startsWith('skin_'));
+      // Free skins count as owned here too — this list drives the profile's
+      // customization panel, which is a third independent ownership check.
+      const ownedSkinIds = [...new Set([
+        ...(inventory || []).filter(id => id.startsWith('skin_')),
+        ...freeSkinItemIds(),
+      ])];
       const CLASS_NAMES_SKIN = { tyrant: 'TYRANT', wraith: 'WRAITH', infernal: 'INFERNAL', harbinger: 'HARBINGER', revenant: 'REVENANT' };
       const skinsHeader = document.createElement('div');
       skinsHeader.textContent = `${CLASS_NAMES_SKIN[avatarClass] || avatarClass.toUpperCase()} SKINS`;

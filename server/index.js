@@ -4,6 +4,7 @@ import express from 'express';
 import { WebSocketServer } from 'ws';
 import { GameRoom } from './GameRoom.js';
 import { CLASS_REGISTRY } from '../src/classes/ClassRegistry.js';
+import { isFreeSkin } from '../src/constants.js';
 
 // Dungeon is local-dev only. Prod must NEVER load dungeon code paths.
 // Set EC_DUNGEON_ENABLED=1 in your local server .env to opt in.
@@ -2014,7 +2015,11 @@ wss.on('connection', (ws) => {
           if (itemId) {
             const skinItemId = `skin_${skinClassId}_${itemId}`;
             const inv = ws.userProfile.inventory || [];
-            if (!inv.includes(skinItemId)) {
+            // One skin per class is free for everyone. Checked here as well as
+            // in the UI because the two validate ownership independently —
+            // trusting the client would let any skin be equipped by editing a
+            // request.
+            if (!inv.includes(skinItemId) && !isFreeSkin(skinClassId, itemId)) {
               ws.send(JSON.stringify({ type: 'error', message: 'You do not own this skin' }));
               break;
             }
