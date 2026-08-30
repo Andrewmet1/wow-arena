@@ -16,7 +16,10 @@
     "verify:all": "npm run content:check && npm run verify",
     "dev:server": "cd server && EC_DUNGEON_ENABLED=1 node index.js",
     "dev:dungeon": "echo \"1) npm run dev:server   2) npm run dev   3) open http://localhost:5173/play/?dungeon=1\"",
-    "content:generate": "node scripts/generate-content.mjs"
+    "content:generate": "node scripts/generate-content.mjs",
+    "test:dungeon": "cd server && node ../scripts/smoke-test-dungeon.mjs",
+    "test:hazards": "cd server && node ../scripts/test-hazards.mjs",
+    "test:all": "npm run test:dungeon && npm run test:hazards && npm run content:check"
   },
   "dependencies": {
     "@aws-sdk/client-sesv2": "^3.1042.0",

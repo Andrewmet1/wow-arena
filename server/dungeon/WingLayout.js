@@ -464,6 +464,17 @@ export function buildWing({ themeId, roomType, rng = Math.random, forceMainTempl
     }
   }
 
+  // Environmental hazards. Skipped in the first wing so the player meets the
+  // mechanic after they have their footing, and never in boss rooms where the
+  // fight already owns the floor.
+  //
+  // Must run before finalizeLayout: that recenters layout.features along with
+  // the chambers, so placing afterwards would leave hazard coordinates in the
+  // pre-recentre frame and the damage check would fire in the wrong spot.
+  if (!isFirstWing && roomType !== 'boss') {
+    placeHazards(layout, rng, roomIndex);
+  }
+
   // Strip the internal _usedDirs tracker from outgoing chamber data
   for (const c of layout.chambers) delete c._usedDirs;
 
@@ -495,12 +506,5 @@ function finalizeLayout(layout, mainId, themeId) {
   };
   layout.themeId = themeId;
   layout.mainTemplate = mainId;
-  // Environmental hazards. Skipped in the first wing so the player meets the
-  // mechanic after they have their footing, and never in boss rooms where the
-  // fight already owns the floor.
-  if (!isFirstWing && roomType !== 'boss') {
-    placeHazards(layout, rng, roomIndex);
-  }
-
   return layout;
 }
