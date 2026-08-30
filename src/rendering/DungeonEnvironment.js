@@ -514,6 +514,9 @@ export class DungeonEnvironment {
 
   /** Tear down all geometry. Called when leaving dungeon mode. */
   dispose() {
+    // Hazard nodes are keyed by server feature id; stale entries from the
+    // previous wing would otherwise match new ids and drive the wrong ring.
+    this._hazardNodes?.clear();
     if (!this.group) return;
     this.group.traverse(obj => {
       if (obj.geometry) obj.geometry.dispose();
@@ -2754,7 +2757,41 @@ export class DungeonEnvironment {
       group.add(glow);
     };
 
+    // Hazards. Placed by the server (server/dungeon/hazards.js) with explicit
+    // coordinates, so unlike scattered decoration they render exactly where the
+    // damage check happens — a hazard the player can't trust visually is worse
+    // than none. The ground ring reads the phase the server sends each tick:
+    // amber while telegraphing, hot red while active.
+    if (!this._hazardNodes) this._hazardNodes = new Map();
     for (const f of wing.features) {
+      if (!f.isHazard) continue;
+      const group = new THREE.Group();
+      group.position.set(f.cx, 0, f.cz);
+
+      const ringGeo = new THREE.RingGeometry(0.6, 3.0, 32);
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: 0xffaa30, transparent: true, opacity: 0.0,
+        side: THREE.DoubleSide, depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = 0.03;
+      group.add(ring);
+
+      loadProp(f.kind).then((proto) => {
+        if (!proto) return;
+        const model = proto.clone(true);
+        model.scale.setScalar(1.2);
+        group.add(model);
+      });
+
+      this.group.add(group);
+      this._hazardNodes.set(f.id, { group, ring, ringMat });
+    }
+
+    for (const f of wing.features) {
+      if (f.isHazard) continue;
       if (f.kind === 'chest') {
         // Use Meshy treasure_chest_locked.glb (real sculpted asset). Rare
         // tier gets a brighter point light. Opened state can re-spawn with
@@ -2941,6 +2978,29 @@ export class DungeonEnvironment {
   /** Spawn a small dust puff at the player's feet (called while running).
    *  Single billboard sprite with a quick fade-out + slight outward expand.
    *  Throttled by the caller. */
+  /**
+   * Drive hazard visuals from server phase. Called each tick with the `hz`
+   * array in the state payload — the server owns the phase, the client only
+   * renders it, so the warning a player sees can never disagree with the
+   * damage check.
+   */
+  setHazardPhases(states) {
+    if (!this._hazardNodes || !states?.length) return;
+    for (const s of states) {
+      const node = this._hazardNodes.get(s.id);
+      if (!node) continue;
+      if (s.phase === 'telegraph') {
+        node.ringMat.color.setHex(0xffaa30);
+        node.ringMat.opacity = 0.55;
+      } else if (s.phase === 'active') {
+        node.ringMat.color.setHex(0xff2010);
+        node.ringMat.opacity = 0.95;
+      } else {
+        node.ringMat.opacity = 0.0;
+      }
+    }
+  }
+
   spawnStepDust(x, z) {
     if (!this.group) return;
     if (!this._dustTex) {

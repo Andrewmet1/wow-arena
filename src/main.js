@@ -16562,6 +16562,13 @@ class Game {
     // ── Snapshot interpolation buffer ──
     // Store timestamped snapshots; render interpolates between the two most recent
     const now = performance.now();
+    // Hazard phases ride along with the dungeon tick payload. Only the
+    // dungeon server sends `hz`, so presence is the guard — no mode check
+    // needed, and PvP is unaffected.
+    if (tickData.hz && this._dungeonEnvironment?.setHazardPhases) {
+      this._dungeonEnvironment.setHazardPhases(tickData.hz);
+    }
+
     if (!this._snapshots) this._snapshots = [];
     // Use server tick number for ordering, client time for interpolation timing
     const snapshot = { time: now, serverTick: tickData.t, units: {} };

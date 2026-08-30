@@ -42,10 +42,17 @@ scp -i "$SSH_KEY" -q \
 # Two-layer defense: env gate + missing files.
 echo "$LOG_PREFIX Skipping server/dungeon/*.js (local-dev only)"
 
-echo "$LOG_PREFIX Uploading shared engine files"
-scp -i "$SSH_KEY" -q "$ROOT/src/engine/MatchState.js" "$HOST:/opt/ebon-crucible/src/engine/MatchState.js"
-scp -i "$SSH_KEY" -q "$ROOT/src/engine/CombatEngine.js" "$HOST:/opt/ebon-crucible/src/engine/CombatEngine.js"
-scp -i "$SSH_KEY" -q "$ROOT/src/engine/LineOfSight.js" "$HOST:/opt/ebon-crucible/src/engine/LineOfSight.js"
+# Shared engine files. The list is derived from the server's actual import
+# graph rather than hardcoded — a hardcoded trio here once left src/classes/*
+# three weeks stale in production, so cone/AoE abilities resolved as
+# single-target server-side while the client rendered them as AoE.
+echo "$LOG_PREFIX Uploading shared src/ files the server imports"
+SRC_FILES=$(cd "$ROOT" && node scripts/server-src-deps.mjs)
+echo "$SRC_FILES" | sed "s/^/$LOG_PREFIX   /"
+for f in $SRC_FILES; do
+  ssh -i "$SSH_KEY" "$HOST" "mkdir -p /opt/ebon-crucible/$(dirname "$f")"
+  scp -i "$SSH_KEY" -q "$ROOT/$f" "$HOST:/opt/ebon-crucible/$f"
+done
 
 # ── 2. Restart pm2 ────────────────────────────────────────────────────
 echo "$LOG_PREFIX Restarting pm2 ebon-pvp"

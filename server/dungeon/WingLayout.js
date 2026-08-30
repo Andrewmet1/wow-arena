@@ -23,6 +23,7 @@
 
 import { CHAMBER_TEMPLATES, THEME_CHAMBER_POOLS } from './chambers.js';
 import { getTheme } from './themes.js';
+import { placeHazards } from './hazards.js';
 
 const CORRIDOR_LEN = 14;
 const CORRIDOR_HALF_Z = 4;
@@ -179,7 +180,7 @@ function tryBranchChamber(parent, dir, newTpl, existingTiles, rng) {
  * Boss: linear (entry → long corridor → throne).
  * Non-boss: branching graph of 4-5 chambers with random direction picks.
  */
-export function buildWing({ themeId, roomType, rng = Math.random, forceMainTemplate = null, isFirstWing = false }) {
+export function buildWing({ themeId, roomType, rng = Math.random, forceMainTemplate = null, isFirstWing = false, roomIndex = 0 }) {
   // Theme-driven chamber pool — themes.js declares which chamber templates
   // a dungeon can use. Falls back to chambers.js's THEME_CHAMBER_POOLS for
   // backward compat if the theme doesn't declare its own.
@@ -494,5 +495,12 @@ function finalizeLayout(layout, mainId, themeId) {
   };
   layout.themeId = themeId;
   layout.mainTemplate = mainId;
+  // Environmental hazards. Skipped in the first wing so the player meets the
+  // mechanic after they have their footing, and never in boss rooms where the
+  // fight already owns the floor.
+  if (!isFirstWing && roomType !== 'boss') {
+    placeHazards(layout, rng, roomIndex);
+  }
+
   return layout;
 }

@@ -21,10 +21,13 @@ const CLASSIFY = {
   throne_massive: 'center', throne_dais: 'center', ossuary_bone_throne: 'center',
   sacrificial_pedestal: 'center', ritual_demon_statue: 'center', lever_pillar: 'center',
   scattered_books: 'scatter',
-  // Blocked: hazards need trigger/damage logic; architecture needs the spatial
-  // generator to place stairs/bridges/gates meaningfully.
-  spike_trap: 'blocked:hazard', pressure_plate: 'blocked:hazard',
-  swinging_blade: 'blocked:hazard', fire_vent: 'blocked:hazard',
+  // Hazards are placed by the server as wing features (server/dungeon/
+  // hazards.js) with explicit coordinates, not scattered by the client, so
+  // they get their own placement rather than a decoration pool.
+  spike_trap: 'hazard', pressure_plate: 'hazard',
+  swinging_blade: 'hazard', fire_vent: 'hazard',
+  // Still blocked: architecture needs the spatial generator to place stairs,
+  // bridges and gates somewhere meaningful.
   stairs_ascending: 'blocked:architecture', stairs_descending: 'blocked:architecture',
   stone_bridge: 'blocked:architecture', gate_archway: 'blocked:architecture',
   runic_door_sealed: 'blocked:architecture',
@@ -38,12 +41,15 @@ const themes = scanThemeTextures();
 // horizon ring piece and a corner piece — so placements is a list. Collapsing
 // it to one value silently emptied the smaller pools.
 const placementsOf = (id) => {
+  // CLASSIFY wins. scanEngine now derives pools from the manifest this script
+  // regenerates, so reading pools first would feed a stale value straight back
+  // in — a prop could never be reclassified once written (e.g. promoting a
+  // hazard out of `blocked:` after building the system that places it).
+  if (CLASSIFY[id]) return [CLASSIFY[id]];
   const pools = Object.entries(eng.pools)
     .filter(([, ids]) => ids.includes(id))
     .map(([pool]) => pool);
   if (pools.length) return pools;
-  const c = CLASSIFY[id];
-  if (c) return [c];
   return [eng.referenced.has(id) ? 'special' : 'unclassified'];
 };
 
@@ -57,8 +63,10 @@ const props = disk.props.map(id => ({
 // Which themes want which texture — lets the renderer honour a theme's declared
 // art instead of reading its own hardcoded names.
 const texThemes = {};
-for (const [theme, texs] of Object.entries(themes)) {
-  for (const t of texs) (texThemes[t] ||= []).push(theme);
+// scanThemeTextures returns { all, live, inert } per theme — `all` is what we
+// want here, since the manifest records every texture a theme names.
+for (const [theme, info] of Object.entries(themes)) {
+  for (const t of (info.all || [])) (texThemes[t] ||= []).push(theme);
 }
 const roleOf = (id) => id.startsWith('floor_') ? 'floor'
   : id.startsWith('wall_') ? 'wall'

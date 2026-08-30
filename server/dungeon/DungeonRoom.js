@@ -28,6 +28,7 @@ import { getTheme } from './themes.js';
 import { generateFloor, ROOM_TYPES } from './DungeonGenerator.js';
 import { DungeonAI } from './DungeonAI.js';
 import { buildWing } from './WingLayout.js';
+import { tickHazards, hazardStates } from './hazards.js';
 import {
   getTierConfig, rollGear, rollGem,
   loadEquippedGearAndSockets, addGearAndGems, recordLadderEntry, SETS,
@@ -260,6 +261,7 @@ export class DungeonRoom {
       roomType: encounter.type,
       rng: () => this.match.rng?.next?.() ?? Math.random(),
       isFirstWing: roomIndex === 0,
+      roomIndex,
     });
     this.currentWing = wing;
     const featureCounts = {};
@@ -485,6 +487,17 @@ export class DungeonRoom {
         ai.decide(this.match, this.engine, this.match.tick);
       }
     }
+
+    // Environmental hazards resolve before the engine tick so their damage is
+    // part of the same tick the player sees, not a frame late.
+    tickHazards(this.currentWing, this.match.units, this.match.tick, (unit, dmg, hazard) => {
+      unit.hp = Math.max(0, unit.hp - dmg);
+      if (unit.hp === 0 && unit.isAlive !== false) unit.alive = false;
+      this.eventBuffer.push({
+        event: 'hazard_hit', targetId: unit.id, damage: dmg,
+        hazardId: hazard.id, kind: hazard.kind,
+      });
+    });
 
     this.engine.tick();
 
@@ -1492,6 +1505,9 @@ export class DungeonRoom {
       t: this.match.tick,
       u: this.match.units.map(u => this._serializeUnit(u)),
       e: this.eventBuffer,
+      // Hazard phases (idle/telegraph/active) drive the client's warning
+      // visuals. Sent every tick because the phase is what the player reads.
+      hz: hazardStates(this.currentWing, this.match.tick),
     };
     this.player.ws.send(JSON.stringify(state));
   }
