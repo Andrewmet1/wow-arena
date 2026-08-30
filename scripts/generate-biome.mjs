@@ -22,6 +22,40 @@ const args = process.argv.slice(2);
 const PROMPT = args.filter(a => !a.startsWith('--'))[0];
 const GENERATE = args.includes('--generate');
 const CAP = args.includes('--budget') ? parseFloat(args[args.indexOf('--budget') + 1]) : 15;
+// Vendor per run. Kit pieces want clean mating geometry, which is not the same
+// requirement as the character pipeline's (where Meshy's rigging is the point).
+const PROVIDER = args.includes('--provider') ? args[args.indexOf('--provider') + 1] : null;
+const BIOME_FILE = args.includes('--biome') ? args[args.indexOf('--biome') + 1] : null;
+
+if (BIOME_FILE) {
+  // Generate the kit for a biome that already exists, without paying for a new
+  // spec — iterating on assets is separate from iterating on the design.
+  const mod = await import(path.resolve('content/biomes', `${BIOME_FILE}.mjs`));
+  const b = mod.default;
+  const errs = validateBiome(b);
+  if (errs.length) { console.error('  biome invalid:', errs); process.exit(1); }
+  const dir = path.resolve('public/assets/models/kits', b.id);
+  fs.mkdirSync(dir, { recursive: true });
+  const budget = new Budget(CAP);
+  console.log(`\n  generating kit for ${b.id} via ${PROVIDER || 'default provider'} — $${CAP.toFixed(2)} cap\n`);
+  for (const p of b.kit) {
+    const glb = path.join(dir, `${p.id}.glb`);
+    if (fs.existsSync(glb)) { console.log(`  · ${p.id} exists`); continue; }
+    try {
+      const concept = path.resolve('public/assets/art/concepts', `kit_${b.id}_${p.id}.png`);
+      const img = await generateImage({ prompt: p.prompt, out: concept, budget, commit: true });
+      const r = await imageTo3D({ image: img, id: p.id, polycount: 2500, budget, commit: true,
+        provider: PROVIDER, onProgress: (s, pc) => console.log(`      [${p.id}] ${s} ${pc}%`) });
+      await download(r.model_urls.glb, glb);
+      console.log(`  ✓ ${p.id}`);
+    } catch (e) {
+      console.log(`  ✗ ${p.id}: ${e.message}`);
+      if (/budget exceeded/.test(e.message)) break;
+    }
+  }
+  console.log(`\n  ${budget.report()}\n`);
+  process.exit(0);
+}
 
 if (!PROMPT) {
   console.log('\n  usage: node scripts/generate-biome.mjs "<describe the place>" [--generate] [--budget N]\n');
@@ -128,6 +162,7 @@ for (const p of shaped.kit) {
     const concept = path.resolve('public/assets/art/concepts', `kit_${shaped.id}_${p.id}.png`);
     const img = await generateImage({ prompt: p.prompt, out: concept, budget, commit: true });
     const r = await imageTo3D({ image: img, id: p.id, polycount: 2500, budget, commit: true,
+      provider: PROVIDER,
       onProgress: (s, pc) => console.log(`      [${p.id}] ${s} ${pc}%`) });
     await download(r.model_urls.glb, glb);
     console.log(`  ✓ ${p.id}`);

@@ -19,6 +19,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { resolveProvider } from './providers.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.resolve(__dirname, '..', '..');
@@ -45,6 +46,15 @@ function loadKeys() {
   const env = fs.readFileSync(envPath, 'utf-8');
   const pick = (k) => env.match(new RegExp(`^${k}=(.+)$`, 'm'))?.[1]?.trim();
   return { openai: pick('OPENAI_API_KEY'), meshy: pick('MESHY_API_KEY') };
+}
+
+/** Raw env map for providers, which each read their own key. */
+export function loadEnv() {
+  const envPath = path.join(ROOT, '.env');
+  const src = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf-8') : '';
+  const out = {};
+  for (const m of src.matchAll(/^([A-Z0-9_]+)=(.*)$/gm)) out[m[1]] = m[2].trim();
+  return out;
 }
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -113,7 +123,21 @@ export async function generateImage({ prompt, out, size = '1024x1024', transpare
  * PBR maps for months because the rigged GLB drops everything but baseColor —
  * if you rig, download texture_urls separately and reapply.
  */
-export async function imageTo3D({ image, id, polycount = 15000, budget, commit, onProgress }) {
+export async function imageTo3D({ image, id, polycount = 15000, budget, commit, onProgress, provider }) {
+  if (!commit) { budget?.charge('mesh', id); return null; }
+  const env = loadEnv();
+  // Vendor is chosen per call: characters want Meshy (it rigs), kit pieces want
+  // whichever provider gives the cleanest mating geometry.
+  const p = resolveProvider(provider, env);
+  budget?.charge('mesh', id);
+  const res = await p.imageTo3D({ image, id, polycount, env, onProgress });
+  if (!res?.glbUrl) throw new Error(`${p.name} ${id}: no glb url in result`);
+  return { model_urls: { glb: res.glbUrl }, provider: p.name, raw: res.raw };
+}
+
+/** Legacy Meshy-only path, kept for the character pipeline which relies on
+ *  Meshy's texture_urls + rigging response shape. */
+async function _imageTo3DMeshyDirect({ image, id, polycount = 15000, budget, commit, onProgress }) {
   if (!commit) { budget?.charge('mesh', id); return null; }
   const { meshy } = loadKeys();
   budget?.charge('mesh', id);
