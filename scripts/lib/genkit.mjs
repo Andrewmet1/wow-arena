@@ -65,16 +65,32 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
  */
 export class Budget {
   constructor(usd) { this.cap = usd; this.spent = 0; this.items = []; }
+  /**
+   * Reserve the cost of a call before making it, returning a handle that must
+   * be settled. Charging up front is what keeps the cap honest under
+   * concurrency, but a reservation that is never released bills for work that
+   * never happened — a failed run once reported $3.52 when it had actually
+   * spent $0.32, which would trip the cap and abort a later run for no reason.
+   */
   charge(kind, label) {
     const c = COST[kind] ?? 0;
     if (this.spent + c > this.cap) {
       throw new Error(`budget exceeded: ${this.spent.toFixed(2)} + ${c.toFixed(2)} > ${this.cap.toFixed(2)} cap (at "${label}")`);
     }
     this.spent += c;
-    this.items.push({ kind, label, usd: c });
+    const item = { kind, label, usd: c, settled: false };
+    this.items.push(item);
+    return {
+      ok: () => { item.settled = true; },
+      failed: () => {
+        if (item.settled) return;
+        this.spent -= c;
+        this.items.splice(this.items.indexOf(item), 1);
+      },
+    };
   }
   report() {
-    return `$${this.spent.toFixed(2)} of $${this.cap.toFixed(2)} across ${this.items.length} calls`;
+    return `$${this.spent.toFixed(2)} of $${this.cap.toFixed(2)} across ${this.items.length} successful call(s)`;
   }
 }
 
@@ -95,8 +111,9 @@ export async function generateImage({ prompt, out, size = '1024x1024', transpare
   if (fs.existsSync(out)) return fs.readFileSync(out);
   if (!commit) { budget?.charge('image', path.basename(out)); return null; }
   const { openai } = loadKeys();
-  budget?.charge('image', path.basename(out));
-  return withRetry(`image ${path.basename(out)}`, async () => {
+  const res = budget?.charge('image', path.basename(out));
+  try {
+  return await withRetry(`image ${path.basename(out)}`, async () => {
     const r = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${openai}` },
@@ -111,8 +128,10 @@ export async function generateImage({ prompt, out, size = '1024x1024', transpare
     const buf = Buffer.from(d.data[0].b64_json, 'base64');
     fs.mkdirSync(path.dirname(out), { recursive: true });
     fs.writeFileSync(out, buf);
+    res?.ok();
     return buf;
   });
+  } catch (e) { res?.failed(); throw e; }
 }
 
 /**
@@ -129,10 +148,13 @@ export async function imageTo3D({ image, id, polycount = 15000, budget, commit, 
   // Vendor is chosen per call: characters want Meshy (it rigs), kit pieces want
   // whichever provider gives the cleanest mating geometry.
   const p = resolveProvider(provider, env);
-  budget?.charge('mesh', id);
-  const res = await p.imageTo3D({ image, id, polycount, env, onProgress });
-  if (!res?.glbUrl) throw new Error(`${p.name} ${id}: no glb url in result`);
-  return { model_urls: { glb: res.glbUrl }, provider: p.name, raw: res.raw };
+  const hold = budget?.charge('mesh', id);
+  try {
+    const res = await p.imageTo3D({ image, id, polycount, env, onProgress });
+    if (!res?.glbUrl) throw new Error(`${p.name} ${id}: no glb url in result`);
+    hold?.ok();
+    return { model_urls: { glb: res.glbUrl }, provider: p.name, raw: res.raw };
+  } catch (e) { hold?.failed(); throw e; }
 }
 
 /** Legacy Meshy-only path, kept for the character pipeline which relies on
