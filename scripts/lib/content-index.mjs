@@ -235,3 +235,59 @@ export function scanAnimations() {
   const unused = [...onDisk].filter(f => !declared.has(f));
   return { missing, unused };
 }
+
+/**
+ * Character-side content: skins, their animation maps, and the shop registry.
+ *
+ * content-check began life auditing only the dungeon, so skins and weapons
+ * could drift exactly the way 27 props did — and did: one skin shipped with no
+ * animation map and no registry entry, making it unobtainable, while a dead
+ * SKIN_ANIMATIONS key pointed at a model that no longer exists. Characters and
+ * dungeon are the same problem and deserve the same gate.
+ */
+export function scanCharacters() {
+  const p = path.join(ROOT, 'src', 'rendering', 'AssetManifest.js');
+  if (!fs.existsSync(p)) return { skins: [], issues: [] };
+  const src = fs.readFileSync(p, 'utf-8');
+
+  // SKIN_ANIMATIONS uses unquoted object keys — matching quoted strings misses
+  // every one of them and reports a clean sheet that isn't.
+  const am = /SKIN_ANIMATIONS\s*=\s*\{([\s\S]*?)\n\};/.exec(src);
+  const animKeys = new Set(am ? [...am[1].matchAll(/^\s{2}([a-z0-9_]+):/gm)].map(m => m[1]) : []);
+
+  const registry = new Set(
+    [...src.matchAll(/classId: '([a-z]+)', skinId: '([a-z0-9_]+)'/g)].map(m => `${m[1]}_${m[2]}`)
+  );
+
+  const dir = path.join(ROOT, 'public', 'assets', 'models', 'skins');
+  const disk = fs.existsSync(dir)
+    ? fs.readdirSync(dir)
+        .filter(f => f.endsWith('.glb') && !f.includes('_backup_'))
+        .map(f => f.slice(0, -4))
+    : [];
+
+  const issues = [];
+  for (const id of disk) {
+    if (!animKeys.has(id)) issues.push({ id, kind: 'no-animation-map', detail: 'falls back to base clips' });
+    if (!registry.has(id)) issues.push({ id, kind: 'not-in-registry', detail: 'unobtainable in game' });
+  }
+  for (const id of animKeys) {
+    if (!disk.includes(id)) issues.push({ id, kind: 'dead-animation-map', detail: 'no model on disk' });
+  }
+
+  const classes = ['tyrant', 'wraith', 'infernal', 'harbinger', 'revenant'];
+  const models = classes.map(c => ({
+    id: c,
+    desktop: fs.existsSync(path.join(ROOT, 'public/assets/models', `char_${c}.glb`)),
+    mobile: fs.existsSync(path.join(ROOT, 'public/assets/models', `char_${c}_mobile.glb`)),
+    pbr: ['normal', 'metallic', 'roughness'].every(m =>
+      fs.existsSync(path.join(ROOT, 'public/assets/textures', `skin_${c}`, `${m}.png`))),
+  }));
+  for (const m of models) {
+    if (!m.desktop) issues.push({ id: m.id, kind: 'missing-model', detail: 'char_*.glb absent' });
+    if (!m.mobile) issues.push({ id: m.id, kind: 'missing-mobile-lod', detail: 'char_*_mobile.glb absent' });
+    if (!m.pbr) issues.push({ id: m.id, kind: 'missing-pbr', detail: 'normal/metallic/roughness incomplete' });
+  }
+
+  return { skins: disk, animKeys: [...animKeys], registry: [...registry], models, issues };
+}

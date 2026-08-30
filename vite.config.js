@@ -140,6 +140,39 @@ function animSavePlugin() {
         res.end(JSON.stringify(_deployStatus));
       });
       // ── Save weapon offsets + weaponsBakedIn ──
+      // Same verdict content-check prints, as JSON, so the studio header and
+      // the CLI gate read from one implementation rather than two.
+      server.middlewares.use('/api/content-audit', async (req, res) => {
+        try {
+          const idx = await server.ssrLoadModule('/scripts/lib/content-index.mjs');
+          const disk = idx.scanDisk();
+          const eng = idx.scanEngine();
+          const themes = idx.scanThemeTextures();
+          const chars = idx.scanCharacters();
+          const pooled = new Set(Object.values(eng.pools).flat());
+          const themeLive = new Set(Object.values(themes).flatMap(i => i.live || []));
+          const texOk = disk.textures.filter(t => eng.engineReferenced.has(t) || themeLive.has(t));
+          // Must mirror content-check's `reachable()` exactly — pooled OR an
+          // alias target OR referenced. Using only `referenced` counted the
+          // blocked-but-pooled props as orphans and made the header disagree
+          // with the CLI, which is the one thing this endpoint exists to avoid.
+          const aliasTargets = new Set(Object.values(eng.aliases));
+          const propOk = disk.props.filter(id =>
+            pooled.has(id) || aliasTargets.has(id) || eng.referenced.has(id));
+          const brokenRefs = [...pooled].filter(id => !disk.props.includes(id) && !eng.aliases[id]);
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({
+            props: { onDisk: disk.props.length, reachable: propOk.length, orphans: disk.props.length - propOk.length },
+            textures: { onDisk: disk.textures.length, reachable: texOk.length, orphans: disk.textures.length - texOk.length },
+            characters: { issues: chars.issues.length, detail: chars.issues },
+            brokenRefs: brokenRefs.length,
+          }));
+        } catch (err) {
+          res.statusCode = 500;
+          res.end(JSON.stringify({ error: err.message }));
+        }
+      });
+
       // ── Dungeon Studio ────────────────────────────────────────────────
       // Characters have had an authoring UI (viewer.html) for a long time;
       // the dungeon had an 81-line hardcoded probe. These back

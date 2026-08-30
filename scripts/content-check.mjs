@@ -10,7 +10,7 @@
 //   node scripts/content-check.mjs --json    # machine-readable (for agents)
 //   node scripts/content-check.mjs --strict  # exit 1 on orphans too
 
-import { scanDisk, scanEngine, scanDeclaredMonsters, scanThemeTextures, scanAnimations } from './lib/content-index.mjs';
+import { scanDisk, scanEngine, scanDeclaredMonsters, scanThemeTextures, scanAnimations, scanCharacters } from './lib/content-index.mjs';
 
 const JSON_OUT = process.argv.includes('--json');
 const STRICT   = process.argv.includes('--strict');
@@ -20,6 +20,7 @@ const eng = scanEngine();
 const declaredMonsters = scanDeclaredMonsters();
 const themeTextures = scanThemeTextures();
 const anims = scanAnimations();
+const chars = scanCharacters();
 
 const pooled = new Set(Object.values(eng.pools).flat());
 const aliasTargets = new Set(Object.values(eng.aliases));
@@ -54,6 +55,7 @@ const report = {
   preload:  { pooled: pooled.size, preloaded: eng.preload.length, lazyLoaded: unpreloaded.length },
   themeDrift,
   animations: anims,
+  characters: chars,
 };
 
 if (JSON_OUT) {
@@ -65,11 +67,13 @@ if (JSON_OUT) {
   };
   const pct = (n, tot) => tot ? `${Math.round((n / tot) * 100)}%` : '—';
 
-  console.log('\n  DUNGEON CONTENT AUDIT\n  ' + '─'.repeat(58));
+  console.log('\n  CONTENT AUDIT\n  ' + '─'.repeat(58));
   for (const [name, key] of [['Props', 'props'], ['Textures', 'textures']]) {
     const r = report[key];
     console.log(`  ${name.padEnd(9)} ${bar(r.reachable, r.onDisk)}  ${String(r.reachable).padStart(3)}/${String(r.onDisk).padEnd(4)} reachable  (${r.orphans.length} orphaned, ${pct(r.orphans.length, r.onDisk)})`);
   }
+  const okModels = chars.models.filter(m => m.desktop && m.mobile && m.pbr).length;
+  console.log(`  ${'Characters'.padEnd(9)} ${bar(okModels, chars.models.length)}  ${String(okModels).padStart(3)}/${String(chars.models.length).padEnd(4)} complete   (model + LOD + PBR)`);
   const m = report.monsters;
   console.log(`  ${'Monsters'.padEnd(9)} ${bar(m.declared, m.onDisk)}  ${String(m.declared).padStart(3)}/${String(m.onDisk).padEnd(4)} declared   (${m.orphans.length} can never spawn)`);
 
@@ -83,6 +87,11 @@ if (JSON_OUT) {
   show('ORPHANED TEXTURES', texOrphans);
   show('BROKEN REFS — pooled but no file', propBroken, 'these fail to load at runtime');
   show('MISSING MONSTER MODELS', monMissing, 'declared server-side, no GLB — falls back to class mesh');
+
+  if (chars.issues.length) {
+    console.log(`\n  CHARACTER CONTENT ISSUES  (${chars.issues.length})`);
+    for (const i of chars.issues) console.log(`     · ${i.id.padEnd(46)} ${i.kind} — ${i.detail}`);
+  }
 
   if (blocked.length) {
     console.log(`\n  DECLARED BUT BLOCKED ON A SYSTEM  (${blocked.length})`);
@@ -116,5 +125,6 @@ if (JSON_OUT) {
 // fail under --strict so this can be adopted before the backlog is cleared.
 const failed = propBroken.length > 0 || monMissing.length > 0
   || anims.missing.some(m => m.used)
+  || chars.issues.some(i => i.kind === 'missing-model' || i.kind === 'missing-pbr')
   || (STRICT && (propOrphans.length + texOrphans.length + monOrphans.length) > 0);
 process.exit(failed ? 1 : 0);

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Ebon Crucible — Content Studio</title>
+<style>
+  :root{--bg:#14110f;--panel:#1d1917;--line:#332b26;--ink:#e8ded4;--dim:#8b7d72;--gold:#c9a227;--red:#b6402f;--ok:#4a8f5a}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:13px/1.5 ui-monospace,Menlo,monospace;overflow:hidden}
+  #shell{display:flex;flex-direction:column;height:100vh}
+  header{display:flex;align-items:center;gap:16px;padding:0 14px;height:44px;background:var(--panel);border-bottom:1px solid var(--line);flex:0 0 auto}
+  .brand{font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);font-weight:700}
+  nav{display:flex;gap:2px}
+  .tab{padding:6px 14px;background:#221d1a;border:1px solid var(--line);border-radius:3px;cursor:pointer;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+  .tab:hover{color:var(--ink)}
+  .tab.on{background:var(--gold);color:#1a1512;border-color:var(--gold);font-weight:700}
+  #audit{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:11px;color:var(--dim)}
+  .pill{padding:2px 8px;border-radius:10px;background:#241f1c;border:1px solid var(--line)}
+  .pill.ok{color:#8fd6a0;border-color:#2e5c3a}
+  .pill.warn{color:#e0b87a;border-color:#5c4a2e}
+  .pill.bad{color:#e08b7a;border-color:#5c2e2e}
+  button{background:#241f1c;color:var(--ink);border:1px solid var(--line);border-radius:3px;padding:4px 10px;cursor:pointer;font:inherit;font-size:11px}
+  button:hover{border-color:var(--gold)}
+  #frames{flex:1;position:relative}
+  iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:none;background:var(--bg)}
+  iframe.on{display:block}
+</style></head><body>
+<div id="shell">
+  <header>
+    <span class="brand">Content Studio</span>
+    <nav>
+      <div class="tab on" data-src="/viewer.html">Characters</div>
+      <div class="tab" data-src="/dungeon-studio.html">Dungeon</div>
+    </nav>
+    <div id="audit">
+      <span id="pills">checking…</span>
+      <button id="refresh">Re-audit</button>
+    </div>
+  </header>
+  <div id="frames"></div>
+</div>
+<script type="module">
+// One door for both halves of the content pipeline. The character viewer and
+// the dungeon studio each stay a standalone page — this only frames them, so
+// neither has to be rewritten and either still works on its own URL.
+const frames = document.getElementById('frames');
+const tabs = [...document.querySelectorAll('.tab')];
+const made = new Map();
+
+function show(src) {
+  for (const [s, f] of made) f.classList.toggle('on', s === src);
+  if (!made.has(src)) {
+    // Lazy — the character viewer is heavy and shouldn't load until asked for.
+    const f = document.createElement('iframe');
+    f.src = src; f.className = 'on';
+    frames.appendChild(f); made.set(src, f);
+  }
+  for (const t of tabs) t.classList.toggle('on', t.dataset.src === src);
+}
+for (const t of tabs) t.onclick = () => show(t.dataset.src);
+show(tabs[0].dataset.src);
+
+// Surface the same verdict `npm run content:check` gives, so the studio and
+// the CLI can never disagree about whether content is wired up.
+async function audit() {
+  const el = document.getElementById('pills');
+  el.textContent = 'checking…';
+  try {
+    const r = await fetch('/api/content-audit');
+    const a = await r.json();
+    if (a.error) { el.innerHTML = `<span class="pill bad">audit failed</span>`; return; }
+    const cls = (n) => n === 0 ? 'ok' : 'warn';
+    el.innerHTML =
+      `<span class="pill ${cls(a.props.orphans)}">props ${a.props.reachable}/${a.props.onDisk}</span>` +
+      `<span class="pill ${cls(a.textures.orphans)}">tex ${a.textures.reachable}/${a.textures.onDisk}</span>` +
+      `<span class="pill ${a.characters.issues === 0 ? 'ok' : 'warn'}">chars ${a.characters.issues} issue${a.characters.issues === 1 ? '' : 's'}</span>` +
+      `<span class="pill ${a.brokenRefs ? 'bad' : 'ok'}">${a.brokenRefs} broken</span>`;
+  } catch (e) {
+    el.innerHTML = `<span class="pill bad">${e.message}</span>`;
+  }
+}
+document.getElementById('refresh').onclick = audit;
+audit();
+</script></body></html>
