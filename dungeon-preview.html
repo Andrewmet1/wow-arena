@@ -207,7 +207,7 @@ document.getElementById('kit').onclick = async (e) => {
       // Low, not zero. At 0.06 the scene measured 93% near-black — pools have
       // nothing to sit against and the room reads as a void rather than as a
       // dark room. A dim floor keeps shape legible between them.
-      sm._ambientLight.intensity = 0.55;
+      sm._ambientLight.intensity = 0.35;
     }
     assembler = new KitAssembler(scene, biome);
     let pieces = 0;

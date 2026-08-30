@@ -109,8 +109,8 @@ export default {
     lights: {
       spacingCells: 3,        // roughly one per 24 units of wall
       color: 0xff8a4c,
-      intensity: 900,
-      distance: 60,           // falloff radius — darkness between pools
+      intensity: 120,
+      distance: 34,           // falloff radius — darkness between pools
       height: 9,
       flicker: 0.12,
     },
