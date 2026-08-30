@@ -5069,7 +5069,18 @@ export default class CharacterRenderer {
           : (actions['walk'] ? 'walk' : 'run');
 
         // Play the run at its authored cadence, adjusted only by actual speed
-        // modifiers.
+        // modifiers, plus a mild lift toward the game's pace.
+        //
+        // Measuring stride properly — forward kinematics on the foot, then the
+        // distance it travels while planted — the locomotion clips imply
+        // 1.2-3.6 yd/s. The clip previously mapped to 'run' was the slowest of
+        // them at 1.2, a jog, which is why the character glided; it is now
+        // lean_forward_sprint at 3.6.
+        //
+        // The remainder is not closable by playback rate. 7 yd/s is 6.4 m/s,
+        // sprint-athlete pace, and no believable cadence covers it — WoW slides
+        // at its own run speed for the same reason. A modest lift narrows the
+        // gap without the frantic short-stepping that full correction produced.
         //
         // A previous version scaled playback by travel-speed / an estimated
         // clip speed, which drove the legs at 3.1 strides/sec — nearly double a
@@ -5084,8 +5095,9 @@ export default class CharacterRenderer {
         // is the free variable and cannot be recovered from rotation tracks
         // alone, since these clips have their root motion stripped. Matching
         // legs to ground truth needs foot IK, not a playback multiplier.
+        const RUN_LIFT = 1.25;   // gentle, well short of matching ground speed
         const mult = unitState.speed || 1;
-        timeScale = Math.max(0.75, Math.min(1.35, mult));
+        timeScale = Math.max(0.75, Math.min(1.6, mult * RUN_LIFT));
         break;
       }
       case 'attacking':
