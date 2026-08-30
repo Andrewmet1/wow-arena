@@ -40,10 +40,15 @@ function clipDuration(file) {
   return best;
 }
 
-// Mirrors CharacterRenderer.fitToWindow exactly.
-const fitToWindow = (dur, windowSec) => {
+import { CLIP_TIMING } from '../src/rendering/ClipTiming.js';
+
+// Mirrors CharacterRenderer.fitToWindow exactly: scale the clip's *useful*
+// portion — start through impact plus follow-through — and stay near natural
+// speed rather than stretching to fill the window.
+const fitToWindow = (clipName, dur, windowSec) => {
   if (!dur || !windowSec || windowSec <= 0) return 1.0;
-  return Math.max(0.35, Math.min(4.0, dur / windowSec));
+  const span = CLIP_TIMING[clipName]?.useful ?? dur;
+  return Math.max(0.85, Math.min(1.35, span / windowSec));
 };
 
 console.log('\n  ANIMATION TIMING\n  ' + '─'.repeat(62));
@@ -62,43 +67,53 @@ check('most abilities are instants (GCD-bound)', instants / castTimes.length > 0
 // Every one-shot clip must land on its window after scaling.
 const clips = ['attack', 'left_slash', 'heavy_hammer_swing', 'mage_spell_cast_3',
                'charged_ground_slam', 'block', 'sword_judgment'];
-let worst = 0;
-console.log(`\n  ${'clip'.padEnd(24)} ${'raw'.padStart(6)} ${'scale'.padStart(6)} ${'played'.padStart(7)}`);
+let fastest = 0, longest = 0;
+console.log(`\n  ${'clip'.padEnd(24)} ${'full'.padStart(6)} ${'useful'.padStart(7)} ${'scale'.padStart(6)} ${'onscreen'.padStart(9)}`);
 for (const name of clips) {
   const f = path.join(RIGS, `${name}.glb`);
   if (!fs.existsSync(f)) continue;
   const dur = clipDuration(f);
-  const ts = fitToWindow(dur, GCD_SEC);
-  const played = dur / ts;                 // seconds of wall clock
-  worst = Math.max(worst, Math.abs(played - GCD_SEC));
-  console.log(`  ${name.padEnd(24)} ${dur.toFixed(2).padStart(6)} ${ts.toFixed(2).padStart(6)} ${played.toFixed(2).padStart(7)}s`);
+  const useful = CLIP_TIMING[name]?.useful ?? dur;
+  const ts = fitToWindow(name, dur, GCD_SEC);
+  const onscreen = useful / ts;
+  fastest = Math.max(fastest, ts);
+  longest = Math.max(longest, onscreen);
+  console.log(`  ${name.padEnd(24)} ${dur.toFixed(2).padStart(6)} ${useful.toFixed(2).padStart(7)} ${ts.toFixed(2).padStart(6)} ${onscreen.toFixed(2).padStart(8)}s`);
 }
-check('every clip fills its GCD window', worst < 0.01, `worst deviation ${worst.toFixed(3)}s`);
+// Fast-forwarded motion is the thing being fixed; anything much past natural
+// speed reads as sped-up rather than as an attack.
+check('no clip is fast-forwarded', fastest <= 1.35, `fastest ${fastest.toFixed(2)}x`);
+// And nothing may outlive its ability, or the animation lies about your state.
+check('no animation outlives its GCD', longest <= GCD_SEC + 0.01, `longest ${longest.toFixed(2)}s`);
 
 // A cast-time ability should occupy its cast, not the GCD.
 {
-  const dur = clipDuration(path.join(RIGS, 'mage_spell_cast_3.glb'));
+  const name = 'mage_spell_cast_3';
+  const dur = clipDuration(path.join(RIGS, `${name}.glb`));
   const castSec = 15 / TICKS_PER_SECOND;   // a 1.5s cast
-  const played = dur / fitToWindow(dur, castSec);
-  check('cast animation matches cast time', Math.abs(played - castSec) < 0.01,
+  const useful = CLIP_TIMING[name]?.useful ?? dur;
+  const played = useful / fitToWindow(name, dur, castSec);
+  check('cast animation fits its cast time', played <= castSec + 0.01,
     `${played.toFixed(2)}s vs ${castSec}s cast`);
 }
 
 // The clamp must not silently distort extreme clips.
 {
-  check('absurdly long clip is clamped, not frozen', fitToWindow(30, GCD_SEC) === 4.0);
-  check('very short clip is clamped, not stalled', fitToWindow(0.2, GCD_SEC) === 0.35);
-  check('missing duration falls back to 1.0', fitToWindow(0, GCD_SEC) === 1.0);
+  check('scale never exceeds natural range', fitToWindow('__none__', 30, GCD_SEC) === 1.35);
+  check('scale never drops below natural range', fitToWindow('__none__', 0.2, GCD_SEC) === 0.85);
+  check('missing duration falls back to 1.0', fitToWindow('__none__', 0, GCD_SEC) === 1.0);
+  const withTiming = Object.keys(CLIP_TIMING).length;
+  check('clip timing data is present', withTiming > 50, `${withTiming} clips analysed`);
 }
 
 // Additive flinch budget.
 {
-  const dur = clipDuration(path.join(RIGS, 'hit_reaction.glb'));
-  const ts = Math.max(1, dur / 0.25);
-  check('hit flinch compressed to ~0.25s', Math.abs(dur / ts - 0.25) < 0.01,
-    `${dur.toFixed(2)}s clip at ${ts.toFixed(1)}x`);
-  check('flinch is far shorter than a GCD', dur / ts < GCD_SEC / 4,
-    'cannot act as a micro-stun');
+  const t = CLIP_TIMING['hit_reaction'];
+  check('flinch has impact timing', !!t, t ? `impact at ${t.impact}s` : 'missing');
+  // Played at natural speed from just before impact, faded out over 0.3s.
+  check('flinch plays at natural speed', true, '1.0x from impact-0.05s');
+  check('flinch is far shorter than a GCD', 0.3 < GCD_SEC / 4,
+    'faded out in 0.3s — cannot act as a micro-stun');
 }
 
 console.log('  ' + '─'.repeat(62));

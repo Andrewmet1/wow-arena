@@ -23,7 +23,8 @@
     "biome": "node scripts/generate-biome.mjs",
     "test:netcode": "cd server && node ../scripts/test-netcode.mjs",
     "test:animation": "node scripts/test-animation.mjs",
-    "test:design": "node scripts/test-combat-design.mjs"
+    "test:design": "node scripts/test-combat-design.mjs",
+    "clips:timing": "node scripts/generate-clip-timing.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-sesv2": "^3.1042.0",

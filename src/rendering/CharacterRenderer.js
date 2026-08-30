@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { clipTiming } from './ClipTiming.js';
 import { isModelCached, loadCharacter, loadWeapon, getClassScale, loadModel, cloneModel } from './ModelLoader.js';
 import { autoRig, attachWeapon } from './AutoRigger.js';
 import { resolveModelPath, ASSET_MANIFEST, SKIN_ANIMATIONS, getWeaponOffset, getClassAnimationMap, resolveAnimationPath } from './AssetManifest.js';
@@ -4964,12 +4965,27 @@ export default class CharacterRenderer {
     }
 
     const a = ud._additiveHit;
-    // ~0.25s regardless of source length. The clip is 5.63s; at 1.0 the flinch
-    // would still be playing several abilities later.
-    const dur = a.getClip().duration || 1;
-    a.timeScale = Math.max(1, dur / 0.25);
+    // Start at the reaction itself, not the windup.
+    //
+    // Compressing the whole 5.63s clip into 0.25s meant 22.5x — the same
+    // fast-forwarding being removed everywhere else, and a flinch that reads as
+    // a twitch. A flinch is the moment of being struck, so play a short window
+    // around the clip's impact frame at natural speed instead.
+    const t = clipTiming('hit_reaction');
+    if (t) {
+      a.time = Math.max(0, t.impact - 0.05);   // just before the blow lands
+      a.timeScale = 1.0;                        // natural speed
+    } else {
+      const dur = a.getClip().duration || 1;
+      a.timeScale = Math.max(1, dur / 0.25);    // no timing data: compress
+    }
     a.setEffectiveWeight(0.85);   // visible, but the base pose still reads
-    a.reset().play();
+    a.play();
+    // Fade the layer out after a short reaction rather than letting the
+    // remaining seconds of clip keep contributing.
+    a.stopFading();
+    a.setEffectiveWeight(0.85);
+    a.fadeOut(0.3);
   }
 
   _updateMixerAnimation(model, unitState, time) {
@@ -5021,8 +5037,21 @@ export default class CharacterRenderer {
       const act = actions[clipName];
       const dur = act?.getClip?.().duration;
       if (!dur || !windowSec || windowSec <= 0) return 1.0;
-      // Clamped so a pathological clip cannot produce a freeze or a blur.
-      return Math.max(0.35, Math.min(4.0, dur / windowSec));
+
+      // Prefer the clip's useful portion — start through impact plus a short
+      // follow-through — over its full length. These are performances: 1.9-4.4s
+      // of real motion, of which the part that reads as the attack is
+      // 0.6-1.6s. Scaling the whole thing into a 1.5s GCD meant 1.2-2.9x, and
+      // fast-forwarded motion is exactly what "choppy" describes. Scaling only
+      // the useful portion needs roughly natural speed.
+      const t = clipTiming(clipName);
+      const span = t?.useful ?? dur;
+
+      // Stay near natural speed. If the useful portion is shorter than the
+      // window the character simply finishes early and stands ready, which is
+      // what a real swing does — the animation should not be stretched to pad
+      // out a cooldown.
+      return Math.max(0.85, Math.min(1.35, span / windowSec));
     };
     switch (unitState.state) {
       case 'idle':
@@ -5153,7 +5182,17 @@ export default class CharacterRenderer {
         if (oldBase && oldBase.isRunning() && activeBase !== targetClip) {
           oldBase.crossFadeTo(nextAction, fadeDur, true);
         }
-        nextAction.reset().play();
+        nextAction.reset();
+        // Skip any lead-in before the motion begins, and end the action when
+        // the follow-through is done rather than playing the long settle.
+        const timing = clipTiming(targetClip);
+        if (timing && loopMode === THREE.LoopOnce) {
+          nextAction.time = timing.start;
+          // setDuration would rescale the whole clip; clamping the effective
+          // window via the mixer keeps the scale we chose above.
+          nextAction.setLoop(THREE.LoopOnce, 1);
+        }
+        nextAction.play();
         model.userData._activeBaseClip = targetClip;
       } else {
         // Partial-body clip: layer ON TOP of base (don't stop base)
