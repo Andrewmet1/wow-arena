@@ -140,6 +140,92 @@ function animSavePlugin() {
         res.end(JSON.stringify(_deployStatus));
       });
       // ── Save weapon offsets + weaponsBakedIn ──
+      // ── Dungeon Studio ────────────────────────────────────────────────
+      // Characters have had an authoring UI (viewer.html) for a long time;
+      // the dungeon had an 81-line hardcoded probe. These back
+      // dungeon-studio.html so prop placement can be inspected and reassigned
+      // visually instead of by hand-editing DungeonManifest.js.
+
+      server.middlewares.use('/api/dungeon-content', (req, res) => {
+        if (req.method !== 'GET') { res.statusCode = 405; res.end('Method not allowed'); return; }
+        try {
+          const manifestPath = path.resolve('src/rendering/DungeonManifest.js');
+          const src = fs.readFileSync(manifestPath, 'utf-8');
+          const props = [];
+          for (const m of src.matchAll(/\{ id: '([a-z0-9_]+)', placements: \[([^\]]*)\]([^}]*)\}/g)) {
+            props.push({
+              id: m[1],
+              placements: [...m[2].matchAll(/'([a-z0-9_:]+)'/g)].map(x => x[1]),
+              destructible: /destructible: true/.test(m[3]),
+              cloth: /cloth: true/.test(m[3]),
+            });
+          }
+          const textures = [];
+          for (const m of src.matchAll(/\{ id: '([a-z0-9_]+)', role: '([a-z]+)', themes: \[([^\]]*)\] \}/g)) {
+            textures.push({
+              id: m[1], role: m[2],
+              themes: [...m[3].matchAll(/'([a-z0-9_]+)'/g)].map(x => x[1]),
+            });
+          }
+          const propDir = path.resolve('public/assets/models/props');
+          const onDisk = fs.existsSync(propDir)
+            ? fs.readdirSync(propDir).filter(f => f.endsWith('.glb')).map(f => f.slice(0, -4))
+            : [];
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ props, textures, onDisk }));
+        } catch (err) {
+          res.statusCode = 500;
+          res.end(JSON.stringify({ error: err.message }));
+        }
+      });
+
+      server.middlewares.use('/api/save-placement', (req, res) => {
+        if (req.method !== 'POST') { res.statusCode = 405; res.end('Method not allowed'); return; }
+        let body = '';
+        req.on('data', c => body += c);
+        req.on('end', () => {
+          try {
+            const { id, placements, destructible, cloth } = JSON.parse(body);
+            if (!id || !Array.isArray(placements) || !placements.length) {
+              throw new Error('id and a non-empty placements array are required');
+            }
+            const filePath = path.resolve('src/rendering/DungeonManifest.js');
+            let source = fs.readFileSync(filePath, 'utf-8');
+            const line = `  { id: '${id}', placements: [${placements.map(x => `'${x}'`).join(', ')}]`
+              + `${destructible ? ', destructible: true' : ''}${cloth ? ', cloth: true' : ''} },`;
+            const re = new RegExp(`^  \\{ id: '${id}', placements: \\[[^\\]]*\\][^}]*\\},$`, 'm');
+            if (!re.test(source)) throw new Error(`prop ${id} not found in manifest`);
+            source = source.replace(re, line);
+            fs.writeFileSync(filePath, source);
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ ok: true, id, placements }));
+          } catch (err) {
+            res.statusCode = 400;
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        });
+      });
+
+      // Generates a wing through the real server-side layout code, so what the
+      // studio draws is what a run would actually produce — not a mock.
+      server.middlewares.use('/api/preview-wing', async (req, res) => {
+        try {
+          const url = new URL(req.url, 'http://x');
+          const roomType = url.searchParams.get('roomType') || 'combat';
+          const roomIndex = parseInt(url.searchParams.get('roomIndex') || '2', 10);
+          const themeId = url.searchParams.get('themeId') || 'crucible_below';
+          const mod = await server.ssrLoadModule('/server/dungeon/WingLayout.js');
+          let seed = parseInt(url.searchParams.get('seed') || '12345', 10);
+          const rng = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
+          const wing = mod.buildWing({ themeId, roomType, rng, isFirstWing: roomIndex === 0, roomIndex });
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(wing));
+        } catch (err) {
+          res.statusCode = 500;
+          res.end(JSON.stringify({ error: err.message, stack: err.stack?.split('\n').slice(0, 3) }));
+        }
+      });
+
       server.middlewares.use('/api/save-weapon-offset', (req, res) => {
         if (req.method !== 'POST') {
           res.statusCode = 405;

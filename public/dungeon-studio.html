@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Dungeon Studio</title>
+<style>
+  :root{--bg:#14110f;--panel:#1d1917;--line:#332b26;--ink:#e8ded4;--dim:#8b7d72;--gold:#c9a227;--red:#b6402f;--ok:#4a8f5a}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.5 ui-monospace,Menlo,monospace;height:100vh;overflow:hidden}
+  #app{display:grid;grid-template-columns:290px 1fr 320px;height:100vh}
+  .pane{border-right:1px solid var(--line);overflow-y:auto;padding:12px}
+  .pane:last-child{border-right:none;border-left:1px solid var(--line)}
+  h1{font-size:14px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin:0 0 10px}
+  h2{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin:16px 0 6px;font-weight:600}
+  .row{display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:3px;cursor:pointer}
+  .row:hover{background:#241f1c}
+  .row.sel{background:#2e2723;outline:1px solid var(--gold)}
+  .row .id{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tag{font-size:10px;padding:1px 5px;border-radius:2px;background:#2a2320;color:var(--dim)}
+  .tag.blocked{background:#3a201c;color:#e08b7a}
+  .tag.hazard{background:#3a3320;color:#d8c07a}
+  .miss{color:var(--red)}
+  #view{width:100%;height:100%;display:block}
+  #center{position:relative;display:flex;flex-direction:column}
+  #stats{position:absolute;left:10px;bottom:10px;background:#000a;padding:6px 10px;border-radius:3px;font-size:11px;color:var(--dim)}
+  #tabs{display:flex;gap:2px;padding:8px 10px;border-bottom:1px solid var(--line)}
+  .tab{padding:5px 12px;background:#221d1a;border:1px solid var(--line);border-radius:3px;cursor:pointer;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+  .tab.on{background:var(--gold);color:#1a1512;border-color:var(--gold)}
+  button{background:#241f1c;color:var(--ink);border:1px solid var(--line);border-radius:3px;padding:6px 10px;cursor:pointer;font:inherit;font-size:12px}
+  button:hover{border-color:var(--gold)}
+  button.primary{background:var(--gold);color:#1a1512;border-color:var(--gold);font-weight:600}
+  label{display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:12px}
+  input[type=search],select{width:100%;background:#241f1c;border:1px solid var(--line);color:var(--ink);padding:5px 7px;border-radius:3px;font:inherit}
+  #msg{padding:6px 8px;border-radius:3px;font-size:11px;margin-top:8px;display:none}
+  #msg.ok{display:block;background:#1e3324;color:#8fd6a0}
+  #msg.err{display:block;background:#3a201c;color:#e08b7a}
+  canvas#map{width:100%;background:#0d0b0a;border:1px solid var(--line);border-radius:3px}
+</style></head><body>
+<div id="app">
+  <div class="pane">
+    <h1>Dungeon Studio</h1>
+    <input type="search" id="filter" placeholder="filter props…">
+    <div id="counts" style="font-size:11px;color:var(--dim);margin:8px 0"></div>
+    <div id="list"></div>
+  </div>
+
+  <div id="center">
+    <div id="tabs">
+      <div class="tab on" data-tab="prop">Prop</div>
+      <div class="tab" data-tab="wing">Wing Layout</div>
+    </div>
+    <div style="flex:1;position:relative">
+      <canvas id="view"></canvas>
+      <div id="stats">select a prop</div>
+    </div>
+  </div>
+
+  <div class="pane">
+    <h2>Placement</h2>
+    <div id="placements"></div>
+    <div style="display:flex;gap:6px;margin-top:10px">
+      <button class="primary" id="save">Save to Manifest</button>
+    </div>
+    <div id="msg"></div>
+
+    <h2>Wing Preview</h2>
+    <select id="roomType">
+      <option value="combat">combat</option><option value="elite">elite</option><option value="boss">boss</option>
+    </select>
+    <div style="display:flex;gap:6px;margin-top:6px">
+      <input type="search" id="seed" value="12345" style="flex:1" placeholder="seed">
+      <button id="reroll">Reroll</button>
+    </div>
+    <canvas id="map" width="300" height="300" style="margin-top:8px"></canvas>
+    <div id="winginfo" style="font-size:11px;color:var(--dim);margin-top:6px"></div>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "/node_modules/three/build/three.module.js", "three/addons/": "/node_modules/three/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const POOLS = ['wall','corner','center','scatter','cluster','ring','pillar','rubble','arch','hanging','hazard','special',
+               'blocked:hazard','blocked:architecture','unclassified'];
+
+let data = { props: [], textures: [], onDisk: [] };
+let selected = null;
+
+// ── 3D preview ───────────────────────────────────────────────────────────
+const canvas = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x14110f);
+const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 500);
+camera.position.set(3, 2.4, 3.6);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+scene.add(new THREE.HemisphereLight(0xb9a98a, 0x241d17, 1.5));
+const key = new THREE.DirectionalLight(0xffe6c0, 2.0); key.position.set(4, 7, 4); scene.add(key);
+const rim = new THREE.DirectionalLight(0x6688ff, 0.7); rim.position.set(-4, 2, -4); scene.add(rim);
+const grid = new THREE.GridHelper(12, 12, 0x3a302a, 0x241f1c); scene.add(grid);
+let current = null;
+const loader = new GLTFLoader();
+
+function resize() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (!w || !h) return;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(canvas);
+
+function frame() {
+  requestAnimationFrame(frame);
+  controls.update();
+  renderer.render(scene, camera);
+}
+frame();
+
+async function showProp(id) {
+  if (current) { scene.remove(current); current = null; }
+  document.getElementById('stats').textContent = `loading ${id}…`;
+  try {
+    const g = await loader.loadAsync(`/assets/models/props/${id}.glb`);
+    current = g.scene;
+    // Normalise scale so tiny and huge props both frame sensibly.
+    const box = new THREE.Box3().setFromObject(current);
+    const size = box.getSize(new THREE.Vector3());
+    const max = Math.max(size.x, size.y, size.z) || 1;
+    current.scale.setScalar(2.5 / max);
+    const box2 = new THREE.Box3().setFromObject(current);
+    current.position.y -= box2.min.y;
+    scene.add(current);
+    let tris = 0;
+    current.traverse(o => { if (o.geometry?.index) tris += o.geometry.index.count / 3; });
+    document.getElementById('stats').textContent =
+      `${id}  ·  ${Math.round(tris).toLocaleString()} tris  ·  ${size.x.toFixed(2)} × ${size.y.toFixed(2)} × ${size.z.toFixed(2)}`;
+  } catch (e) {
+    document.getElementById('stats').textContent = `${id} — FAILED TO LOAD (${e.message})`;
+  }
+}
+
+// ── prop list ────────────────────────────────────────────────────────────
+function render() {
+  const q = document.getElementById('filter').value.toLowerCase();
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+  const byPool = {};
+  for (const p of data.props) {
+    if (q && !p.id.includes(q)) continue;
+    for (const pl of p.placements) (byPool[pl] ||= []).push(p);
+  }
+  const blocked = data.props.filter(p => p.placements.some(x => x.startsWith('blocked:'))).length;
+  document.getElementById('counts').textContent =
+    `${data.props.length} props · ${blocked} blocked · ${data.onDisk.length} on disk`;
+
+  for (const pool of POOLS) {
+    const items = byPool[pool];
+    if (!items?.length) continue;
+    const h = document.createElement('h2');
+    h.textContent = `${pool} (${items.length})`;
+    list.appendChild(h);
+    for (const p of items) {
+      const row = document.createElement('div');
+      row.className = 'row' + (selected?.id === p.id ? ' sel' : '');
+      const missing = !data.onDisk.includes(p.id);
+      row.innerHTML = `<span class="id ${missing ? 'miss' : ''}">${p.id}${missing ? ' ⚠' : ''}</span>`
+        + (p.placements.some(x => x.startsWith('blocked:')) ? '<span class="tag blocked">blocked</span>' : '')
+        + (p.placements.includes('hazard') ? '<span class="tag hazard">hazard</span>' : '');
+      row.onclick = () => { selected = p; render(); renderPlacements(); showProp(p.id); };
+      list.appendChild(row);
+    }
+  }
+}
+
+function renderPlacements() {
+  const box = document.getElementById('placements');
+  box.innerHTML = '';
+  if (!selected) { box.innerHTML = '<span style="color:var(--dim)">select a prop</span>'; return; }
+  for (const pool of POOLS) {
+    const l = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.value = pool;
+    cb.checked = selected.placements.includes(pool);
+    l.appendChild(cb);
+    l.appendChild(document.createTextNode(pool));
+    box.appendChild(l);
+  }
+}
+
+document.getElementById('save').onclick = async () => {
+  if (!selected) return;
+  const placements = [...document.querySelectorAll('#placements input:checked')].map(i => i.value);
+  const msg = document.getElementById('msg');
+  if (!placements.length) {
+    msg.className = 'err'; msg.textContent = 'A prop with no placement is unreachable — pick at least one.';
+    return;
+  }
+  const res = await fetch('/api/save-placement', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: selected.id, placements, destructible: selected.destructible, cloth: selected.cloth }),
+  });
+  const j = await res.json();
+  if (res.ok) {
+    selected.placements = placements;
+    msg.className = 'ok'; msg.textContent = `saved ${selected.id} → ${placements.join(', ')}`;
+    render();
+  } else {
+    msg.className = 'err'; msg.textContent = j.error;
+  }
+};
+
+// ── wing layout preview ──────────────────────────────────────────────────
+async function loadWing() {
+  const type = document.getElementById('roomType').value;
+  const seed = document.getElementById('seed').value || '12345';
+  const c = document.getElementById('map');
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+  const res = await fetch(`/api/preview-wing?roomType=${type}&seed=${seed}&roomIndex=2`);
+  const w = await res.json();
+  if (w.error) { document.getElementById('winginfo').textContent = 'error: ' + w.error; return; }
+
+  const pad = 10, S = Math.min((c.width - pad * 2) / (w.bounds.halfX * 2), (c.height - pad * 2) / (w.bounds.halfZ * 2));
+  const X = (x) => c.width / 2 + x * S, Z = (z) => c.height / 2 + z * S;
+
+  ctx.fillStyle = '#221c18';
+  for (const ch of w.corridors) ctx.fillRect(X(ch.cx - ch.halfX), Z(ch.cz - ch.halfZ), ch.halfX * 2 * S, ch.halfZ * 2 * S);
+  ctx.fillStyle = '#2e2620'; ctx.strokeStyle = '#4a3d33';
+  for (const ch of w.chambers) {
+    ctx.fillRect(X(ch.cx - ch.halfX), Z(ch.cz - ch.halfZ), ch.halfX * 2 * S, ch.halfZ * 2 * S);
+    ctx.strokeRect(X(ch.cx - ch.halfX), Z(ch.cz - ch.halfZ), ch.halfX * 2 * S, ch.halfZ * 2 * S);
+  }
+  for (const f of (w.features || [])) {
+    ctx.fillStyle = f.isHazard ? '#d24a30' : '#c9a227';
+    ctx.beginPath(); ctx.arc(X(f.cx), Z(f.cz), f.isHazard ? 4 : 2.5, 0, 7); ctx.fill();
+  }
+  ctx.fillStyle = '#4a8f5a';
+  ctx.beginPath(); ctx.arc(X(w.playerSpawn.x), Z(w.playerSpawn.z), 4, 0, 7); ctx.fill();
+
+  const hz = (w.features || []).filter(f => f.isHazard);
+  document.getElementById('winginfo').innerHTML =
+    `${w.mainTemplate} · ${w.chambers.length} chambers · ${w.corridors.length} corridors<br>`
+    + `${(w.features || []).length} features, <span style="color:#d24a30">${hz.length} hazards</span>`
+    + (hz.length ? `<br>${hz.map(h => h.kind).join(', ')}` : '')
+    + `<br><span style="color:#4a8f5a">●</span> spawn · <span style="color:#c9a227">●</span> feature · <span style="color:#d24a30">●</span> hazard`;
+}
+document.getElementById('reroll').onclick = () => {
+  document.getElementById('seed').value = Math.floor(Math.random() * 100000);
+  loadWing();
+};
+document.getElementById('roomType').onchange = loadWing;
+document.getElementById('filter').oninput = render;
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
+  t.classList.add('on');
+});
+
+const r = await fetch('/api/dungeon-content');
+data = await r.json();
+render(); renderPlacements(); loadWing(); resize();
+</script></body></html>
