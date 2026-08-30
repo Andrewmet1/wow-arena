@@ -33,7 +33,15 @@ const reachable = (id) =>
 const propOrphans = disk.props.filter(id => !reachable(id));
 const propBroken  = [...pooled].filter(id => !disk.props.includes(id) && !eng.aliases[id]);
 const themeLive = new Set(Object.values(themeTextures).flatMap(i => i.live));
-const texReachable = (id) => eng.engineReferenced.has(id) || themeLive.has(id);
+// Derived companions. loadNormal() builds `${name}_normal.png` from a surface
+// texture's name, so the file is never mentioned literally anywhere — a
+// name-matching audit reports all 46 as orphans and buries the real ones.
+// A companion is reachable exactly when its base texture is.
+const texReachable = (id) => {
+  if (eng.engineReferenced.has(id) || themeLive.has(id)) return true;
+  const base = id.replace(/_normal$/, '');
+  return base !== id && (eng.engineReferenced.has(base) || themeLive.has(base));
+};
 const texOrphans  = disk.textures.filter(id => !texReachable(id));
 const blocked     = eng.blocked || [];
 const monOrphans  = disk.monsters.filter(id => !declaredMonsters.includes(id));
