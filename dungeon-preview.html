@@ -39,6 +39,8 @@
     <button id="fx">FX: off</button>
     <span id="fps" style="flex:1;text-align:right;padding:5px 4px;color:var(--dim)">– fps</span>
   </div>
+  <div id="rstats" style="font-size:10px;color:var(--dim);margin-top:2px">
+  </div>
 
   <h3 style="margin-top:12px">Retexture</h3>
   <label>Surface</label>
@@ -204,6 +206,11 @@ document.getElementById('gen').onclick = async () => {
   }
 };
 
+// EffectComposer renders several passes and info resets on each, so reading
+// after render() reports the final fullscreen quad — 1 call, 2 triangles.
+// Manual reset accumulates every pass in the frame instead.
+sm.renderer.info.autoReset = false;
+
 addEventListener('resize', () => sm.resize());
 try { await load(); } catch (e) { fail(e); }
 
@@ -226,10 +233,17 @@ function frame() {
     camera.rotation.set(pitch, yaw, 0, 'YXZ');
   } else orbit.update();
   try { sm.tickDungeonAtmosphere?.(t); env?.tick?.(t); } catch {}
+  sm.renderer.info.reset();
   sm.render();
   if (++fCount >= 30) {
     const fps = 1000 * fCount / (now - fLast);
     document.getElementById('fps').textContent = `${fps.toFixed(0)} fps`;
+    // fps alone can't tell you *why* a frame is slow. Draw calls and triangles
+    // separate "too much geometry" from "too many separate objects" — the
+    // second is what instancing fixes and the first is what decimation fixes.
+    const i = sm.renderer.info.render;
+    document.getElementById('rstats').textContent =
+      `${i.calls} draw calls · ${(i.triangles / 1000).toFixed(0)}K tris`;
     fCount = 0; fLast = now;
   }
 }
