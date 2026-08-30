@@ -13368,6 +13368,7 @@ class Game {
     this._snapshots = [];
     this._predictedPos = null;
     this._predictedFacing = null;
+    this._predictedCast = null;
     this._lastReconcileTick = 0;
     this._correctionDx = 0;
     this._correctionDz = 0;
@@ -13678,6 +13679,11 @@ class Game {
     this._pvpInputInterval = setInterval(() => {
       this._sendPvPInput();
     }, 50); // Send at 20Hz — faster than server tick for responsive input
+
+    // Abilities bypass the interval. Waiting for the next 50ms slot added
+    // latency on top of the server's 100ms tick for the one input where it is
+    // most felt — a press could sit for 50ms before it was even sent.
+    this.inputManager.onAbilityPress = () => this._sendPvPInput();
 
     await minDisplayTime;
     this._updateLoadProgress(95);
@@ -16537,6 +16543,28 @@ class Game {
     // (out of range, no resource), the engine event ABILITY_CAST_FAILED
     // would clear it via the eventBus listener wired in _wireDungeonClientEvents.
     if (input.abilities?.length) {
+      // Predict the cast itself, not just its cooldown. Cooldown prediction
+      // already existed, so the hotbar reacted instantly while the character
+      // stood still until the server replied — press to visible action was
+      // 150-300ms (input batching + network + up to a full 100ms tick). The
+      // prediction writes the same castState shape the server sends, so the
+      // renderer and HUD need no special case, and the server's version simply
+      // replaces it on the next tick.
+      for (const abilityId of input.abilities) {
+        const ability = unit.abilities?.get?.(abilityId);
+        if (!ability?.castTime) continue;          // instants need no cast bar
+        if (unit.castState) break;                 // already casting
+        const t = this.matchState?.tick || 0;
+        unit.castState = {
+          abilityId,
+          startTick: t,
+          endTick: t + ability.castTime,
+          targetId: this.matchState?.getTarget(this._pvpMySlot ?? 0) ?? null,
+        };
+        this._predictedCast = { abilityId, at: performance.now() };
+        break;
+      }
+
       const cdMult = unit.stats?.cooldownMod || 1;
       const tick = this.matchState?.tick || 0;
       for (const abilityId of input.abilities) {
@@ -16610,6 +16638,18 @@ class Game {
           endTick: su.cast.end,
           targetId: su.cast.target ?? (su.id === this._pvpMySlot ? this._pvpEnemySlot : this._pvpMySlot)
         };
+        if (su.id === this._pvpMySlot) this._predictedCast = null;  // confirmed
+      } else if (su.id === this._pvpMySlot && this._predictedCast) {
+        // A tick that predates the press still reports no cast. Clearing on it
+        // would cancel the prediction before the server has even seen the
+        // input — the exact stutter prediction exists to remove. Hold the
+        // prediction for one round trip plus a tick, then roll back so a
+        // genuinely rejected cast (out of range, no resource) does not stick.
+        const PREDICTION_GRACE_MS = 350;
+        if (performance.now() - this._predictedCast.at > PREDICTION_GRACE_MS) {
+          unit.castState = null;
+          this._predictedCast = null;
+        }
       } else {
         unit.castState = null;
       }
