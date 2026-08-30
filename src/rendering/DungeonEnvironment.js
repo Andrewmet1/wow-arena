@@ -93,6 +93,36 @@ function loadTex(name, repeatX = 1, repeatY = 1) {
   return tex;
 }
 
+/**
+ * Companion normal map for a surface texture, or null.
+ *
+ * Every dungeon material was albedo-only and faked relief by assigning the
+ * diffuse texture as a bumpMap. That derives height from brightness, so mortar
+ * lines read as bumps and painted highlights read as ridges. The `_normal`
+ * companions (scripts/generate-env-normals.mjs) encode gradient direction
+ * instead, so light moving across a wall behaves plausibly.
+ *
+ * Only floor/wall/ceiling surfaces have them; anything else returns null and
+ * keeps its previous look.
+ */
+const _normals = {};
+function loadNormal(name, repeatX = 1, repeatY = 1) {
+  if (!/^(floor|wall|ceiling)_/.test(name)) return null;
+  const key = `${name}__n`;
+  if (_normals[key]) return _normals[key];
+  const tex = _texLoader.load(
+    `/assets/art/dungeon/${name}_normal.png`,
+    undefined, undefined,
+    () => { _normals[key] = null; },   // missing companion is not an error
+  );
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(repeatX, repeatY);
+  tex.colorSpace = THREE.NoColorSpace;  // normals are data, not colour
+  _normals[key] = tex;
+  return tex;
+}
+
 export class DungeonEnvironment {
   constructor(scene, renderer = null, camera = null) {
     this.scene = scene;
@@ -1364,7 +1394,8 @@ export class DungeonEnvironment {
     // visible surface relief. Diablo-style depth without authored normal maps.
     const mat = new THREE.MeshStandardMaterial({
       map: tex, color: style.tint, roughness: 0.92, metalness: 0.05,
-      bumpMap: tex, bumpScale: 0.18,
+      normalMap: loadNormal(primaryTex, chamber.halfX * 2 / 8, chamber.halfZ * 2 / 8),
+      normalScale: new THREE.Vector2(1.1, 1.1),
     });
     // PERF: floor is now FLAT — heightmap displacement on a 32x32 subdivided
     // plane was tanking framerate (3000+ verts per chamber × 5 chambers).
@@ -1731,13 +1762,15 @@ export class DungeonEnvironment {
     const mat = new THREE.MeshStandardMaterial({
       map: primaryWallTex,
       color: tint, roughness: 0.95, metalness: 0.08,
-      bumpMap: primaryWallTex, bumpScale: 0.20,
+      normalMap: loadNormal(primaryTex, 4, 1.5),
+      normalScale: new THREE.Vector2(1.25, 1.25),
     });
     const accentMats = accentTexNames.map(name => {
       const at = loadTex(name, 4, 1.5);
       return new THREE.MeshStandardMaterial({
         map: at, color: tint, roughness: 0.92, metalness: 0.10,
-        bumpMap: at, bumpScale: 0.18,
+        normalMap: loadNormal(name, 4, 1.5),
+        normalScale: new THREE.Vector2(1.15, 1.15),
         // Runic accents glow — give them emissive so bloom picks them up
         emissive: name.includes('runic') ? 0x4a1010 : 0x000000,
         emissiveIntensity: name.includes('runic') ? 0.55 : 0,

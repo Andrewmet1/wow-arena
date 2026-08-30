@@ -1,0 +1,17 @@
+import puppeteer from 'puppeteer';
+const b=await puppeteer.launch({headless:'new',args:['--no-sandbox','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader','--enable-webgl','--ignore-gpu-blocklist']});
+const p=await b.newPage(); await p.setViewport({width:1280,height:800});
+const errs=[]; p.on('pageerror',e=>errs.push(e.message));
+await p.goto('http://localhost:5173/dungeon-preview.html?seed=4242&roomIndex=3',{waitUntil:'networkidle2',timeout:90000});
+await new Promise(r=>setTimeout(r,8000));
+await p.reload({waitUntil:'networkidle2',timeout:90000});
+await new Promise(r=>setTimeout(r,20000));
+await p.screenshot({path:'/tmp/q-off.png'});
+console.log('  FX off fps:', await p.evaluate(()=>document.getElementById('fps').textContent));
+await p.evaluate(()=>document.getElementById('fx').click());
+await new Promise(r=>setTimeout(r,14000));
+await p.screenshot({path:'/tmp/q-on.png'});
+console.log('  FX on  fps:', await p.evaluate(()=>document.getElementById('fps').textContent));
+console.log('  fx button:', await p.evaluate(()=>document.getElementById('fx').textContent));
+console.log('  errors:', errs.length); errs.slice(0,3).forEach(e=>console.log('    '+e.slice(0,120)));
+await b.close();

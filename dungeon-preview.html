@@ -35,6 +35,10 @@
     <button id="reroll">Reroll seed</button>
     <button id="lights">Lights</button>
   </div>
+  <div class="seg">
+    <button id="fx">FX: off</button>
+    <span id="fps" style="flex:1;text-align:right;padding:5px 4px;color:var(--dim)">– fps</span>
+  </div>
 
   <h3 style="margin-top:12px">Retexture</h3>
   <label>Surface</label>
@@ -152,6 +156,25 @@ document.getElementById('reroll').onclick = async () => {
   seed = String(Math.floor(Math.random() * 100000));
   try { await load(); setMode(mode); } catch (e) { fail(e); }
 };
+// applyDungeonAtmosphere turns bloom, SSAO and shadows off with the comment
+// "at 10fps ... can't afford". That measurement predates characters dropping
+// from 1.42M to 150K triangles. Rather than assert it's affordable now, this
+// toggles them on your actual GPU and shows the frame cost.
+let fxOn = false;
+document.getElementById('fx').onclick = (e) => {
+  fxOn = !fxOn;
+  if (sm._bloomPass) sm._bloomPass.enabled = fxOn;
+  if (sm._ssaoPass) sm._ssaoPass.enabled = fxOn;
+  if (sm.renderer?.shadowMap) {
+    sm.renderer.shadowMap.enabled = fxOn;
+    sm.renderer.shadowMap.needsUpdate = true;
+  }
+  sm.useComposer = true;
+  scene.traverse(o => { if (o.isMesh || o.isSkinnedMesh) { o.castShadow = fxOn; o.receiveShadow = fxOn; } });
+  e.target.textContent = `FX: ${fxOn ? 'on' : 'off'}`;
+  e.target.classList.toggle('on', fxOn);
+};
+
 let boosted = false;
 const boost = new THREE.AmbientLight(0xffffff, 1.6);
 document.getElementById('lights').onclick = (e) => {
@@ -184,7 +207,7 @@ document.getElementById('gen').onclick = async () => {
 addEventListener('resize', () => sm.resize());
 try { await load(); } catch (e) { fail(e); }
 
-let t = 0, last = performance.now();
+let t = 0, last = performance.now(), fCount = 0, fLast = performance.now();
 function frame() {
   requestAnimationFrame(frame);
   const now = performance.now(); const dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -204,6 +227,11 @@ function frame() {
   } else orbit.update();
   try { sm.tickDungeonAtmosphere?.(t); env?.tick?.(t); } catch {}
   sm.render();
+  if (++fCount >= 30) {
+    const fps = 1000 * fCount / (now - fLast);
+    document.getElementById('fps').textContent = `${fps.toFixed(0)} fps`;
+    fCount = 0; fLast = now;
+  }
 }
 frame();
 </script></body></html>
