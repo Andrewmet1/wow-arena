@@ -112,7 +112,12 @@ export const AURA_TYPE = {
 };
 
 // Movement
-export const BASE_MOVE_SPEED = 14; // yards per second
+// WoW runs at 7 yards/sec and the arena is built around that pace. At 14 the
+// 80-yard arena crossed in 5.7s instead of 11.4s, which halved the time
+// pillars and line-of-sight are worth anything — the spatial layer arena play
+// is actually made of. It also outran the run animation by ~5x (see
+// RUN_CLIP_YPS), which is what read as floaty.
+export const BASE_MOVE_SPEED = 7; // yards per second (WoW parity)
 export const MOVE_SPEED_PER_TICK = BASE_MOVE_SPEED / TICKS_PER_SECOND;
 
 // Dodge roll
@@ -143,7 +148,10 @@ export const AI_DIFFICULTY = {
 };
 
 // Arena dampening (healing reduction over time)
-export const DAMPENING_START_TICK = 600;   // Starts at 60s
+// Dampening exists to end stalemates, not to shape the opening. Starting at
+// 60s meant healing was taxed from the first minute of every match and capped
+// out around the seventh; 180s lets a match play out first.
+export const DAMPENING_START_TICK = 1800;  // Starts at 180s
 export const DAMPENING_PER_INTERVAL = 0.02; // 2% per interval
 export const DAMPENING_INTERVAL_TICKS = 100; // Every 10s
 export const DAMPENING_CAP = 0.75;          // Max 75% healing reduction

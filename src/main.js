@@ -23,7 +23,7 @@ import { SeededRandom } from './utils/Random.js';
 import { EventBus, EVENTS } from './utils/EventBus.js';
 import { getAbilityIcon, getClassEmblem, getClassPortrait } from './ui/IconGenerator.js';
 import { AudioManager } from './audio/AudioManager.js';
-import { DODGE_ROLL_DURATION, DODGE_ROLL_COOLDOWN, DODGE_ROLL_SNARE, DODGE_ROLL_SNARE_RANGE, DODGE_ROLL_SNARE_DURATION, GCD_DURATION, TICKS_PER_SECOND } from './constants.js';
+import { DODGE_ROLL_DURATION, DODGE_ROLL_COOLDOWN, DODGE_ROLL_SNARE, DODGE_ROLL_SNARE_RANGE, DODGE_ROLL_SNARE_DURATION, GCD_DURATION, TICKS_PER_SECOND, BASE_MOVE_SPEED } from './constants.js';
 import { Aura } from './engine/Aura.js';
 import { preloadAll as preloadModels } from './rendering/ModelLoader.js';
 import { SettingsManager } from './settings/SettingsManager.js';
@@ -18064,7 +18064,11 @@ class Game {
           // replayed after a correction — the server acknowledges inputs, not
           // frames, so the client has to remember what each input moved it by.
           if (moveDir && this.matchState?.los?.gatesOpen) {
-            const speed = 14 * (unit.getEffectiveMoveSpeed?.() || 1);
+            // Must read the shared constant. A hardcoded copy here would
+            // predict at a different rate than the server simulates, so every
+            // tick would arrive as a correction — the rubber-banding that
+            // reconciliation exists to prevent, reintroduced by a literal.
+            const speed = BASE_MOVE_SPEED * (unit.getEffectiveMoveSpeed?.() || 1);
             const mx = moveDir.x * speed * deltaTime;
             const mz = moveDir.z * speed * deltaTime;
             this._predictedPos.x += mx;
