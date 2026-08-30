@@ -24,6 +24,15 @@ export class MovementSystem {
       }
     }
 
+    // Stand on whatever floor the unit is over. Elevation is a room property,
+    // so this is a lookup rather than physics — but without it a character
+    // walking into a raised chamber stays at the old height and clips through
+    // the floor that was just rendered above them.
+    if (this.los?.groundHeightAt) {
+      const g = this.los.groundHeightAt(unit.position.x, unit.position.z);
+      if (g !== null) unit.position.y = g;
+    }
+
     const speed = this.getEffectiveSpeed(unit);
     const direction = unit.position.directionTo(unit.moveTarget);
     const distToTarget = unit.position.distanceXZ(unit.moveTarget);

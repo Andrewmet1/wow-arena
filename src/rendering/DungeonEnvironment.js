@@ -1408,7 +1408,11 @@ export class DungeonEnvironment {
     const geo = new THREE.PlaneGeometry(chamber.halfX * 2, chamber.halfZ * 2);
     const floor = new THREE.Mesh(geo, mat);
     floor.rotation.x = -Math.PI / 2;
-    floor.position.set(chamber.cx, 0, chamber.cz);
+    // Elevation makes a wing read as architecture rather than a floor plan.
+    // Assigned per chamber by the layout generator; the step is small (4 units
+    // against 14-unit walls) because the camera looks down and a large drop
+    // would hide the lower room instead of showing depth.
+    floor.position.set(chamber.cx, chamber.elevation || 0, chamber.cz);
     floor.receiveShadow = true;
     floor.userData.chamberId = chamber.id;
     this.group.add(floor);
@@ -1426,7 +1430,7 @@ export class DungeonEnvironment {
       const sheenGeo = new THREE.PlaneGeometry(chamber.halfX * 2, chamber.halfZ * 2);
       const sheen = new THREE.Mesh(sheenGeo, sheenMat);
       sheen.rotation.x = -Math.PI / 2;
-      sheen.position.set(chamber.cx, 0.04, chamber.cz);
+      sheen.position.set(chamber.cx, (chamber.elevation || 0) + 0.04, chamber.cz);
       this.group.add(sheen);
     }
 
@@ -1487,7 +1491,9 @@ export class DungeonEnvironment {
     const geo = new THREE.PlaneGeometry(corridor.halfX * 2, corridor.halfZ * 2);
     const floor = new THREE.Mesh(geo, mat);
     floor.rotation.x = -Math.PI / 2;
-    floor.position.set(corridor.cx, 0, corridor.cz);
+    // Corridors carry the mean of what they join, so a link between levels
+    // reads as a ramp rather than two hard steps.
+    floor.position.set(corridor.cx, corridor.elevation || 0, corridor.cz);
     floor.receiveShadow = true;
     this.group.add(floor);
   }
@@ -3943,7 +3949,7 @@ export class DungeonEnvironment {
         const model = this._propCache.get(p.tag);
         if (!model) continue;
         const inst = model.clone();
-        inst.position.set(chamber.cx + p.x, p.y || 0, chamber.cz + p.z);
+        inst.position.set(chamber.cx + p.x, (chamber.elevation || 0) + (p.y || 0), chamber.cz + p.z);
         inst.rotation.y = p.rotY || 0;
         inst.scale.setScalar(p.scale || 1);
         this.group.add(inst);

@@ -257,7 +257,14 @@ export function buildWing({ themeId, roomType, rng = Math.random, forceMainTempl
   // 2-3 branching chambers off the main + their own sub-branches
   // Target: 4-5 chambers total (entry + main + 2-3 branches) plus their corridors.
   const branchChamberIds = ['B', 'C', 'D'];
-  const targetBranchCount = 2 + Math.floor(rng() * 2); // 2 or 3
+  // Wing shape varies per run rather than always producing the same
+  // chain-of-rectangles. A run can be a tight two-room pocket or a sprawling
+  // six-room warren, and later branches hang off earlier ones more often, which
+  // gives loops and dead ends instead of a single spine.
+  const shapeRoll = rng();
+  const targetBranchCount = shapeRoll < 0.2 ? 1        // compact
+                          : shapeRoll < 0.6 ? 2 + Math.floor(rng() * 2)
+                          : 3 + Math.floor(rng() * 3); // sprawling, up to 5
   const allChambersForBranching = [main];
   const branchChambers = [];
 
@@ -473,6 +480,35 @@ export function buildWing({ themeId, roomType, rng = Math.random, forceMainTempl
   // pre-recentre frame and the damage check would fire in the wrong spot.
   if (!isFirstWing && roomType !== 'boss') {
     placeHazards(layout, rng, roomIndex);
+  }
+
+  // ── Elevation ──────────────────────────────────────────────────────────
+  //
+  // Every chamber sat on one plane, which is most of why wings read as floor
+  // plans. Levels are assigned after placement so the overlap tests above stay
+  // a simple 2D problem: height is a property of a room, not of the packing.
+  //
+  // Steps are small (4 units against 14-unit walls) because the camera looks
+  // down — a large drop would hide the lower room entirely rather than reading
+  // as depth.
+  {
+    const STEP = 4;
+    const levels = rng() < 0.25 ? 1 : (rng() < 0.7 ? 2 : 3);
+    for (const c of layout.chambers) {
+      // The entry stays at zero so the player always starts on the ground.
+      c.elevation = (c.id === 'entry') ? 0 : Math.floor(rng() * levels) * STEP;
+    }
+    // A corridor bridges whatever it connects; give it the mean of its
+    // neighbours so the transition ramps rather than steps twice.
+    const near = (cor) => layout.chambers.filter(ch =>
+      Math.abs(ch.cx - cor.cx) < ch.halfX + cor.halfX + 2 &&
+      Math.abs(ch.cz - cor.cz) < ch.halfZ + cor.halfZ + 2);
+    for (const cor of layout.corridors) {
+      const n = near(cor);
+      cor.elevation = n.length ? n.reduce((a, c) => a + c.elevation, 0) / n.length : 0;
+      cor.ramp = n.length === 2 && n[0].elevation !== n[1].elevation;
+    }
+    layout.levels = levels;
   }
 
   // Strip the internal _usedDirs tracker from outgoing chamber data

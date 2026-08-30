@@ -38,6 +38,26 @@ export class LineOfSight {
   }
 
   /** Is `pos` inside any dungeonTile? */
+  /**
+   * Floor height at a point, or null outside every tile.
+   *
+   * Chambers can sit on different levels, so a unit's Y has to follow whatever
+   * it is standing over rather than being pinned at zero. Returns the highest
+   * matching tile, which resolves the overlap where a corridor mouth sits
+   * inside a chamber's footprint.
+   */
+  groundHeightAt(x, z) {
+    if (!this.dungeonTiles) return 0;
+    let best = null;
+    for (const t of this.dungeonTiles) {
+      if (Math.abs(x - t.cx) <= t.halfX && Math.abs(z - t.cz) <= t.halfZ) {
+        const e = t.elevation || 0;
+        if (best === null || e > best) best = e;
+      }
+    }
+    return best;
+  }
+
   _isInsideAnyTile(pos, margin = 0) {
     if (!this.dungeonTiles) return true;
     for (const t of this.dungeonTiles) {

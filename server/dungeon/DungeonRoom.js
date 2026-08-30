@@ -1439,11 +1439,14 @@ export class DungeonRoom {
     const tiles = [];
     for (const c of wing.chambers) {
       if (c.hidden && !includeHidden) continue;
-      tiles.push({ cx: c.cx, cz: c.cz, halfX: c.halfX, halfZ: c.halfZ });
+      // elevation travels with the tile so the engine can stand units on the
+      // floor they are actually over; without it a raised room renders at 4
+      // while its occupants stay at 0 and sink through it.
+      tiles.push({ cx: c.cx, cz: c.cz, halfX: c.halfX, halfZ: c.halfZ, elevation: c.elevation || 0 });
     }
     for (const c of wing.corridors) {
       if (c.hidden && !includeHidden) continue;
-      tiles.push({ cx: c.cx, cz: c.cz, halfX: c.halfX, halfZ: c.halfZ });
+      tiles.push({ cx: c.cx, cz: c.cz, halfX: c.halfX, halfZ: c.halfZ, elevation: c.elevation || 0 });
     }
     return tiles;
   }
