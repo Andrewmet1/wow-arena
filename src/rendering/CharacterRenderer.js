@@ -1,16 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clipTiming } from './ClipTiming.js';
-import { BASE_MOVE_SPEED } from '../constants.js';
 
-/**
- * Travel speed the run clip's stride actually depicts, in yards/sec.
- *
- * Measured from the clip: one stride cycle per 0.77s at a ~2m stride. Kept as
- * a named constant because it is a property of the animation, so replacing the
- * run clip means re-measuring this rather than hunting for a magic number.
- */
-const RUN_CLIP_YPS = 2.9;
 import { isModelCached, loadCharacter, loadWeapon, getClassScale, loadModel, cloneModel } from './ModelLoader.js';
 import { autoRig, attachWeapon } from './AutoRigger.js';
 import { resolveModelPath, ASSET_MANIFEST, SKIN_ANIMATIONS, getWeaponOffset, getClassAnimationMap, resolveAnimationPath } from './AssetManifest.js';
@@ -5077,21 +5068,24 @@ export default class CharacterRenderer {
           ? 'run'
           : (actions['walk'] ? 'walk' : 'run');
 
-        // Match stride to travel, or the feet slide.
+        // Play the run at its authored cadence, adjusted only by actual speed
+        // modifiers.
         //
-        // The run clip is one stride cycle in 0.77s — a cadence of 1.30
-        // strides/sec, implying roughly 2.9 yd/s of travel. The character
-        // actually moves at BASE_MOVE_SPEED (14 yd/s), so at timeScale 1.0 the
-        // body outruns the legs by about 5x. That mismatch is what reads as
-        // floaty rather than fluid, and no amount of blending hides it.
+        // A previous version scaled playback by travel-speed / an estimated
+        // clip speed, which drove the legs at 3.1 strides/sec — nearly double a
+        // full sprint — and read as sprinting with tiny steps. The estimate was
+        // the error: it assumed a ~2m stride, implying the clip depicts 2.9
+        // yd/s. At the game's move speed with this clip's 1.30 strides/sec cadence
+        // the implied stride is about 4.9m, which is sprinter's stride, so the
+        // clip already depicts roughly the speed the character travels. There
+        // was no sliding to correct.
         //
-        // Playback is scaled by the ratio, clamped: past ~2.5x a run reads as
-        // comical rather than fast, so the clamp deliberately leaves some
-        // sliding rather than trading one artefact for a worse one. Closing
-        // the rest means either a lower move speed or a run clip authored for
-        // it — see RUN_CLIP_YPS.
+        // Cadence is a poor proxy for travel speed in general — stride length
+        // is the free variable and cannot be recovered from rotation tracks
+        // alone, since these clips have their root motion stripped. Matching
+        // legs to ground truth needs foot IK, not a playback multiplier.
         const mult = unitState.speed || 1;
-        timeScale = Math.max(0.5, Math.min(2.5, (BASE_MOVE_SPEED * mult) / RUN_CLIP_YPS));
+        timeScale = Math.max(0.75, Math.min(1.35, mult));
         break;
       }
       case 'attacking':
