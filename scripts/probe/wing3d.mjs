@@ -7,7 +7,7 @@ p.on('console',m=>{if(m.type()==='error')errs.push(m.text());});
 await p.goto('http://localhost:5173/dungeon-preview.html?roomType=combat&seed=4242&roomIndex=3',{waitUntil:'networkidle2',timeout:90000});
 await new Promise(r=>setTimeout(r,8000));
 await p.reload({waitUntil:'networkidle2',timeout:90000});
-await new Promise(r=>setTimeout(r,18000));
+await new Promise(r=>setTimeout(r,22000));
 console.log('  hud:', (await p.evaluate(()=>document.getElementById('hud').innerText)).replace(/\n/g,' | '));
 const err = await p.evaluate(()=>document.getElementById('err').textContent);
 if (err) console.log('  PAGE ERROR:', err.slice(0,300));

@@ -140,6 +140,37 @@ function animSavePlugin() {
         res.end(JSON.stringify(_deployStatus));
       });
       // ── Save weapon offsets + weaponsBakedIn ──
+      // Prompt-driven retexturing. The whole point of the preview is to change
+      // how the dungeon looks without leaving it, so this generates a floor or
+      // wall texture straight into the theme's slot and the page reloads it.
+      server.middlewares.use('/api/retexture', async (req, res) => {
+        if (req.method !== 'POST') { res.statusCode = 405; res.end('Method not allowed'); return; }
+        let body = '';
+        req.on('data', c => body += c);
+        req.on('end', async () => {
+          try {
+            const { prompt, texId } = JSON.parse(body);
+            if (!prompt || !texId) throw new Error('prompt and texId required');
+            if (!/^[a-z0-9_]+$/.test(texId)) throw new Error('bad texId');
+            const gk = await server.ssrLoadModule('/scripts/lib/genkit.mjs');
+            const out = path.resolve('public/assets/art/dungeon', `${texId}.png`);
+            // Overwrite: genkit skips existing files, which is right for a
+            // queue and wrong for "make this look different".
+            if (fs.existsSync(out)) fs.unlinkSync(out);
+            const budget = new gk.Budget(1.0);
+            await gk.generateImage({
+              prompt: `Seamless tileable dungeon texture, top-down flat orthographic, PBR albedo, no lighting or shadows baked in, dark fantasy: ${prompt}`,
+              out, size: '1024x1024', transparent: false, budget, commit: true,
+            });
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ ok: true, texId, spent: budget.spent, url: `/assets/art/dungeon/${texId}.png?t=${Date.now()}` }));
+          } catch (err) {
+            res.statusCode = 400;
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        });
+      });
+
       server.middlewares.use('/api/dungeon-theme', async (req, res) => {
         try {
           const url = new URL(req.url, 'http://x');

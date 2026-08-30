@@ -1,121 +1,209 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>Wing Preview</title>
 <style>
-  html,body{margin:0;height:100%;background:#0d0b0a;overflow:hidden;font:12px ui-monospace,Menlo,monospace;color:#8b7d72}
+  :root{--gold:#c9a227;--line:#332b26;--ink:#e8ded4;--dim:#8b7d72}
+  html,body{margin:0;height:100%;background:#0d0b0a;overflow:hidden;font:12px ui-monospace,Menlo,monospace;color:var(--ink)}
   canvas{display:block;width:100%;height:100%}
-  #hud{position:fixed;left:10px;bottom:10px;background:#000b;padding:7px 11px;border-radius:3px;font-size:11px;line-height:1.6}
-  #err{position:fixed;inset:20px;background:#1a0f0d;border:1px solid #5c2e2e;color:#e08b7a;padding:14px;border-radius:4px;display:none;white-space:pre-wrap;overflow:auto}
+  .panel{position:fixed;background:#14110fee;border:1px solid var(--line);border-radius:4px;padding:10px 12px}
+  #ctl{left:12px;top:12px;width:250px}
+  #hud{left:12px;bottom:12px;font-size:11px;color:var(--dim);line-height:1.7}
+  h3{margin:0 0 8px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+  .seg{display:flex;gap:2px;margin-bottom:8px}
+  .seg button{flex:1;padding:5px 0;font-size:11px}
+  button{background:#241f1c;color:var(--ink);border:1px solid var(--line);border-radius:3px;padding:5px 9px;cursor:pointer;font:inherit;font-size:11px}
+  button:hover{border-color:var(--gold)}
+  button.on{background:var(--gold);color:#1a1512;border-color:var(--gold);font-weight:700}
+  textarea,select,input{width:100%;background:#241f1c;border:1px solid var(--line);color:var(--ink);
+    padding:5px 7px;border-radius:3px;font:inherit;font-size:11px;resize:vertical}
+  label{display:block;font-size:10px;color:var(--dim);margin:8px 0 3px;letter-spacing:.06em;text-transform:uppercase}
+  #status{margin-top:7px;font-size:10px;line-height:1.5;min-height:14px}
+  .keys{color:var(--dim)}
+  .keys b{color:var(--ink)}
+  #err{position:fixed;inset:24px;background:#1a0f0d;border:1px solid #5c2e2e;color:#e08b7a;padding:14px;
+    border-radius:4px;display:none;white-space:pre-wrap;overflow:auto;font-size:11px}
 </style></head>
 <body>
 <canvas id="c"></canvas>
-<div id="hud">loading…</div>
+
+<div class="panel" id="ctl">
+  <h3>View</h3>
+  <div class="seg">
+    <button id="mPlayer" class="on">Player</button>
+    <button id="mOrbit">Overview</button>
+  </div>
+  <div class="seg">
+    <button id="reroll">Reroll seed</button>
+    <button id="lights">Lights</button>
+  </div>
+
+  <h3 style="margin-top:12px">Retexture</h3>
+  <label>Surface</label>
+  <select id="target"></select>
+  <label>Prompt</label>
+  <textarea id="prompt" rows="3" placeholder="cracked obsidian slabs with veins of cooling magma"></textarea>
+  <button id="gen" style="width:100%;margin-top:6px" class="on">Generate &amp; Apply</button>
+  <div id="status"></div>
+</div>
+
+<div class="panel" id="hud">loading…</div>
 <div id="err"></div>
+
 <script type="module">
-// Lives at the project root, not public/, so vite transforms it and there is
-// exactly one three.js instance. Loading the real DungeonEnvironment from a
-// public/ page with an importmap gives two copies and silently breaks
-// instanceof checks inside the renderer.
+// Uses the game's own SceneManager rather than a hand-rolled renderer. An
+// earlier version built its own lights, which flattened the dungeon into a
+// lit floorplan — the atmosphere here comes from torches, fog, bloom and SSAO,
+// so replacing them with editor fill lights destroys exactly what you're
+// trying to judge.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { SceneManager } from '/src/rendering/SceneManager.js';
 import { DungeonEnvironment } from '/src/rendering/DungeonEnvironment.js';
 
-const hud = document.getElementById('hud');
 const errBox = document.getElementById('err');
 const fail = (e) => { errBox.style.display = 'block'; errBox.textContent = String(e?.stack || e); };
 window.addEventListener('error', ev => fail(ev.error || ev.message));
 
+const params = new URLSearchParams(location.search);
+let seed = params.get('seed') || '12345';
+const roomType = params.get('roomType') || 'combat';
+const roomIndex = Number(params.get('roomIndex') || 2);
+const themeId = params.get('themeId') || 'crucible_below';
+
 const canvas = document.getElementById('c');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.5;
-renderer.outputColorSpace = THREE.SRGBColorSpace;
+const sm = new SceneManager(canvas);
+await sm.init({});
+const scene = sm.scene, camera = sm.getCamera();
 
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0d0b0a);
-scene.fog = new THREE.Fog(0x0d0b0a, 90, 320);
+const orbit = new OrbitControls(camera, canvas);
+orbit.enableDamping = true; orbit.enabled = false;
 
-const camera = new THREE.PerspectiveCamera(55, 1, 0.5, 2000);
-camera.position.set(0, 110, 130);
-const controls = new OrbitControls(camera, canvas);
-controls.enableDamping = true;
-controls.target.set(0, 0, 0);
-
-function resize() {
-  const w = innerWidth, h = innerHeight;
-  renderer.setSize(w, h, false);
-  camera.aspect = w / h; camera.updateProjectionMatrix();
-}
-addEventListener('resize', resize); resize();
-
-// DungeonEnvironment's own lighting is tuned for the game, where SceneManager
-// supplies an environment map and bloom. Without those the wing renders almost
-// black — true to the engine, useless for authoring. These fill lights exist
-// only to make geometry legible here; press L to drop them and see what the
-// scene looks like on the engine's own lighting alone.
-const fill = new THREE.Group();
-// Dungeon stone is deliberately near-black (STONE_DARK 0x2a221c) and the game
-// lifts it with an env map and bloom. An editor view needs far more than the
-// game's own key light to read shape.
-fill.add(new THREE.AmbientLight(0xffffff, 1.2));
-fill.add(new THREE.HemisphereLight(0xcfc0a4, 0x3a2f26, 2.2));
-const sun = new THREE.DirectionalLight(0xffe6c0, 3.0);
-sun.position.set(80, 180, 80); fill.add(sun);
-const back = new THREE.DirectionalLight(0x99aaff, 1.2);
-back.position.set(-90, 80, -90); fill.add(back);
-scene.add(fill);
-let fillOn = true;
-addEventListener('keydown', (e) => {
-  if (e.key !== 'l' && e.key !== 'L') return;
-  fillOn = !fillOn;
-  if (fillOn) scene.add(fill); else scene.remove(fill);
-  document.getElementById('lightmode').textContent = fillOn ? 'preview lighting' : 'engine lighting';
+let env = null, theme = null, wing = null, mode = 'player';
+let yaw = 0, pitch = -0.28, pos = new THREE.Vector3();
+const keys = new Set();
+addEventListener('keydown', e => { keys.add(e.key.toLowerCase()); if (e.key === ' ') e.preventDefault(); });
+addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+canvas.addEventListener('mousedown', () => { if (mode === 'player') canvas.requestPointerLock?.(); });
+addEventListener('mousemove', e => {
+  if (mode !== 'player' || document.pointerLockElement !== canvas) return;
+  yaw -= e.movementX * 0.0024;
+  pitch = Math.max(-1.2, Math.min(0.6, pitch - e.movementY * 0.0024));
 });
 
-const env = new DungeonEnvironment(scene, renderer, camera);
-
-const params = new URLSearchParams(location.search);
-const roomType = params.get('roomType') || 'combat';
-const seed = params.get('seed') || '12345';
-const roomIndex = params.get('roomIndex') || '2';
-
-try {
-  const [wing, theme] = await Promise.all([
+async function load() {
+  document.getElementById('hud').textContent = 'building wing…';
+  if (env) env.dispose();
+  const [w, t] = await Promise.all([
     fetch(`/api/preview-wing?roomType=${roomType}&seed=${seed}&roomIndex=${roomIndex}`).then(r => r.json()),
-    fetch('/api/dungeon-theme?themeId=crucible_below').then(r => r.json()).catch(() => null),
+    fetch(`/api/dungeon-theme?themeId=${themeId}`).then(r => r.json()).catch(() => null),
   ]);
-  if (wing.error) throw new Error(wing.error);
+  if (w.error) throw new Error(w.error);
+  wing = w; theme = (t && !t.error) ? t : null;
 
-  env.buildWing({ wing, roomType, theme: theme && !theme.error ? theme : null, roomIndex: Number(roomIndex) });
+  // The dungeon's real look — dark ambient, torch colour, fog, bloom strength.
+  if (theme?.atmosphere) sm.applyDungeonAtmosphere(theme.atmosphere);
 
-  // Frame from the geometry that actually got built, not the declared bounds.
-  // Bounds include padding and don't account for props, so framing off them
-  // left most of the wing outside the view.
-  await new Promise(r => setTimeout(r, 1200)); // let async prop loads land
-  const box = new THREE.Box3().setFromObject(scene);
-  const size = box.getSize(new THREE.Vector3());
-  const mid = box.getCenter(new THREE.Vector3());
-  const span = Math.max(size.x, size.z) || 200;
-  camera.position.set(mid.x + span * 0.5, span * 0.85, mid.z + span * 0.85);
-  controls.target.copy(mid); controls.target.y = 0;
-  camera.far = span * 6; camera.updateProjectionMatrix();
-  scene.fog = new THREE.Fog(0x0d0b0a, span * 1.2, span * 4);
-  controls.update();
+  env = new DungeonEnvironment(scene, sm.renderer, camera);
+  env.buildWing({ wing, roomType, theme, roomIndex });
+
+  // Open on the main chamber, framed like the game's third-person camera —
+  // back and above, angled down. Sitting exactly on playerSpawn put the camera
+  // inside the entry chamber's wall, which is why the first frame was a
+  // close-up of a texture.
+  const main = wing.chambers.find(c => c.template === wing.mainTemplate) || wing.chambers[0];
+  const depth = Math.max(28, main.halfZ * 0.9);
+  pos.set(main.cx, Math.max(16, main.halfZ * 0.55), main.cz + depth);
+  yaw = 0;                 // looking down -Z, into the chamber
+  pitch = -0.42;
+
+  const surf = document.getElementById('target');
+  surf.innerHTML = '';
+  for (const [label, id] of [
+    ['floor — ' + (theme?.floor?.primary ?? 'floor_stone'), theme?.floor?.primary ?? 'floor_stone'],
+    ['wall — ' + (theme?.wall?.primary ?? 'wall_stone'), theme?.wall?.primary ?? 'wall_stone'],
+  ]) {
+    const o = document.createElement('option'); o.value = id; o.textContent = label; surf.appendChild(o);
+  }
 
   const hz = (wing.features || []).filter(f => f.isHazard);
-  hud.innerHTML = `<b style="color:#c9a227">${wing.mainTemplate}</b> · seed ${seed} · ${roomType}<br>`
-    + `${wing.chambers.length} chambers · ${wing.corridors.length} corridors · ${(wing.features || []).length} features`
-    + (hz.length ? ` · <span style="color:#d24a30">${hz.length} hazards: ${hz.map(h => h.kind).join(', ')}</span>` : '')
-    + `<br>drag to orbit · scroll to zoom · <b>L</b> toggles <span id="lightmode">preview lighting</span>`;
-} catch (e) { fail(e); hud.textContent = 'failed — see error'; }
+  document.getElementById('hud').innerHTML =
+    `<b style="color:#c9a227">${wing.mainTemplate}</b> · seed ${seed} · ${roomType}<br>`
+    + `${wing.chambers.length} chambers · ${(wing.features || []).length} features`
+    + (hz.length ? ` · <span style="color:#d24a30">${hz.length} hazards</span>` : '')
+    + `<br><span class="keys"><b>WASD</b> move · <b>Q/E</b> down/up · <b>Shift</b> fast · click to look</span>`;
+}
 
-let t = 0;
+document.getElementById('mPlayer').onclick = () => setMode('player');
+document.getElementById('mOrbit').onclick = () => setMode('orbit');
+function setMode(m) {
+  mode = m;
+  document.getElementById('mPlayer').classList.toggle('on', m === 'player');
+  document.getElementById('mOrbit').classList.toggle('on', m === 'orbit');
+  orbit.enabled = m === 'orbit';
+  if (m === 'orbit') {
+    document.exitPointerLock?.();
+    const box = new THREE.Box3().setFromObject(scene);
+    const size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
+    const span = Math.max(size.x, size.z) || 200;
+    camera.position.set(mid.x, span * 0.8, mid.z + span * 0.8);
+    orbit.target.set(mid.x, 0, mid.z); orbit.update();
+  }
+}
+document.getElementById('reroll').onclick = async () => {
+  seed = String(Math.floor(Math.random() * 100000));
+  try { await load(); setMode(mode); } catch (e) { fail(e); }
+};
+let boosted = false;
+const boost = new THREE.AmbientLight(0xffffff, 1.6);
+document.getElementById('lights').onclick = (e) => {
+  boosted = !boosted;
+  if (boosted) scene.add(boost); else scene.remove(boost);
+  e.target.classList.toggle('on', boosted);
+};
+
+document.getElementById('gen').onclick = async () => {
+  const st = document.getElementById('status');
+  const prompt = document.getElementById('prompt').value.trim();
+  const texId = document.getElementById('target').value;
+  if (!prompt) { st.style.color = '#e08b7a'; st.textContent = 'describe the surface first'; return; }
+  st.style.color = '#8b7d72'; st.textContent = `generating ${texId}… ~20s, costs ~$0.04`;
+  try {
+    const r = await fetch('/api/retexture', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, texId }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error);
+    st.style.color = '#8fd6a0'; st.textContent = `applied — rebuilding…`;
+    await load(); setMode(mode);
+    st.textContent = `${texId} updated ($${j.spent.toFixed(2)})`;
+  } catch (e) {
+    st.style.color = '#e08b7a'; st.textContent = e.message;
+  }
+};
+
+addEventListener('resize', () => sm.resize());
+try { await load(); } catch (e) { fail(e); }
+
+let t = 0, last = performance.now();
 function frame() {
   requestAnimationFrame(frame);
-  t += 0.016;
-  controls.update();
-  try { env.tick?.(t); } catch {}
-  renderer.render(scene, camera);
+  const now = performance.now(); const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  t += dt;
+  if (mode === 'player') {
+    const sp = (keys.has('shift') ? 90 : 34) * dt;
+    const fwd = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+    const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+    if (keys.has('w')) pos.addScaledVector(fwd, -sp);
+    if (keys.has('s')) pos.addScaledVector(fwd, sp);
+    if (keys.has('a')) pos.addScaledVector(right, -sp);
+    if (keys.has('d')) pos.addScaledVector(right, sp);
+    if (keys.has('e')) pos.y += sp; if (keys.has('q')) pos.y -= sp;
+    pos.y = Math.max(2, pos.y);
+    camera.position.copy(pos);
+    camera.rotation.set(pitch, yaw, 0, 'YXZ');
+  } else orbit.update();
+  try { sm.tickDungeonAtmosphere?.(t); env?.tick?.(t); } catch {}
+  sm.render();
 }
 frame();
 </script></body></html>
