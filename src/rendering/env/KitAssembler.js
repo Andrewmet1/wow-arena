@@ -152,6 +152,63 @@ export class KitAssembler {
    * should be an arch instead — the assembler snaps each to its nearest
    * perimeter cell.
    */
+
+  /**
+   * Collapse runs of the same module into wider pieces where the kit has them.
+   *
+   * WFC solves one module per cell, which is what makes a wall read as a row of
+   * identical panels however good the art is. Real kits mix 1x1, 2x1 and 4x1
+   * runs precisely to break that rhythm, and a piece's declared footprint is
+   * how it says so.
+   *
+   * Merging after the solve rather than solving with variable-size modules
+   * keeps the constraint problem simple: adjacency is still decided per cell,
+   * and a run of N identical modules is by definition internally compatible, so
+   * replacing it with one N-wide piece cannot violate a socket rule.
+   */
+  _mergeRuns(result, nx, nz) {
+    const byId = Object.fromEntries((this.biome.kit || []).map(p => [p.id, p]));
+    // Widest footprint available per piece id, and any wider sibling that could
+    // stand in for a run of it.
+    const widerFor = (id) => (this.biome.kit || [])
+      .filter(p => p.role === byId[id]?.role && (p.footprint?.[0] ?? 1) > 1)
+      .sort((a, b) => (b.footprint[0] - a.footprint[0]));
+
+    const merged = [];
+    const consumed = new Set();
+
+    const runAt = (i, step, limit) => {
+      const m = result[i];
+      let n = 1;
+      while (n < limit) {
+        const j = i + step * n;
+        const nm = result[j];
+        if (!nm || nm.pieceId !== m.pieceId || nm.turns !== m.turns) break;
+        n++;
+      }
+      return n;
+    };
+
+    // Horizontal runs along the top and bottom edges only — vertical edges and
+    // the interior stay per-cell, since a floor run gains nothing visually.
+    for (const row of [0, nz - 1]) {
+      for (let x = 0; x < nx; x++) {
+        const i = row * nx + x;
+        if (consumed.has(i)) continue;
+        const m = result[i];
+        const options = widerFor(m.pieceId);
+        if (!options.length) continue;
+        const avail = runAt(i, 1, nx - x);
+        const pick = options.find(o => o.footprint[0] <= avail);
+        if (!pick || pick.footprint[0] < 2) continue;
+        const w = pick.footprint[0];
+        for (let k = 0; k < w; k++) consumed.add(i + k);
+        merged.push({ index: i, span: w, module: { ...m, pieceId: pick.id } });
+      }
+    }
+    return { merged, consumed };
+  }
+
   async buildChamber(chamber, doorways = []) {
     const rng = rngFor(chamber.id || `${chamber.cx},${chamber.cz}`);
     const c = this.cell;
@@ -192,12 +249,27 @@ export class KitAssembler {
     }
 
     const groups = new Map();
+    const { merged, consumed } = this._mergeRuns(result, nx, nz);
+
+    const push = (id, pos, quat, scale) => {
+      if (!groups.has(id)) groups.set(id, []);
+      groups.get(id).push({ pos, quat, scale });
+    };
+
+    // Wider pieces first; their cells are then skipped below.
+    for (const run of merged) {
+      const x = x0 + (run.index % nx) * c + ((run.span - 1) * c) / 2;   // centre the span
+      const z = z0 + Math.floor(run.index / nx) * c;
+      const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -run.module.turns * Math.PI / 2);
+      push(run.module.pieceId, new THREE.Vector3(x, 0, z), q);
+    }
+
     result.forEach((m, i) => {
+      if (consumed.has(i)) return;
       const x = x0 + (i % nx) * c;
       const z = z0 + Math.floor(i / nx) * c;
       const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -m.turns * Math.PI / 2);
-      if (!groups.has(m.pieceId)) groups.set(m.pieceId, []);
-      groups.get(m.pieceId).push({ pos: new THREE.Vector3(x, 0, z), quat: q });
+      push(m.pieceId, new THREE.Vector3(x, 0, z), q);
     });
 
     // Emit one InstancedMesh per piece. Fallback block sizes come from the

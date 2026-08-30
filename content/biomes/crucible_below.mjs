@@ -21,10 +21,12 @@ export default {
   name: 'The Crucible Below',
   prompt: 'A buried forge-temple of black basalt where forgotten kings tested the worthy.',
 
-  // 4 world units per cell. The player is ~2.5 units tall, so a cell is a
-  // little wider than a character — fine enough that floor detail reads at the
-  // overhead gameplay camera instead of spanning three player-widths.
-  grid: { cell: 4, wallHeight: 6 },
+  // 8 world units per cell. 4 made every piece a small square and the grid
+  // read as a grid; modular kits generally snap on a coarser pitch and lean on
+  // fewer, larger, more detailed pieces. The player is ~2.5 units tall, so a
+  // cell is about three characters wide — enough to hold composition rather
+  // than a single tile of texture.
+  grid: { cell: 8, wallHeight: 6 },
 
   atmosphere: {
     ambientColor: 0x2a1410, ambientIntensity: 0.25,
@@ -47,6 +49,17 @@ export default {
       id: 'wall_basalt', role: ROLES.WALL, footprint: [1, 1], height: 1.5,
       variants: ['wall_basalt_damaged'],
       prompt: `A straight wall segment of stacked basalt blocks with a heavy plinth base and chipped upper edge, flat back face, ${STYLE}`,
+    }),
+    // Wide wall runs. A wall built only from 1x1 panels reads as a row of
+    // identical panels no matter how good each one is; the assembler collapses
+    // runs of the same module into these, so the rhythm varies.
+    piece({
+      id: 'wall_basalt_long', role: ROLES.WALL, footprint: [2, 1], height: 1.5,
+      prompt: `A double-width straight wall run of stacked basalt blocks with a continuous plinth base, flat back face, ${STYLE}`,
+    }),
+    piece({
+      id: 'wall_basalt_bay', role: ROLES.WALL, footprint: [4, 1], height: 1.5,
+      prompt: `A long wall bay of basalt with a recessed centre panel and continuous plinth, flat back face, ${STYLE}`,
     }),
     piece({
       id: 'wall_corner_basalt', role: ROLES.CORNER, footprint: [1, 1], height: 1.5,
