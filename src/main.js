@@ -23,7 +23,7 @@ import { SeededRandom } from './utils/Random.js';
 import { EventBus, EVENTS } from './utils/EventBus.js';
 import { getAbilityIcon, getClassEmblem, getClassPortrait } from './ui/IconGenerator.js';
 import { AudioManager } from './audio/AudioManager.js';
-import { DODGE_ROLL_DURATION, DODGE_ROLL_COOLDOWN, DODGE_ROLL_SNARE, DODGE_ROLL_SNARE_RANGE, DODGE_ROLL_SNARE_DURATION } from './constants.js';
+import { DODGE_ROLL_DURATION, DODGE_ROLL_COOLDOWN, DODGE_ROLL_SNARE, DODGE_ROLL_SNARE_RANGE, DODGE_ROLL_SNARE_DURATION, GCD_DURATION, TICKS_PER_SECOND } from './constants.js';
 import { Aura } from './engine/Aura.js';
 import { preloadAll as preloadModels } from './rendering/ModelLoader.js';
 import { SettingsManager } from './settings/SettingsManager.js';
@@ -17775,6 +17775,9 @@ class Game {
     let attackProgress = 0;
     let castAbilityId = null;
     let attackAbilityId = null;
+    // Seconds the animation must occupy, so the renderer can time-scale the
+    // clip to exactly fit rather than truncating it.
+    let animWindowSec = 0;
 
     if (!unit.isAlive) {
       state = 'dead';
@@ -17822,24 +17825,39 @@ class Game {
         if (inRange) {
           const swingTick = unit.nextSwingTick - unit.swingTimer; // tick when swing landed
           const ticksSinceSwing = currentTick - swingTick;
-          const swingAnimDuration = 24;
+          // The swing animation should occupy the swing itself, so a faster
+          // attack speed visibly swings faster rather than clipping.
+          const swingAnimDuration = Math.max(1, unit.swingTimer || 24);
           if (ticksSinceSwing >= 0 && ticksSinceSwing < swingAnimDuration) {
             bestProgress = ticksSinceSwing / swingAnimDuration;
             attackAbilityId = 'auto_attack';
+            animWindowSec = swingAnimDuration / TICKS_PER_SECOND;
           }
         }
       }
 
-      // Instant ability use animation (melee strikes, instant casts, buffs)
+      // Instant ability use animation (melee strikes, instant casts, buffs).
+      //
+      // The window is the ability's real duration, not a fixed tick count. It
+      // was 18 ticks — written as if ticks were 60fps frames, so the comment
+      // said 0.3s while the code meant 1.8s, and neither matched the clips
+      // (1.9-3.6s). Animations were cut off mid-swing and snapped to idle,
+      // which is what read as choppy and unfinished.
+      //
+      // In PvP the window has to be the gameplay window specifically: an
+      // opponent reads your animation to know when you can act again, so an
+      // animation that outlives its GCD is misinformation.
       const lastAnim = this._lastAbilityAnim?.get(unit.id);
       if (lastAnim != null) {
+        const abil = unit.abilities?.get?.(lastAnim.abilityId);
+        const abilityAnimDuration = Math.max(1, abil?.castTime || GCD_DURATION);
         const ticksSinceAbility = currentTick - lastAnim.tick;
-        const abilityAnimDuration = 18; // ~0.3s ability use window
         if (ticksSinceAbility >= 0 && ticksSinceAbility < abilityAnimDuration) {
           const p = ticksSinceAbility / abilityAnimDuration;
           if (p < bestProgress || bestProgress < 0) {
             bestProgress = p;
             attackAbilityId = lastAnim.abilityId;
+            animWindowSec = abilityAnimDuration / TICKS_PER_SECOND;
           }
         }
       }
@@ -17850,19 +17868,21 @@ class Game {
       }
     }
 
-    // Hit reaction: brief flinch when taking damage (only while idle or moving)
-    if (state === 'idle' || state === 'moving') {
+    // Hit reaction. Reported as a timestamp rather than a state, so the
+    // renderer can layer a short additive flinch over whatever the character is
+    // already doing. Replacing the state meant a full-body reaction that
+    // cancelled the player's own animation on every hit — a free micro-stun in
+    // PvP — and, because the window was 12 ticks against a 5.63s clip, one that
+    // never played past its first fifth.
+    let hitAt = null;
+    {
       const lastHit = this._lastHitTick?.get(unit.id);
-      if (lastHit != null) {
-        const ticksSinceHit = currentTick - lastHit;
-        const hitAnimDuration = 12; // ~0.2s flinch
-        if (ticksSinceHit >= 0 && ticksSinceHit < hitAnimDuration) {
-          state = 'hit';
-        }
+      if (lastHit != null && currentTick - lastHit >= 0 && currentTick - lastHit < 6) {
+        hitAt = lastHit;
       }
     }
 
-    const result = { position: { x: unit.position.x, y: unit.position.y || 0, z: unit.position.z }, rotation: unit.facing, stealthed: unit.stealthed, state, speed: unit.getEffectiveMoveSpeed(), castProgress, attackProgress, rollProgress, whirlwind, castAbilityId, attackAbilityId };
+    const result = { position: { x: unit.position.x, y: unit.position.y || 0, z: unit.position.z }, rotation: unit.facing, stealthed: unit.stealthed, state, speed: unit.getEffectiveMoveSpeed(), castProgress, attackProgress, rollProgress, whirlwind, castAbilityId, attackAbilityId, animWindowSec, hitAt };
 
     // Jump Y offset
     const jumpState = this._jumpStates?.get(unit.id);

@@ -4935,7 +4935,47 @@ export default class CharacterRenderer {
    * Maps game states to animation clips and handles crossfading.
    * @private
    */
+  /**
+   * Fire a short additive flinch without disturbing the base animation.
+   *
+   * makeClipAdditive rewrites a clip as a delta from its first frame, so
+   * played in AdditiveAnimationBlendMode it adds motion on top of the current
+   * pose rather than replacing it. The source clip is cached per model — the
+   * conversion is destructive, so it is done on a clone.
+   */
+  _playAdditiveHit(model, hitAt) {
+    const ud = model.userData;
+    if (!ud?.mixer || !ud.actions) return;
+    if (ud._lastAdditiveHit === hitAt) return;   // already played for this hit
+    ud._lastAdditiveHit = hitAt;
+
+    if (!ud._additiveHit) {
+      const base = ud.actions['hit'];
+      const clip = base?.getClip?.();
+      if (!clip) return;
+      const add = clip.clone();
+      THREE.AnimationUtils.makeClipAdditive(add);
+      add.name = '__hit_additive';
+      const action = ud.mixer.clipAction(add);
+      action.blendMode = THREE.AdditiveAnimationBlendMode;
+      action.loop = THREE.LoopOnce;
+      action.clampWhenFinished = false;
+      ud._additiveHit = action;
+    }
+
+    const a = ud._additiveHit;
+    // ~0.25s regardless of source length. The clip is 5.63s; at 1.0 the flinch
+    // would still be playing several abilities later.
+    const dur = a.getClip().duration || 1;
+    a.timeScale = Math.max(1, dur / 0.25);
+    a.setEffectiveWeight(0.85);   // visible, but the base pose still reads
+    a.reset().play();
+  }
+
   _updateMixerAnimation(model, unitState, time) {
+    // Additive flinch is independent of the state machine below.
+    if (unitState.hitAt != null) this._playAdditiveHit(model, unitState.hitAt);
+
     const mixer = model.userData.mixer;
     const actions = model.userData.actions;
 
@@ -4966,6 +5006,24 @@ export default class CharacterRenderer {
     let loopMode = THREE.LoopRepeat;
     let timeScale = 1.0;
 
+    // Fit a one-shot clip to the gameplay window it represents.
+    //
+    // Meshy clips run 1.9-3.6s; an instant ability occupies a 1.5s GCD. Played
+    // at 1.0 the clip was truncated when the window closed, which is what read
+    // as choppy and unfinished. Playing it to completion instead would be worse
+    // for PvP: an opponent reads your animation to know when you can act, so an
+    // animation outliving its GCD is misinformation. Scaling it to the window
+    // makes the two agree — the swing ends exactly when the GCD does.
+    //
+    // The dodge case below already did this; it just was not applied to the
+    // states that matter most.
+    const fitToWindow = (clipName, windowSec) => {
+      const act = actions[clipName];
+      const dur = act?.getClip?.().duration;
+      if (!dur || !windowSec || windowSec <= 0) return 1.0;
+      // Clamped so a pathological clip cannot produce a freeze or a blur.
+      return Math.max(0.35, Math.min(4.0, dur / windowSec));
+    };
     switch (unitState.state) {
       case 'idle':
         targetClip = 'idle';
@@ -4993,7 +5051,7 @@ export default class CharacterRenderer {
           targetClip = actions['attack'] ? 'attack' : 'idle';
         }
         loopMode = THREE.LoopOnce;
-        timeScale = 1.0;
+        timeScale = fitToWindow(targetClip, unitState.animWindowSec);
         break;
       }
       case 'casting':
@@ -5012,9 +5070,17 @@ export default class CharacterRenderer {
         break;
       }
       case 'hit':
-        targetClip = actions['hit'] ? 'hit' : 'idle';
-        loopMode = THREE.LoopOnce;
-        timeScale = 1.5;
+        // Deliberately falls through to idle/moving handling — the flinch is
+        // played additively by _playAdditiveHit, on top of whatever the
+        // character is already doing.
+        //
+        // A full-body hit reaction is a free micro-stun in PvP: you are locked
+        // out of your own animation every time you take damage, and with a
+        // 5.63s clip truncated to a 1.2s window it also never completed. Arena
+        // games layer a short flinch instead so you keep running and casting
+        // while visibly reacting.
+        targetClip = (unitState.speed || 0) > 0.1 && actions['run'] ? 'run' : 'idle';
+        loopMode = THREE.LoopRepeat;
         break;
       case 'dead':
       case 'death':
