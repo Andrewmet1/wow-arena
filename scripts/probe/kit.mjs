@@ -1,0 +1,15 @@
+import puppeteer from 'puppeteer';
+const b=await puppeteer.launch({headless:'new',args:['--no-sandbox','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader','--enable-webgl']});
+const p=await b.newPage(); await p.setViewport({width:1280,height:800});
+const errs=[]; p.on('pageerror',e=>errs.push(e.message));
+p.on('console',m=>{if(m.type()==='error'&&!/MultiplyBlending|favicon/.test(m.text()))errs.push(m.text());});
+await p.goto('http://localhost:5173/dungeon-preview.html?seed=4242&roomIndex=3',{waitUntil:'networkidle2',timeout:90000});
+await new Promise(r=>setTimeout(r,28000));
+await p.evaluate(()=>document.getElementById('kit').click());
+await new Promise(r=>setTimeout(r,16000));
+console.log('  kit btn:', await p.evaluate(()=>document.getElementById('kit').textContent));
+console.log('  status :', await p.evaluate(()=>document.getElementById('status').textContent));
+console.log('  stats  :', await p.evaluate(()=>document.getElementById('rstats').textContent));
+console.log('  errors :', errs.length); errs.slice(0,4).forEach(e=>console.log('    '+e.slice(0,140)));
+await p.screenshot({path:'/tmp/kit.png'});
+await b.close();

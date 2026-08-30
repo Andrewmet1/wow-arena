@@ -19,7 +19,8 @@
     "content:generate": "node scripts/generate-content.mjs",
     "test:dungeon": "cd server && node ../scripts/smoke-test-dungeon.mjs",
     "test:hazards": "cd server && node ../scripts/test-hazards.mjs",
-    "test:all": "npm run test:dungeon && npm run test:hazards && npm run content:check"
+    "test:all": "npm run test:dungeon && npm run test:hazards && npm run content:check",
+    "biome": "node scripts/generate-biome.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-sesv2": "^3.1042.0",

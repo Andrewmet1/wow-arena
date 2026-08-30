@@ -36,6 +36,8 @@
     <button id="lights">Lights</button>
   </div>
   <div class="seg">
+    <button id="kit">Kit: off</button>
+    <button id="roof">Roof: off</button>
     <button id="fx">FX: off</button>
     <span id="fps" style="flex:1;text-align:right;padding:5px 4px;color:var(--dim)">– fps</span>
   </div>
@@ -64,6 +66,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { SceneManager } from '/src/rendering/SceneManager.js';
 import { DungeonEnvironment } from '/src/rendering/DungeonEnvironment.js';
+import { KitAssembler } from '/src/rendering/env/KitAssembler.js';
+import { validateBiome } from '/src/rendering/env/KitSchema.js';
 
 const errBox = document.getElementById('err');
 const fail = (e) => { errBox.style.display = 'block'; errBox.textContent = String(e?.stack || e); };
@@ -116,10 +120,12 @@ async function load() {
   // inside the entry chamber's wall, which is why the first frame was a
   // close-up of a texture.
   const main = wing.chambers.find(c => c.template === wing.mainTemplate) || wing.chambers[0];
-  const depth = Math.max(28, main.halfZ * 0.9);
-  pos.set(main.cx, Math.max(16, main.halfZ * 0.55), main.cz + depth);
-  yaw = 0;                 // looking down -Z, into the chamber
-  pitch = -0.42;
+  // Match CameraController.enterDungeonCamera() exactly — distance 28, pitch
+  // -0.95, target locked to y=1. Evaluating the environment from any other
+  // angle is evaluating a view the game never shows: top-down IS the gameplay,
+  // so it is the only framing worth judging the art on.
+  pos.set(main.cx, 1, main.cz);   // `pos` is now the ground target, not the eye
+  yaw = 0;
 
   const surf = document.getElementById('target');
   surf.innerHTML = '';
@@ -135,7 +141,7 @@ async function load() {
     `<b style="color:#c9a227">${wing.mainTemplate}</b> · seed ${seed} · ${roomType}<br>`
     + `${wing.chambers.length} chambers · ${(wing.features || []).length} features`
     + (hz.length ? ` · <span style="color:#d24a30">${hz.length} hazards</span>` : '')
-    + `<br><span class="keys"><b>WASD</b> move · <b>Q/E</b> down/up · <b>Shift</b> fast · click to look</span>`;
+    + `<br><span class="keys"><b>WASD</b> walk · <b>Shift</b> fast · drag to turn — game camera (dist 28, pitch -0.95)</span>`;
 }
 
 document.getElementById('mPlayer').onclick = () => setMode('player');
@@ -162,6 +168,52 @@ document.getElementById('reroll').onclick = async () => {
 // "at 10fps ... can't afford". That measurement predates characters dropping
 // from 1.42M to 150K triangles. Rather than assert it's affordable now, this
 // toggles them on your actual GPU and shows the frame cost.
+// Enclosure test. The wing has no ceiling because the overhead camera has to
+// see the player; this builds one and fades it as the camera rises through it,
+// so the same scene can feel roofed at eye level and stay readable from above.
+// Kit build. Replaces the greybox floor plane and box walls with placed kit
+// geometry from the biome spec. Pieces with no GLB yet fall back to sized
+// blocks, so this is inspectable before a kit has been generated.
+let kitOn = false, assembler = null, biome = null;
+document.getElementById('kit').onclick = async (e) => {
+  kitOn = !kitOn;
+  e.target.textContent = `Kit: ${kitOn ? 'on' : 'off'}`;
+  e.target.classList.toggle('on', kitOn);
+  if (!kitOn) { assembler?.dispose(); assembler = null; return; }
+  try {
+    if (!biome) {
+      biome = (await import('/content/biomes/crucible_below.mjs')).default;
+      const errs = validateBiome(biome);
+      if (errs.length) throw new Error(errs.join('; '));
+    }
+    // Hide the greybox so the two constructions aren't drawn on top of
+    // each other — the comparison is the point.
+    env.group.visible = false;
+    assembler = new KitAssembler(scene, biome);
+    let pieces = 0;
+    for (const ch of wing.chambers) {
+      pieces += await assembler.buildChamber(ch, (wing.doors || []).filter(d =>
+        Math.abs(d.cx - ch.cx) < ch.halfX + 6 && Math.abs(d.cz - ch.cz) < ch.halfZ + 6));
+    }
+    document.getElementById('status').style.color = '#8fd6a0';
+    document.getElementById('status').textContent = `kit built · ${pieces} piece types instanced`;
+  } catch (err) {
+    document.getElementById('status').style.color = '#e08b7a';
+    document.getElementById('status').textContent = 'kit: ' + err.message;
+    kitOn = false; e.target.textContent = 'Kit: off'; e.target.classList.remove('on');
+    env.group.visible = true;
+  }
+};
+
+let roofOn = false, roofH = 13;
+document.getElementById('roof').onclick = (e) => {
+  roofOn = !roofOn;
+  if (roofOn && wing) env.buildCeiling(wing.bounds, roofH);
+  else if (env?._ceiling) { env.group.remove(env._ceiling); env._ceiling = null; }
+  e.target.textContent = `Roof: ${roofOn ? 'on' : 'off'}`;
+  e.target.classList.toggle('on', roofOn);
+};
+
 let fxOn = false;
 document.getElementById('fx').onclick = (e) => {
   fxOn = !fxOn;
@@ -220,19 +272,26 @@ function frame() {
   const now = performance.now(); const dt = Math.min(0.05, (now - last) / 1000); last = now;
   t += dt;
   if (mode === 'player') {
-    const sp = (keys.has('shift') ? 90 : 34) * dt;
+    // WASD walks the target across the floor like the player; the camera stays
+    // on the game's fixed arm above and behind it.
+    const sp = (keys.has('shift') ? 60 : 22) * dt;
     const fwd = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
     const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
     if (keys.has('w')) pos.addScaledVector(fwd, -sp);
     if (keys.has('s')) pos.addScaledVector(fwd, sp);
     if (keys.has('a')) pos.addScaledVector(right, -sp);
     if (keys.has('d')) pos.addScaledVector(right, sp);
-    if (keys.has('e')) pos.y += sp; if (keys.has('q')) pos.y -= sp;
-    pos.y = Math.max(2, pos.y);
-    camera.position.copy(pos);
-    camera.rotation.set(pitch, yaw, 0, 'YXZ');
+    pos.y = 1;
+    const DIST = 28, PITCH = -0.95;   // CameraController dungeon values
+    const cp = Math.cos(PITCH);
+    camera.position.set(
+      pos.x - DIST * cp * Math.sin(yaw),
+      pos.y + DIST * Math.sin(-PITCH),
+      pos.z - DIST * cp * Math.cos(yaw),
+    );
+    camera.lookAt(pos);
   } else orbit.update();
-  try { sm.tickDungeonAtmosphere?.(t); env?.tick?.(t); } catch {}
+  try { sm.tickDungeonAtmosphere?.(t); env?.tick?.(t); env?.setCeilingVisibility?.(camera.position.y); } catch {}
   sm.renderer.info.reset();
   sm.render();
   if (++fCount >= 30) {

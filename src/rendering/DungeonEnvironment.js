@@ -1389,12 +1389,17 @@ export class DungeonEnvironment {
     const heightmapName = themeFloor?.heightmap || 'tex_heightmap_stone';
     const heightAmp = themeFloor?.heightAmplitude || 0.25;
 
-    const tex = loadTex(primaryTex, chamber.halfX * 2 / 8, chamber.halfZ * 2 / 8);
+    // One tile per 8 units made each slab roughly three player-widths across,
+    // which reads as giant flat rectangles from the overhead gameplay camera.
+    // 4 units puts floor detail near player scale, where a top-down game needs
+    // it — this is the view the game is actually played from.
+    const TILE = 4;
+    const tex = loadTex(primaryTex, chamber.halfX * 2 / TILE, chamber.halfZ * 2 / TILE);
     // Procedural normal mapping — re-use diffuse as bumpMap to give the floor
     // visible surface relief. Diablo-style depth without authored normal maps.
     const mat = new THREE.MeshStandardMaterial({
       map: tex, color: style.tint, roughness: 0.92, metalness: 0.05,
-      normalMap: loadNormal(primaryTex, chamber.halfX * 2 / 8, chamber.halfZ * 2 / 8),
+      normalMap: loadNormal(primaryTex, chamber.halfX * 2 / TILE, chamber.halfZ * 2 / TILE),
       normalScale: new THREE.Vector2(1.1, 1.1),
     });
     // PERF: floor is now FLAT — heightmap displacement on a 32x32 subdivided
@@ -1904,18 +1909,56 @@ export class DungeonEnvironment {
     this._buildEdgeWalls({ x1: cW - T / 2, x2: cW - T / 2, z1: cS, z2: cN, axis: 'z', abuttingRanges: ranges.w, mat });
   }
 
-  _buildCeilingFromBounds(bounds) {
+  /**
+   * Ceiling over the whole wing.
+   *
+   * Was written and then never called: buildWing skips it, so the current
+   * dungeon has no roof at all and the player sees sky over 6-unit walls. That
+   * is why chambers read as walled courtyards rather than interiors — a
+   * 108-unit-wide room, open to the sky, is a parade ground regardless of how
+   * much clutter sits on the floor.
+   *
+   * The walls are short because the overhead camera has to see the player
+   * (see WALL_HEIGHT). Enclosure and an overhead camera are only compatible if
+   * the roof gets out of the way, which is what every isometric dungeon game
+   * does: keep the ceiling for low, in-world views and drop it once the camera
+   * climbs above it. setCeilingVisibility drives that per frame.
+   */
+  _buildCeilingFromBounds(bounds, height = WALL_HEIGHT) {
     const w = bounds.halfX * 2 + 4;
     const d = bounds.halfZ * 2 + 4;
     const tex = loadTex('ceiling_vault', w / 8, d / 8);
     const mat = new THREE.MeshStandardMaterial({
       map: tex, color: 0x4a3a30, roughness: 0.92, metalness: 0.05,
-      side: THREE.DoubleSide,
+      side: THREE.DoubleSide, transparent: true, opacity: 1,
     });
     const ceil = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat);
     ceil.rotation.x = Math.PI / 2;
-    ceil.position.y = WALL_HEIGHT;
+    ceil.position.y = height;
+    ceil.renderOrder = -1;
     this.group.add(ceil);
+    this._ceiling = ceil;
+    return ceil;
+  }
+
+  /**
+   * Fade the ceiling out as the camera rises through it, so an overhead camera
+   * never looks at the underside of a roof and a low camera still feels roofed.
+   */
+  setCeilingVisibility(cameraY) {
+    const c = this._ceiling;
+    if (!c) return;
+    const h = c.position.y;
+    const fade = 6;
+    const o = cameraY >= h ? 0 : Math.min(1, (h - cameraY) / fade);
+    c.material.opacity = o;
+    c.visible = o > 0.02;
+  }
+
+  /** Build a ceiling for the current wing. Opt-in: callers decide. */
+  buildCeiling(bounds, height) {
+    if (this._ceiling) { this.group.remove(this._ceiling); this._ceiling = null; }
+    return this._buildCeilingFromBounds(bounds, height);
   }
 
   _buildTorchesFromWing(wing) {
@@ -4389,7 +4432,12 @@ export class DungeonEnvironment {
     // ── 1) Wall-hugging props — line the perimeter
     const wallTags = tpl.propTags.filter(t => WALL_HUGGING.has(PROP_ALIASES[t] || t));
     for (const tag of wallTags) {
-      const count = 4 + Math.floor(Math.random() * 4); // 4..7 along walls
+      // Was a flat 4..7 regardless of room size, which left a 96x84 chamber
+      // essentially empty. Props were 15,000 triangles each when that number
+      // was chosen; they are ~900 now, so density is affordable. Scaling by
+      // wall length keeps small alcoves from being crammed.
+      const perimeter = 2 * (chamber.halfX + chamber.halfZ) * 2;
+      const count = Math.max(6, Math.min(26, Math.round(perimeter / 26)));
       for (let i = 0; i < count; i++) {
         // Pick a wall (N/S/E/W) and a position along it, 1.5u offset inward
         const wallChoice = Math.floor(Math.random() * 4);

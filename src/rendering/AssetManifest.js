@@ -426,6 +426,7 @@ export const ASSET_MANIFEST = {
     defaultWeapon: 'greatsword',
     skinWeapons: {
       forest_inspired_dark_bear_skin: 'bear_axe',
+      ashen_overlord: 'greatsword',
     },
     weaponHand: 'both',
     weaponOffset: {
@@ -435,9 +436,9 @@ export const ASSET_MANIFEST = {
         scale: [0.7, 0.7, 0.7],
       },
       greatsword: {
-        position: [0.065, 0.25, -0.22],
-        rotation: [-2.7416, 1.5584, 1.2584],
-        scale: [0.7, 0.7, 0.7],
+        position: [0.095, 0.185, -0.475],
+        rotation: [-2.5916, 0.4584, 0.5584],
+        scale: [0.65, 0.65, 0.65],
       },
     },
     scale: 1.0,
