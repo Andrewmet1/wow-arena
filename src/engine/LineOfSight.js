@@ -7,13 +7,18 @@ const STAGING_CELLS = [
 ];
 
 export class LineOfSight {
-  constructor(pillars = null) {
+  constructor(pillars = null, radius = null) {
     // Pillars as circles: { x, z, radius }
     this.pillars = pillars || PILLAR_POSITIONS.map(p => ({
       x: p.x,
       z: p.z,
       radius: PILLAR_RADIUS
     }));
+
+    // Boundary radius. Variable so arena layouts can differ in size as well as
+    // in cover — a tight arena and a wide one play differently even with the
+    // same pillars. Falls back to the original constant.
+    this.arenaRadius = radius ?? ARENA_RADIUS;
 
     /** When false, units are confined to their staging cell. Set true when gates open. */
     this.gatesOpen = false;
@@ -197,7 +202,7 @@ export class LineOfSight {
       return Math.abs(pos.x) <= this.dungeonBounds.halfX
           && Math.abs(pos.z) <= this.dungeonBounds.halfZ;
     }
-    return (pos.x * pos.x + pos.z * pos.z) <= ARENA_RADIUS * ARENA_RADIUS;
+    return (pos.x * pos.x + pos.z * pos.z) <= this.arenaRadius * this.arenaRadius;
   }
 
   /**
@@ -241,10 +246,10 @@ export class LineOfSight {
 
     // Normal PvP arena circular bounds
     const distSq = pos.x * pos.x + pos.z * pos.z;
-    if (distSq <= ARENA_RADIUS * ARENA_RADIUS) return pos;
+    if (distSq <= this.arenaRadius * this.arenaRadius) return pos;
 
     const dist = Math.sqrt(distSq);
-    const scale = (ARENA_RADIUS - 0.5) / dist;
+    const scale = (this.arenaRadius - 0.5) / dist;
     return { x: pos.x * scale, y: pos.y || 0, z: pos.z * scale };
   }
 

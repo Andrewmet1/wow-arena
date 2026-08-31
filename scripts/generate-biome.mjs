@@ -46,6 +46,10 @@ const CAP = args.includes('--budget') ? parseFloat(args[args.indexOf('--budget')
 // requirement as the character pipeline's (where Meshy's rigging is the point).
 const PROVIDER = args.includes('--provider') ? args[args.indexOf('--provider') + 1] : null;
 const BIOME_FILE = args.includes('--biome') ? args[args.indexOf('--biome') + 1] : null;
+// Concept art only. The image step needs no mesher, so a blocked or unfunded
+// 3D vendor should not stop you previewing and approving the pieces — that is
+// the same order the character pipeline works in: concept first, mesh after.
+const CONCEPTS_ONLY = args.includes('--concepts-only');
 
 if (BIOME_FILE) {
   // Generate the kit for a biome that already exists, without paying for a new
@@ -54,17 +58,18 @@ if (BIOME_FILE) {
   const b = mod.default;
   const errs = validateBiome(b);
   if (errs.length) { console.error('  biome invalid:', errs); process.exit(1); }
-  await assertProviderReady(PROVIDER);
+  if (!CONCEPTS_ONLY) await assertProviderReady(PROVIDER);
   const dir = path.resolve('public/assets/models/kits', b.id);
   fs.mkdirSync(dir, { recursive: true });
   const budget = new Budget(CAP);
   console.log(`\n  generating kit for ${b.id} via ${PROVIDER || 'default provider'} — $${CAP.toFixed(2)} cap\n`);
   for (const p of b.kit) {
     const glb = path.join(dir, `${p.id}.glb`);
-    if (fs.existsSync(glb)) { console.log(`  · ${p.id} exists`); continue; }
+    if (fs.existsSync(glb) && !CONCEPTS_ONLY) { console.log(`  · ${p.id} exists`); continue; }
     try {
       const concept = path.resolve('public/assets/art/concepts', `kit_${b.id}_${p.id}.png`);
       const img = await generateImage({ prompt: p.prompt, out: concept, budget, commit: true });
+      if (CONCEPTS_ONLY) { console.log(`  ✓ ${p.id} (concept)`); continue; }
       const r = await imageTo3D({ image: img, id: p.id, polycount: 2500, budget, commit: true,
         provider: PROVIDER, onProgress: (s, pc) => console.log(`      [${p.id}] ${s} ${pc}%`) });
       await download(r.model_urls.glb, glb);

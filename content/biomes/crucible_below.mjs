@@ -12,9 +12,21 @@
 
 import { piece, ROLES } from '../../src/rendering/env/KitSchema.js';
 
-const STYLE = 'dark fantasy dungeon, weathered volcanic basalt and iron, '
-            + 'grime in the crevices, PBR game asset, neutral even lighting, '
-            + 'no baked shadows, isolated on transparent background';
+// Piece prompts feed image-to-3D directly, the same loop the characters came
+// out of: generate concept art, approve it, let the mesher build from it.
+//
+// The style line targets the existing character models rather than an
+// independent art direction. Measured against their diffuse maps they run
+// 37-53% saturation with high local detail across a ~19-hue palette — grounded
+// dark fantasy with real material variation. An earlier painterly target
+// measured 24% and 3 hues, which would have left the characters reading as
+// stickers on a flat backdrop.
+const STYLE = 'grounded dark fantasy game asset in the manner of Diablo IV, physically based '
+            + 'materials, weathered volcanic basalt with iron fittings, visible wear and chipping, '
+            + 'grime and soot in the crevices, rust streaks, subtle colour variation between stone, '
+            + 'metal and bone so the surfaces read as different materials. Detailed sculpted relief, '
+            + 'not painterly or cartoon. Neutral even studio lighting, no baked shadows, '
+            + 'isolated on transparent background';
 
 export default {
   id: 'crucible_below',

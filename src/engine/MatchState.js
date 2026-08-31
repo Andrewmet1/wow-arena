@@ -1,4 +1,5 @@
 import { LineOfSight } from './LineOfSight.js';
+import { variantPillars } from '../arena/ArenaVariants.js';
 import { EventBus } from '../utils/EventBus.js';
 import { SeededRandom } from '../utils/Random.js';
 
@@ -15,7 +16,12 @@ export class MatchState {
     // Systems
     this.eventBus = config.eventBus || new EventBus();
     this.rng = config.rng || new SeededRandom(config.seed || Date.now());
-    this.los = new LineOfSight();
+    // Arena layout. Passed through from the room so cover and boundary come
+    // from the chosen variant rather than a single hardcoded shape.
+    this.arenaVariant = config.arenaVariant || null;
+    this.los = this.arenaVariant
+      ? new LineOfSight(variantPillars(this.arenaVariant), this.arenaVariant.radius)
+      : new LineOfSight();
 
     // Arena
     this.dynamicEvents = []; // Active events on the field

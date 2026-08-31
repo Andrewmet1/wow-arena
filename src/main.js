@@ -510,7 +510,9 @@ class Game {
       this.updateLoadingBar(30);
 
       this.arenaRenderer = new ArenaRenderer(this.sceneManager.getScene());
-      this.arenaRenderer.build();
+      // Built without a variant here; PvP rebuilds it from match_start once the
+      // server says which arena it simulated.
+      this.arenaRenderer.build(this._arenaVariant || null);
       this.updateLoadingBar(50);
 
       this.characterRenderer = new CharacterRenderer(this.sceneManager.getScene());
@@ -13663,6 +13665,14 @@ class Game {
     this._pvpEnemySlot = enemySlot;
 
     // Handle server ticks — apply authoritative state
+    // The server chooses the arena and tells us; rebuild so the cover we draw
+    // matches the cover it blocks against.
+    if (matchData?.arena && this.arenaRenderer) {
+      this._arenaVariant = matchData.arena;
+      this.arenaRenderer.dispose?.();
+      this.arenaRenderer.build(matchData.arena);
+    }
+
     net.onTick = (tickData) => {
       this._applyServerTick(tickData);
     };

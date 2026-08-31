@@ -1,4 +1,5 @@
 import { MatchState } from '../src/engine/MatchState.js';
+import { pickArenaVariant } from '../src/arena/ArenaVariants.js';
 import { CombatEngine } from '../src/engine/CombatEngine.js';
 import { Unit } from '../src/engine/Unit.js';
 import { CLASS_REGISTRY } from '../src/classes/ClassRegistry.js';
@@ -146,7 +147,13 @@ export class GameRoom {
     const rng = new SeededRandom(seed);
     const eventBus = new EventBus();
 
-    this.match = new MatchState({ eventBus, rng, seed, mode: this.mode });
+    // Pick the arena layout from the match seed, so the same seed always
+    // produces the same arena — spectators and replays have to see the ground
+    // the players actually fought on.
+    const arenaVariant = pickArenaVariant(() => rng.next());
+    this.arenaVariant = arenaVariant;
+    console.log(`[Room ${this.code}] arena: ${arenaVariant.name}`);
+    this.match = new MatchState({ eventBus, rng, seed, mode: this.mode, arenaVariant });
     this.engine = new CombatEngine(this.match);
 
     // Create units from each player's class
@@ -223,6 +230,17 @@ export class GameRoom {
       seed,
       mode: this.mode,
       playerMeta: metaPayload,
+      // The arena the server actually simulated. Sent rather than re-derived
+      // client-side so cover and boundary can never disagree between the two —
+      // a pillar the client draws but the server does not block behind would be
+      // worse than no cover at all.
+      arena: {
+        id: this.arenaVariant.id,
+        name: this.arenaVariant.name,
+        radius: this.arenaVariant.radius,
+        pillars: this.arenaVariant.pillars,
+        pillarRadius: this.arenaVariant.pillarRadius,
+      },
       // Include duel/wager data if this is a challenge match
       ...(this.challenge && this.challengeData ? {
         duel: { duelId: this.challengeData.duelId, wager: this.challengeData.wager, amplifier: this.challengeData.amplifier }

@@ -151,7 +151,39 @@ export class ArenaRenderer {
   /**
    * Build all arena geometry and add the root group to the scene.
    */
-  build() {
+  /**
+   * Tear the arena down so it can be rebuilt for a different layout.
+   *
+   * Everything hangs off one group, so removal is straightforward — but the
+   * per-frame animation references have to be cleared too, or the torch and
+   * particle tick keeps updating meshes that are no longer in the scene.
+   */
+  dispose() {
+    this.group.traverse((o) => {
+      o.geometry?.dispose?.();
+      const mats = Array.isArray(o.material) ? o.material : (o.material ? [o.material] : []);
+      for (const m of mats) m?.dispose?.();
+    });
+    this.scene.remove(this.group);
+    this.group = new THREE.Group();
+    this.group.name = 'ArenaGroup';
+    this.scene.add(this.group);
+    this.particles = null;
+    this.particleVelocities = [];
+    this.torchLights = [];
+    this.torchBaseLightIntensities = [];
+    this.torchFlameSprites = [];
+  }
+
+  /**
+   * @param {object|null} variant  Arena layout from the server's match_start.
+   *   Passed in rather than imported so the client draws the same cover the
+   *   server simulates — a pillar rendered where nothing blocks line of sight
+   *   is worse than no pillar, because players position against it and lose
+   *   fights to geometry that is not there.
+   */
+  build(variant = null) {
+    this.variant = variant;
     this._buildFloor();
     this._buildFloorTileStrips();
     this._buildFloorCracks();
@@ -968,7 +1000,10 @@ export class ArenaRenderer {
   // ---------------------------------------------------------------------------
 
   _buildPillars() {
-    const pillarPositions = [
+    // Positions were hardcoded here as well as in constants and LineOfSight —
+    // three copies of the same layout, which is why the arena could only ever
+    // be one shape.
+    const pillarPositions = this.variant?.pillars ?? [
       { x: 20, z: 20 },
       { x: -20, z: 20 },
       { x: 20, z: -20 },
