@@ -217,6 +217,106 @@ function animSavePlugin() {
         }
       });
 
+      // ── Kit generation, exposed to the studio UI ───────────────────────
+      //
+      // The character viewer drives its whole pipeline from the browser:
+      // prompt, concept, review, build. The dungeon had none of that — making a
+      // piece meant editing a biome file by hand and running CLI commands with
+      // flags, then reloading to see the result. Same pipeline underneath;
+      // these endpoints just let the studio drive it.
+
+      server.middlewares.use('/api/kit-status', async (req, res) => {
+        try {
+          const url = new URL(req.url, 'http://x');
+          const biomeId = url.searchParams.get('biome') || 'crucible_below';
+          const mod = await server.ssrLoadModule(`/content/biomes/${biomeId}.mjs`);
+          const b = mod.default;
+          const kitDir = path.resolve('public/assets/models/kits', b.id);
+          const conceptDir = path.resolve('public/assets/art/concepts');
+          const pieces = b.kit.map(p => ({
+            id: p.id, role: p.role, prompt: p.prompt,
+            footprint: p.footprint, variants: p.variants || [],
+            hasMesh: fs.existsSync(path.join(kitDir, `${p.id}.glb`)),
+            hasConcept: fs.existsSync(path.join(conceptDir, `kit_${b.id}_${p.id}.png`)),
+            conceptUrl: `/assets/art/concepts/kit_${b.id}_${p.id}.png`,
+          }));
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ id: b.id, name: b.name, pieces }));
+        } catch (err) {
+          res.statusCode = 500; res.end(JSON.stringify({ error: err.message }));
+        }
+      });
+
+      // Long-running work is tracked so the browser can poll rather than hold a
+      // request open for the several minutes a mesh takes.
+      const kitJobs = new Map();
+
+      server.middlewares.use('/api/kit-generate', (req, res) => {
+        if (req.method !== 'POST') { res.statusCode = 405; res.end('Method not allowed'); return; }
+        let body = '';
+        req.on('data', c => body += c);
+        req.on('end', async () => {
+          try {
+            const { biome = 'crucible_below', piece, prompt, stage } = JSON.parse(body);
+            if (!piece || !/^[a-z0-9_]+$/.test(piece)) throw new Error('bad piece id');
+            const jobId = `${biome}:${piece}:${stage}`;
+            if (kitJobs.get(jobId)?.state === 'running') {
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ jobId, state: 'running' })); return;
+            }
+            kitJobs.set(jobId, { state: 'running', note: 'starting' });
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ jobId, state: 'running' }));
+
+            // Run detached; the browser polls /api/kit-job.
+            (async () => {
+              try {
+                const gk = await server.ssrLoadModule('/scripts/lib/genkit.mjs');
+                const mod = await server.ssrLoadModule(`/content/biomes/${biome}.mjs`);
+                const def = mod.default.kit.find(k => k.id === piece);
+                if (!def) throw new Error(`no piece ${piece} in ${biome}`);
+                const usePrompt = prompt?.trim() || def.prompt;
+                const conceptPath = path.resolve('public/assets/art/concepts', `kit_${biome}_${piece}.png`);
+                const budget = new gk.Budget(2.0);
+
+                if (stage === 'concept' || stage === 'both') {
+                  kitJobs.set(jobId, { state: 'running', note: 'generating concept art…' });
+                  if (fs.existsSync(conceptPath)) fs.unlinkSync(conceptPath);
+                  await gk.generateImage({ prompt: usePrompt, out: conceptPath, budget, commit: true });
+                }
+                if (stage === 'mesh' || stage === 'both') {
+                  kitJobs.set(jobId, { state: 'running', note: 'building 3D — a few minutes…' });
+                  const img = fs.readFileSync(conceptPath);
+                  const r = await gk.imageTo3D({ image: img, id: piece, polycount: 2500, budget, commit: true,
+                    onProgress: (s, pc) => kitJobs.set(jobId, { state: 'running', note: `mesh ${s} ${pc}%` }) });
+                  const dir = path.resolve('public/assets/models/kits', biome);
+                  fs.mkdirSync(dir, { recursive: true });
+                  const outGlb = path.join(dir, `${piece}.glb`);
+                  await gk.download(r.model_urls.glb, outGlb);
+                  kitJobs.set(jobId, { state: 'running', note: 'optimising…' });
+                  const opt = await server.ssrLoadModule('/scripts/lib/optimize-glb.mjs');
+                  const o = await opt.optimizeGlb(outGlb);
+                  kitJobs.set(jobId, { state: 'running',
+                    note: `optimised ${(o.before/1048576).toFixed(1)}MB -> ${(o.after/1048576).toFixed(2)}MB` });
+                }
+                kitJobs.set(jobId, { state: 'done', note: `spent $${budget.spent.toFixed(2)}` });
+              } catch (e) {
+                kitJobs.set(jobId, { state: 'error', note: e.message });
+              }
+            })();
+          } catch (err) {
+            res.statusCode = 400; res.end(JSON.stringify({ error: err.message }));
+          }
+        });
+      });
+
+      server.middlewares.use('/api/kit-job', (req, res) => {
+        const url = new URL(req.url, 'http://x');
+        const job = kitJobs.get(url.searchParams.get('id')) || { state: 'idle', note: '' };
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify(job));
+      });
+
       // ── Dungeon Studio ────────────────────────────────────────────────
       // Characters have had an authoring UI (viewer.html) for a long time;
       // the dungeon had an 81-line hardcoded probe. These back

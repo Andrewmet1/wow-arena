@@ -1,0 +1,15 @@
+import puppeteer from 'puppeteer';
+const b=await puppeteer.launch({headless:'new',args:['--no-sandbox','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader','--enable-webgl']});
+const p=await b.newPage(); await p.setViewport({width:1400,height:900});
+const errs=[]; p.on('pageerror',e=>errs.push(e.message));
+p.on('console',m=>{if(m.type()==='error'&&!/favicon/.test(m.text()))errs.push(m.text());});
+await p.goto('http://localhost:5173/dungeon-studio.html',{waitUntil:'networkidle2',timeout:60000});
+await new Promise(r=>setTimeout(r,4000));
+await p.evaluate(()=>[...document.querySelectorAll('.tab')].find(t=>t.dataset.tab==='kit').click());
+await new Promise(r=>setTimeout(r,5000));
+console.log('  rows:', await p.evaluate(()=>document.querySelectorAll('#kitpane textarea').length));
+console.log('  buttons:', await p.evaluate(()=>document.querySelectorAll('#kitpane button').length));
+console.log('  header:', await p.evaluate(()=>document.querySelector('#kitpane div')?.innerText||''));
+console.log('  errors:', errs.length); errs.slice(0,3).forEach(e=>console.log('   ',e.slice(0,120)));
+await p.screenshot({path:'/tmp/kitstudio.png'});
+await b.close();

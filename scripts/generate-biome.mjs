@@ -16,6 +16,7 @@
 import fs from 'fs';
 import path from 'path';
 import { validateBiome } from '../src/rendering/env/KitSchema.js';
+import { optimizeGlb } from './lib/optimize-glb.mjs';
 import { Budget, generateImage, imageTo3D, download, COST, loadEnv } from './lib/genkit.mjs';
 import { resolveProvider, preflight } from './lib/providers.mjs';
 
@@ -80,7 +81,11 @@ if (BIOME_FILE) {
       const r = await imageTo3D({ image: img, id: p.id, polycount: 2500, budget, commit: true,
         provider: PROVIDER, onProgress: (s, pc) => console.log(`      [${p.id}] ${s} ${pc}%`) });
       await download(r.model_urls.glb, glb);
-      console.log(`  ✓ ${p.id}`);
+      // Optimise on arrival. A mesher returns hero-quality regardless of use;
+      // the first generated tile was 11.3MB, almost all of it a 4K texture on
+      // geometry that repeats hundreds of times per room.
+      const o = await optimizeGlb(glb);
+      console.log(`  ✓ ${p.id}  ${(o.before/1048576).toFixed(1)}MB -> ${(o.after/1048576).toFixed(2)}MB`);
     } catch (e) {
       console.log(`  ✗ ${p.id}: ${e.message}`);
       if (/budget exceeded/.test(e.message)) break;

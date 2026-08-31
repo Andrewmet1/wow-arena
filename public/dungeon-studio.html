@@ -45,10 +45,12 @@
     <div id="tabs">
       <div class="tab on" data-tab="prop">Prop</div>
       <div class="tab" data-tab="wing">Wing Layout</div>
+      <div class="tab" data-tab="kit">Kit Studio</div>
     </div>
     <div style="flex:1;position:relative">
       <canvas id="view"></canvas>
       <iframe id="wingframe" style="position:absolute;inset:0;width:100%;height:100%;border:0;display:none;background:#0d0b0a"></iframe>
+      <div id="kitpane" style="position:absolute;inset:0;display:none;overflow-y:auto;padding:16px;background:#14110f"></div>
       <div id="stats">select a prop</div>
     </div>
   </div>
@@ -268,6 +270,59 @@ function wingUrl() {
   return `/dungeon-preview.html?roomType=${document.getElementById('roomType').value}`
        + `&seed=${document.getElementById('seed').value || 12345}&roomIndex=2`;
 }
+// ── Kit Studio ───────────────────────────────────────────────────────────
+// Concept -> review -> build, driven from here rather than from a text editor
+// and CLI flags. Same endpoints the character viewer uses in spirit: the work
+// runs server-side and the browser polls, because a mesh takes minutes.
+let kitData = null;
+async function loadKit() {
+  const pane = document.getElementById('kitpane');
+  pane.innerHTML = '<span style="color:var(--dim)">loading kit…</span>';
+  const r = await fetch('/api/kit-status?biome=crucible_below');
+  kitData = await r.json();
+  if (kitData.error) { pane.innerHTML = '<span style="color:#e08b7a">' + kitData.error + '</span>'; return; }
+  const done = kitData.pieces.filter(p => p.hasMesh).length;
+  pane.innerHTML = `<div style="margin-bottom:12px;color:var(--dim)">
+      <b style="color:var(--gold)">${kitData.name}</b> — ${done}/${kitData.pieces.length} pieces modelled</div>`;
+  for (const p of kitData.pieces) {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:12px;padding:10px;border:1px solid var(--line);border-radius:4px;margin-bottom:8px;align-items:flex-start';
+    row.innerHTML = `
+      <img src="${p.hasConcept ? p.conceptUrl : ''}" style="width:96px;height:96px;object-fit:cover;background:#0d0b0a;border:1px solid var(--line);border-radius:3px" onerror="this.style.opacity=0.15">
+      <div style="flex:1;min-width:0">
+        <div><b>${p.id}</b> <span class="tag">${p.role}</span>
+          ${p.hasMesh ? '<span class="tag" style="background:#1e3324;color:#8fd6a0">modelled</span>'
+                      : '<span class="tag blocked">fallback box</span>'}</div>
+        <textarea data-p="${p.id}" rows="3" style="width:100%;margin-top:6px">${p.prompt.replace(/</g,'&lt;')}</textarea>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button data-act="concept" data-p="${p.id}">Generate Concept</button>
+          <button data-act="mesh" data-p="${p.id}">Build 3D</button>
+          <button class="on" data-act="both" data-p="${p.id}">Concept + 3D</button>
+          <span data-status="${p.id}" style="flex:1;text-align:right;font-size:10px;color:var(--dim);padding-top:6px"></span>
+        </div>
+      </div>`;
+    pane.appendChild(row);
+  }
+  pane.onclick = async (e) => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    const piece = btn.dataset.p, stage = btn.dataset.act;
+    const status = pane.querySelector(`[data-status="${piece}"]`);
+    const prompt = pane.querySelector(`textarea[data-p="${piece}"]`).value;
+    status.textContent = 'starting…'; status.style.color = 'var(--dim)';
+    const res = await fetch('/api/kit-generate', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ biome: 'crucible_below', piece, prompt, stage }) });
+    const j = await res.json();
+    if (j.error) { status.textContent = j.error; status.style.color = '#e08b7a'; return; }
+    const poll = setInterval(async () => {
+      const s = await (await fetch('/api/kit-job?id=' + encodeURIComponent(j.jobId))).json();
+      status.textContent = s.note || s.state;
+      if (s.state === 'done') { clearInterval(poll); status.style.color = '#8fd6a0'; loadKit(); }
+      if (s.state === 'error') { clearInterval(poll); status.style.color = '#e08b7a'; }
+    }, 2500);
+  };
+}
+
 function showWing3D(on) {
   const f = document.getElementById('wingframe');
   document.getElementById('view').style.display = on ? 'none' : 'block';
@@ -278,7 +333,15 @@ function showWing3D(on) {
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
   document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
   t.classList.add('on');
-  showWing3D(t.dataset.tab === 'wing');
+  const tab = t.dataset.tab;
+  showWing3D(tab === 'wing');
+  const kp = document.getElementById('kitpane');
+  kp.style.display = tab === 'kit' ? 'block' : 'none';
+  if (tab === 'kit') {
+    document.getElementById('view').style.display = 'none';
+    document.getElementById('stats').style.display = 'none';
+    loadKit();
+  }
 });
 
 const r = await fetch('/api/dungeon-content');
