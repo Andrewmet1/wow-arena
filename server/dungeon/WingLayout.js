@@ -92,11 +92,17 @@ function addPacksForChamber(layout, chamber, packCount, packIdPrefix, rng) {
   for (let p = 0; p < packCount; p++) {
     let best = null, bestScore = -Infinity;
     for (let attempt = 0; attempt < 8; attempt++) {
-      // Spread packs around the chamber in a 360° sweep with jitter
+      // Spread packs around the chamber in a 360° sweep with jitter.
+      //
+      // Placement is elliptical, scaled per axis by that axis's half-extent.
+      // A single radius derived from halfX + halfZ and applied isotropically
+      // overflows the short side of any elongated room: long_hall_crypt is
+      // 34 x 13, so a radius of up to 20 put packs seven units past a wall
+      // that is only thirteen deep. Monsters spawned outside the room.
       const baseAngle = (p / packCount) * Math.PI * 2 + rng() * 0.3;
-      const radius = (chamber.halfX + chamber.halfZ) * (0.25 + rng() * 0.18);
-      const cx = chamber.cx + Math.cos(baseAngle) * radius;
-      const cz = chamber.cz + Math.sin(baseAngle) * radius;
+      const reach = 0.30 + rng() * 0.40;          // fraction of the way to the wall
+      const cx = chamber.cx + Math.cos(baseAngle) * chamber.halfX * reach;
+      const cz = chamber.cz + Math.sin(baseAngle) * chamber.halfZ * reach;
       // Score: far from other pack centers + far from cover
       let score = 0;
       for (const c of packCenters) {
@@ -112,12 +118,17 @@ function addPacksForChamber(layout, chamber, packCount, packIdPrefix, rng) {
     }
     packCenters.push(best);
     const packSize = 2 + Math.floor(rng() * 2); // 2 or 3
+    // Keep members off the wall itself — a spawn flush against geometry can
+    // leave a monster stuck on the collision surface.
+    const MARGIN = 3;
+    const limX = Math.max(0, chamber.halfX - MARGIN);
+    const limZ = Math.max(0, chamber.halfZ - MARGIN);
     for (let i = 0; i < packSize; i++) {
       const jx = (rng() - 0.5) * 4;
       const jz = (rng() - 0.5) * 4;
       layout.spawns.push({
-        x: best.x + jx,
-        z: best.z + jz,
+        x: chamber.cx + Math.max(-limX, Math.min(limX, best.x + jx - chamber.cx)),
+        z: chamber.cz + Math.max(-limZ, Math.min(limZ, best.z + jz - chamber.cz)),
         packId: `${packIdPrefix}_${p}`,
       });
     }

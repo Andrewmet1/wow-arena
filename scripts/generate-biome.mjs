@@ -50,6 +50,12 @@ const BIOME_FILE = args.includes('--biome') ? args[args.indexOf('--biome') + 1] 
 // 3D vendor should not stop you previewing and approving the pieces — that is
 // the same order the character pipeline works in: concept first, mesh after.
 const CONCEPTS_ONLY = args.includes('--concepts-only');
+// Generate a named subset. A three-piece test costs about a dollar and answers
+// whether pieces mate and whether the style sits with the characters, which is
+// the only question worth asking before funding a full kit.
+const ONLY = args.includes('--only')
+  ? args[args.indexOf('--only') + 1].split(',').map(x => x.trim())
+  : null;
 
 if (BIOME_FILE) {
   // Generate the kit for a biome that already exists, without paying for a new
@@ -64,6 +70,7 @@ if (BIOME_FILE) {
   const budget = new Budget(CAP);
   console.log(`\n  generating kit for ${b.id} via ${PROVIDER || 'default provider'} — $${CAP.toFixed(2)} cap\n`);
   for (const p of b.kit) {
+    if (ONLY && !ONLY.includes(p.id)) continue;
     const glb = path.join(dir, `${p.id}.glb`);
     if (fs.existsSync(glb) && !CONCEPTS_ONLY) { console.log(`  · ${p.id} exists`); continue; }
     try {

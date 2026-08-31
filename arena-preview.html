@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Arena Preview</title>
+<style>
+  :root{--gold:#c9a227;--line:#332b26;--ink:#e8ded4;--dim:#8b7d72}
+  html,body{margin:0;height:100%;background:#0d0b0a;overflow:hidden;font:12px ui-monospace,Menlo,monospace;color:var(--ink)}
+  canvas{display:block;width:100%;height:100%}
+  .panel{position:fixed;background:#14110fee;border:1px solid var(--line);border-radius:4px;padding:10px 12px}
+  #ctl{left:12px;top:12px;width:250px}
+  #hud{left:12px;bottom:12px;font-size:11px;color:var(--dim);line-height:1.7;max-width:420px}
+  h3{margin:0 0 8px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+  button{display:block;width:100%;text-align:left;background:#241f1c;color:var(--ink);border:1px solid var(--line);
+    border-radius:3px;padding:7px 9px;margin-bottom:4px;cursor:pointer;font:inherit;font-size:11px}
+  button:hover{border-color:var(--gold)}
+  button.on{background:var(--gold);color:#1a1512;border-color:var(--gold);font-weight:700}
+  #err{position:fixed;inset:24px;background:#1a0f0d;border:1px solid #5c2e2e;color:#e08b7a;padding:14px;
+    border-radius:4px;display:none;white-space:pre-wrap;overflow:auto;font-size:11px}
+</style></head>
+<body>
+<canvas id="c"></canvas>
+<div class="panel" id="ctl"><h3>Arena Layout</h3><div id="list"></div></div>
+<div class="panel" id="hud">loading…</div>
+<div id="err"></div>
+<script type="module">
+// Renders the real ArenaRenderer against each variant, at the game's dungeon
+// camera, so the layouts can be compared as they will actually be played.
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { SceneManager } from '/src/rendering/SceneManager.js';
+import { ArenaRenderer } from '/src/rendering/ArenaRenderer.js';
+import { ARENA_VARIANTS, VARIANT_IDS } from '/src/arena/ArenaVariants.js';
+
+const errBox = document.getElementById('err');
+const fail = e => { errBox.style.display='block'; errBox.textContent = String(e?.stack || e); };
+window.addEventListener('error', ev => fail(ev.error || ev.message));
+
+const canvas = document.getElementById('c');
+const sm = new SceneManager(canvas);
+await sm.init({});
+const scene = sm.scene, camera = sm.getCamera();
+const orbit = new OrbitControls(camera, canvas);
+orbit.enableDamping = true;
+addEventListener('resize', () => sm.resize());
+
+let arena = null, current = null;
+
+function show(id) {
+  try {
+    const v = ARENA_VARIANTS[id];
+    current = id;
+    if (!arena) arena = new ArenaRenderer(scene);
+    else arena.dispose();
+    arena.build(v);
+
+    // Frame the whole arena from above, roughly the angle it is played at.
+    const r = v.radius;
+    camera.position.set(0, r * 1.5, r * 1.6);
+    orbit.target.set(0, 0, 0); orbit.update();
+
+    document.getElementById('hud').innerHTML =
+      `<b style="color:#c9a227">${v.name}</b> — radius ${v.radius}, ${v.pillars.length} pillars<br>`
+      + `${v.description}<br><span style="color:#8b7d72">drag to orbit · scroll to zoom</span>`;
+    for (const b of document.querySelectorAll('#list button')) b.classList.toggle('on', b.dataset.id === id);
+  } catch (e) { fail(e); }
+}
+
+const list = document.getElementById('list');
+for (const id of VARIANT_IDS) {
+  const v = ARENA_VARIANTS[id];
+  const b = document.createElement('button');
+  b.dataset.id = id;
+  b.innerHTML = `${v.name}<br><span style="color:#8b7d72;font-size:10px">r${v.radius} · ${v.pillars.length} pillars</span>`;
+  b.onclick = () => show(id);
+  list.appendChild(b);
+}
+show(VARIANT_IDS[0]);
+
+let t = 0;
+function frame() {
+  requestAnimationFrame(frame);
+  t += 0.016;
+  orbit.update();
+  try { arena?.update?.(t); } catch {}
+  sm.render();
+}
+frame();
+</script></body></html>
